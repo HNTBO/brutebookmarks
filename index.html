@@ -1,79 +1,649 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>My Bookmarks Dashboard</title>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Dial Dashboard</title>
     <style>
-      body {
-        font-family: sans-serif;
-        background: #f6f6f6;
-        color: #222;
-        margin: 0;
-      }
-      h1 {
-        text-align: center;
-        margin: 1em 0;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 24px;
-        padding: 2em;
-        max-width: 1000px;
-        margin: 0 auto;
-      }
-      .tile {
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 4px 24px #0001;
-        padding: 2em 1em;
-        text-align: center;
-        transition: box-shadow 0.15s;
-      }
-      .tile:hover {
-        box-shadow: 0 6px 32px #0003;
-      }
-      button {
-        background: #1976d2;
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        padding: 0.7em 2em;
-        font-size: 1em;
-        margin-top: 1em;
-        cursor: pointer;
-        transition: background 0.15s;
-      }
-      button:hover {
-        background: #1565c0;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>My Bookmarks</h1>
-    <div class="grid">
-      <div class="tile"><b>Clockify</b><br><button onclick="window.open('https://app.clockify.me')">Open</button></div>
-      <div class="tile"><b>Fmotion</b><br><button onclick="window.open('https://fmotion.fr')">Open</button></div>
-      <div class="tile"><b>Todoist</b><br><button onclick="window.open('https://todoist.com')">Open</button></div>
-      <div class="tile"><b>ChatGPT</b><br><button onclick="window.open('https://chat.openai.com')">Open</button></div>
-      <div class="tile"><b>MyFitnessPal</b><br><button onclick="window.open('https://www.myfitnesspal.com')">Open</button></div>
-      <div class="tile"><b>Notion</b><br><button onclick="window.open('https://www.notion.so')">Open</button></div>
-      <div class="tile"><b>Gmail</b><br><button onclick="window.open('https://mail.google.com')">Open</button></div>
-      <div class="tile"><b>YouTube</b><br><button onclick="window.open('https://www.youtube.com')">Open</button></div>
-      <div class="tile"><b>YouTube Studio (placeholder)</b><br><button onclick="window.open('#')">Open</button></div>
-      <div class="tile"><b>Google Translate</b><br><button onclick="window.open('https://translate.google.com')">Open</button></div>
-      <div class="tile"><b>Google Maps</b><br><button onclick="window.open('https://maps.google.com')">Open</button></div>
-      <div class="tile"><b>Google Calendar</b><br><button onclick="window.open('https://calendar.google.com')">Open</button></div>
-      <div class="tile"><b>Google Photos</b><br><button onclick="window.open('https://photos.google.com')">Open</button></div>
-      <div class="tile"><b>Google Drive</b><br><button onclick="window.open('https://drive.google.com')">Open</button></div>
-      <div class="tile"><b>OneDrive</b><br><button onclick="window.open('https://onedrive.live.com')">Open</button></div>
-      <div class="tile"><b>iCloud</b><br><button onclick="window.open('https://www.icloud.com')">Open</button></div>
-      <div class="tile"><b>Gemini</b><br><button onclick="window.open('https://gemini.google.com')">Open</button></div>
-      <div class="tile"><b>Wikipedia</b><br><button onclick="window.open('https://wikipedia.org')">Open</button></div>
-      <div class="tile"><b>TypingClub</b><br><button onclick="window.open('https://www.typingclub.com')">Open</button></div>
-      <div class="tile"><b>Boursorama</b><br><button onclick="window.open('https://boursorama.com')">Open</button></div>
-      <div class="tile"><b>NuPhy</b><br><button onclick="window.open('https://nuphy.com')">Open</button></div>
-    </div>
-  </body>
-</html>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: white;
+        }
+
+        .category {
+            margin-bottom: 50px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+
+        .category-title {
+            font-size: 1.5em;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bookmarks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .bookmark-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bookmark-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            background: white;
+        }
+
+        .bookmark-card.add-bookmark {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .bookmark-card.add-bookmark:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .bookmark-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .bookmark-title {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
+        }
+
+        .plus-icon {
+            font-size: 48px;
+            color: white;
+            font-weight: 300;
+            line-height: 1;
+        }
+
+        .add-bookmark-text {
+            color: white;
+            font-size: 13px;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-size: 16px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bookmark-card:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: #ee5a6f;
+            transform: scale(1.1);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.cancel {
+            background: #e0e0e0;
+            color: #555;
+        }
+
+        .modal-btn.cancel:hover {
+            background: #d0d0d0;
+        }
+
+        .modal-btn.save {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-btn.save:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>My Speed Dial</h1>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="openAddCategoryModal()">+ Add Category</button>
+                <button class="btn" onclick="exportData()">Export Data</button>
+                <button class="btn" onclick="importData()">Import Data</button>
+            </div>
+        </header>
+
+        <div id="categories-container">
+            <!-- Categories will be rendered here -->
+        </div>
+    </div>
+
+    <!-- Add/Edit Bookmark Modal -->
+    <div id="bookmark-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="bookmark-modal-title">Add Bookmark</h2>
+            </div>
+            <form id="bookmark-form" onsubmit="saveBookmark(event)">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="bookmark-title" required placeholder="e.g., Google">
+                </div>
+                <div class="form-group">
+                    <label>URL</label>
+                    <input type="url" id="bookmark-url" required placeholder="https://example.com">
+                </div>
+                <input type="hidden" id="bookmark-category-id">
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn cancel" onclick="closeBookmarkModal()">Cancel</button>
+                    <button type="submit" class="modal-btn save">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Category</h2>
+            </div>
+            <form id="category-form" onsubmit="saveCategory(event)">
+                <div class="form-group">
+                    <label>Category Name</label>
+                    <input type="text" id="category-name" required placeholder="e.g., Work, Social, Tools">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn cancel" onclick="closeCategoryModal()">Cancel</button>
+                    <button type="submit" class="modal-btn save">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Data structure
+        let categories = [];
+
+        // Initialize with default data
+        function initializeData() {
+            const savedData = localStorage.getItem('speedDialData');
+            if (savedData) {
+                categories = JSON.parse(savedData);
+            } else {
+                // Default categories with existing bookmarks
+                categories = [
+                    {
+                        id: 'productivity',
+                        name: 'Productivity',
+                        bookmarks: [
+                            { id: 'b1', title: 'Clockify', url: 'https://app.clockify.me' },
+                            { id: 'b2', title: 'Todoist', url: 'https://todoist.com' },
+                            { id: 'b3', title: 'Notion', url: 'https://www.notion.so' },
+                            { id: 'b4', title: 'TypingClub', url: 'https://www.typingclub.com' }
+                        ]
+                    },
+                    {
+                        id: 'google',
+                        name: 'Google Services',
+                        bookmarks: [
+                            { id: 'g1', title: 'Gmail', url: 'https://mail.google.com' },
+                            { id: 'g2', title: 'Google Drive', url: 'https://drive.google.com' },
+                            { id: 'g3', title: 'Google Calendar', url: 'https://calendar.google.com' },
+                            { id: 'g4', title: 'Google Photos', url: 'https://photos.google.com' },
+                            { id: 'g5', title: 'Google Maps', url: 'https://maps.google.com' },
+                            { id: 'g6', title: 'Google Translate', url: 'https://translate.google.com' }
+                        ]
+                    },
+                    {
+                        id: 'ai',
+                        name: 'AI Tools',
+                        bookmarks: [
+                            { id: 'ai1', title: 'ChatGPT', url: 'https://chat.openai.com' },
+                            { id: 'ai2', title: 'Gemini', url: 'https://gemini.google.com' }
+                        ]
+                    },
+                    {
+                        id: 'media',
+                        name: 'Media & Entertainment',
+                        bookmarks: [
+                            { id: 'm1', title: 'YouTube', url: 'https://www.youtube.com' },
+                            { id: 'm2', title: 'YouTube Studio', url: 'https://studio.youtube.com' }
+                        ]
+                    },
+                    {
+                        id: 'other',
+                        name: 'Other Services',
+                        bookmarks: [
+                            { id: 'o1', title: 'Fmotion', url: 'https://fmotion.fr' },
+                            { id: 'o2', title: 'MyFitnessPal', url: 'https://www.myfitnesspal.com' },
+                            { id: 'o3', title: 'OneDrive', url: 'https://onedrive.live.com' },
+                            { id: 'o4', title: 'iCloud', url: 'https://www.icloud.com' },
+                            { id: 'o5', title: 'Wikipedia', url: 'https://wikipedia.org' },
+                            { id: 'o6', title: 'Boursorama', url: 'https://boursorama.com' },
+                            { id: 'o7', title: 'NuPhy', url: 'https://nuphy.com' }
+                        ]
+                    }
+                ];
+                saveData();
+            }
+            renderCategories();
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('speedDialData', JSON.stringify(categories));
+        }
+
+        // Get favicon URL
+        function getFaviconUrl(url) {
+            try {
+                const domain = new URL(url).hostname;
+                return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+            } catch {
+                return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="50" font-size="50">🔖</text></svg>';
+            }
+        }
+
+        // Render all categories
+        function renderCategories() {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = '';
+
+            if (categories.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No categories yet</h3>
+                        <p>Click "Add Category" to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            categories.forEach(category => {
+                const categoryEl = document.createElement('div');
+                categoryEl.className = 'category';
+                categoryEl.innerHTML = `
+                    <div class="category-header">
+                        <div class="category-title">${category.name}</div>
+                        <div class="category-actions">
+                            <button class="btn" onclick="deleteCategory('${category.id}')">Delete Category</button>
+                        </div>
+                    </div>
+                    <div class="bookmarks-grid">
+                        ${category.bookmarks.map(bookmark => `
+                            <div class="bookmark-card" onclick="openBookmark('${bookmark.url}')">
+                                <button class="delete-btn" onclick="event.stopPropagation(); deleteBookmark('${category.id}', '${bookmark.id}')">×</button>
+                                <img class="bookmark-icon" src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%2250%22 font-size=%2250%22>🔖</text></svg>'">
+                                <div class="bookmark-title">${bookmark.title}</div>
+                            </div>
+                        `).join('')}
+                        <div class="bookmark-card add-bookmark" onclick="openAddBookmarkModal('${category.id}')">
+                            <div class="plus-icon">+</div>
+                            <div class="add-bookmark-text">Add Bookmark</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(categoryEl);
+            });
+        }
+
+        // Open bookmark in new tab
+        function openBookmark(url) {
+            window.open(url, '_blank');
+        }
+
+        // Modal functions
+        function openAddBookmarkModal(categoryId) {
+            document.getElementById('bookmark-modal-title').textContent = 'Add Bookmark';
+            document.getElementById('bookmark-title').value = '';
+            document.getElementById('bookmark-url').value = '';
+            document.getElementById('bookmark-category-id').value = categoryId;
+            document.getElementById('bookmark-modal').classList.add('active');
+        }
+
+        function closeBookmarkModal() {
+            document.getElementById('bookmark-modal').classList.remove('active');
+        }
+
+        function openAddCategoryModal() {
+            document.getElementById('category-name').value = '';
+            document.getElementById('category-modal').classList.add('active');
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('category-modal').classList.remove('active');
+        }
+
+        // Save bookmark
+        function saveBookmark(event) {
+            event.preventDefault();
+            const title = document.getElementById('bookmark-title').value;
+            const url = document.getElementById('bookmark-url').value;
+            const categoryId = document.getElementById('bookmark-category-id').value;
+
+            const category = categories.find(c => c.id === categoryId);
+            if (category) {
+                const newBookmark = {
+                    id: 'b' + Date.now(),
+                    title,
+                    url
+                };
+                category.bookmarks.push(newBookmark);
+                saveData();
+                renderCategories();
+                closeBookmarkModal();
+            }
+        }
+
+        // Save category
+        function saveCategory(event) {
+            event.preventDefault();
+            const name = document.getElementById('category-name').value;
+
+            const newCategory = {
+                id: 'c' + Date.now(),
+                name,
+                bookmarks: []
+            };
+            categories.push(newCategory);
+            saveData();
+            renderCategories();
+            closeCategoryModal();
+        }
+
+        // Delete bookmark
+        function deleteBookmark(categoryId, bookmarkId) {
+            const category = categories.find(c => c.id === categoryId);
+            if (category && confirm('Delete this bookmark?')) {
+                category.bookmarks = category.bookmarks.filter(b => b.id !== bookmarkId);
+                saveData();
+                renderCategories();
+            }
+        }
+
+        // Delete category
+        function deleteCategory(categoryId) {
+            if (confirm('Delete this entire category and all its bookmarks?')) {
+                categories = categories.filter(c => c.id !== categoryId);
+                saveData();
+                renderCategories();
+            }
+        }
+
+        // Export data
+        function exportData() {
+            const dataStr = JSON.stringify(categories, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'speed-dial-backup.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Import data
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            if (confirm('This will replace all current data. Continue?')) {
+                                categories = importedData;
+                                saveData();
+                                renderCategories();
+                                alert('Data imported successfully!');
+                            }
+                        } catch (error) {
+                            alert('Error importing data. Please check the file format.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('bookmark-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'bookmark-modal') closeBookmarkModal();
+        });
+
+        document.getElementById('category-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'category-modal') closeCategoryModal();
+        });
+
+        // Initialize on load
+        initializeData();
+    </script>
+</body>
+</html>
