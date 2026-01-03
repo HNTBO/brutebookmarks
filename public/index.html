@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Dial Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: white;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .category {
+            margin-bottom: 50px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+
+        .category-title {
+            font-size: 1.5em;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bookmarks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .bookmark-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bookmark-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            background: white;
+        }
+
+        .bookmark-card.add-bookmark {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .bookmark-card.add-bookmark:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .bookmark-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .bookmark-title {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
+        }
+
+        .plus-icon {
+            font-size: 48px;
+            color: white;
+            font-weight: 300;
+            line-height: 1;
+        }
+
+        .add-bookmark-text {
+            color: white;
+            font-size: 13px;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-size: 16px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bookmark-card:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: #ee5a6f;
+            transform: scale(1.1);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .icon-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .icon-section h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .icon-preview {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .icon-preview-img {
+            width: 64px;
+            height: 64px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: white;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .icon-preview-info {
+            flex: 1;
+        }
+
+        .icon-preview-info p {
+            color: #666;
+            font-size: 14px;
+            margin: 4px 0;
+        }
+
+        .icon-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .icon-search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .icon-search-box input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .icon-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .icon-result {
+            aspect-ratio: 1;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+        }
+
+        .icon-result:hover {
+            border-color: #667eea;
+            transform: scale(1.05);
+        }
+
+        .icon-result.selected {
+            border-color: #667eea;
+            border-width: 3px;
+            background: #f0f4ff;
+        }
+
+        .icon-result img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.cancel {
+            background: #e0e0e0;
+            color: #555;
+        }
+
+        .modal-btn.cancel:hover {
+            background: #d0d0d0;
+        }
+
+        .modal-btn.save {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-btn.save:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>My Speed Dial</h1>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="openAddCategoryModal()">+ Add Category</button>
+                <button class="btn" onclick="exportData()">Export Data</button>
+                <button class="btn" onclick="importData()">Import Data</button>
+            </div>
+        </header>
+
+        <div id="categories-container">
+            <!-- Categories will be rendered here -->
+        </div>
+    </div>
+
+    <!-- Add/Edit Bookmark Modal -->
+    <div id="bookmark-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="bookmark-modal-title">Add Bookmark</h2>
+            </div>
+            <form id="bookmark-form" onsubmit="saveBookmark(event)">
+                <div class="form-group">
+                    <label>Custom Name</label>
+                    <input type="text" id="bookmark-title" required placeholder="e.g., Google, YouTube, My Blog">
+                </div>
+                <div class="form-group">
+                    <label>URL</label>
+                    <input type="url" id="bookmark-url" required placeholder="https://example.com" onchange="handleUrlChange()">
+                </div>
+
+                <div class="icon-section">
+                    <h3>Icon</h3>
+
+                    <div class="icon-preview" id="icon-preview">
+                        <img class="icon-preview-img" id="preview-icon" src="" alt="Icon preview">
+                        <div class="icon-preview-info">
+                            <p id="icon-source">No icon selected</p>
+                        </div>
+                    </div>
+
+                    <div class="icon-options">
+                        <button type="button" class="btn btn-small" onclick="useFavicon()">Use Favicon</button>
+                        <button type="button" class="btn btn-small" onclick="toggleIconSearch()">Search Wikimedia</button>
+                        <button type="button" class="btn btn-small" onclick="document.getElementById('custom-icon-input').click()">Upload Custom</button>
+                    </div>
+
+                    <!-- Icon Search -->
+                    <div id="icon-search-container" style="display: none;">
+                        <div class="icon-search-box">
+                            <input type="text" id="icon-search-query" placeholder="Search for logo or icon...">
+                            <button type="button" class="btn btn-small" onclick="searchIcons()">Search</button>
+                        </div>
+                        <div id="icon-search-loading" class="loading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Searching Wikimedia Commons...</p>
+                        </div>
+                        <div id="icon-results" class="icon-results"></div>
+                    </div>
+
+                    <!-- Custom Upload -->
+                    <div class="upload-area" id="upload-area" onclick="document.getElementById('custom-icon-input').click()">
+                        <p>Drop an image here or click to upload</p>
+                        <input type="file" id="custom-icon-input" accept="image/*" onchange="uploadCustomIcon(event)">
+                    </div>
+                </div>
+
+                <input type="hidden" id="bookmark-category-id">
+                <input type="hidden" id="bookmark-icon-path">
+
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn cancel" onclick="closeBookmarkModal()">Cancel</button>
+                    <button type="submit" class="modal-btn save">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Category</h2>
+            </div>
+            <form id="category-form" onsubmit="saveCategory(event)">
+                <div class="form-group">
+                    <label>Category Name</label>
+                    <input type="text" id="category-name" required placeholder="e.g., Work, Social, Tools">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn cancel" onclick="closeCategoryModal()">Cancel</button>
+                    <button type="submit" class="modal-btn save">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // API base URL - change this in production
+        const API_BASE = window.location.origin;
+
+        // Data structure
+        let categories = [];
+        let selectedIconUrl = null;
+        let selectedIconPath = null;
+
+        // Initialize with default data
+        function initializeData() {
+            const savedData = localStorage.getItem('speedDialData');
+            if (savedData) {
+                categories = JSON.parse(savedData);
+            } else {
+                // Default categories with existing bookmarks
+                categories = [
+                    {
+                        id: 'productivity',
+                        name: 'Productivity',
+                        bookmarks: [
+                            { id: 'b1', title: 'Clockify', url: 'https://app.clockify.me', iconPath: null },
+                            { id: 'b2', title: 'Todoist', url: 'https://todoist.com', iconPath: null },
+                            { id: 'b3', title: 'Notion', url: 'https://www.notion.so', iconPath: null },
+                            { id: 'b4', title: 'TypingClub', url: 'https://www.typingclub.com', iconPath: null }
+                        ]
+                    },
+                    {
+                        id: 'google',
+                        name: 'Google Services',
+                        bookmarks: [
+                            { id: 'g1', title: 'Gmail', url: 'https://mail.google.com', iconPath: null },
+                            { id: 'g2', title: 'Google Drive', url: 'https://drive.google.com', iconPath: null },
+                            { id: 'g3', title: 'Google Calendar', url: 'https://calendar.google.com', iconPath: null },
+                            { id: 'g4', title: 'Google Photos', url: 'https://photos.google.com', iconPath: null }
+                        ]
+                    },
+                    {
+                        id: 'ai',
+                        name: 'AI Tools',
+                        bookmarks: [
+                            { id: 'ai1', title: 'ChatGPT', url: 'https://chat.openai.com', iconPath: null },
+                            { id: 'ai2', title: 'Gemini', url: 'https://gemini.google.com', iconPath: null }
+                        ]
+                    }
+                ];
+                saveData();
+            }
+            renderCategories();
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('speedDialData', JSON.stringify(categories));
+        }
+
+        // Get icon URL
+        function getIconUrl(bookmark) {
+            if (bookmark.iconPath) {
+                return bookmark.iconPath;
+            }
+            // Fallback to favicon
+            try {
+                const domain = new URL(bookmark.url).hostname;
+                return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+            } catch {
+                return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="50" font-size="50">🔖</text></svg>';
+            }
+        }
+
+        // Render all categories
+        function renderCategories() {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = '';
+
+            if (categories.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No categories yet</h3>
+                        <p>Click "Add Category" to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            categories.forEach(category => {
+                const categoryEl = document.createElement('div');
+                categoryEl.className = 'category';
+                categoryEl.innerHTML = `
+                    <div class="category-header">
+                        <div class="category-title">${category.name}</div>
+                        <div class="category-actions">
+                            <button class="btn" onclick="deleteCategory('${category.id}')">Delete Category</button>
+                        </div>
+                    </div>
+                    <div class="bookmarks-grid">
+                        ${category.bookmarks.map(bookmark => `
+                            <div class="bookmark-card" onclick="openBookmark('${bookmark.url}')">
+                                <button class="delete-btn" onclick="event.stopPropagation(); deleteBookmark('${category.id}', '${bookmark.id}')">×</button>
+                                <img class="bookmark-icon" src="${getIconUrl(bookmark)}" alt="${bookmark.title}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%2250%22 font-size=%2250%22>🔖</text></svg>'">
+                                <div class="bookmark-title">${bookmark.title}</div>
+                            </div>
+                        `).join('')}
+                        <div class="bookmark-card add-bookmark" onclick="openAddBookmarkModal('${category.id}')">
+                            <div class="plus-icon">+</div>
+                            <div class="add-bookmark-text">Add Bookmark</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(categoryEl);
+            });
+        }
+
+        // Open bookmark in new tab
+        function openBookmark(url) {
+            window.open(url, '_blank');
+        }
+
+        // Modal functions
+        function openAddBookmarkModal(categoryId) {
+            document.getElementById('bookmark-modal-title').textContent = 'Add Bookmark';
+            document.getElementById('bookmark-title').value = '';
+            document.getElementById('bookmark-url').value = '';
+            document.getElementById('bookmark-category-id').value = categoryId;
+            document.getElementById('bookmark-icon-path').value = '';
+            document.getElementById('preview-icon').src = '';
+            document.getElementById('icon-source').textContent = 'No icon selected';
+            document.getElementById('icon-search-container').style.display = 'none';
+            document.getElementById('icon-results').innerHTML = '';
+            selectedIconUrl = null;
+            selectedIconPath = null;
+            document.getElementById('bookmark-modal').classList.add('active');
+        }
+
+        function closeBookmarkModal() {
+            document.getElementById('bookmark-modal').classList.remove('active');
+        }
+
+        function openAddCategoryModal() {
+            document.getElementById('category-name').value = '';
+            document.getElementById('category-modal').classList.add('active');
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('category-modal').classList.remove('active');
+        }
+
+        // Icon handling functions
+        async function handleUrlChange() {
+            const url = document.getElementById('bookmark-url').value;
+            if (url && !selectedIconPath) {
+                // Auto-suggest using favicon
+                try {
+                    const domain = new URL(url).hostname;
+                    document.getElementById('preview-icon').src = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+                    document.getElementById('icon-source').textContent = 'Suggested favicon (click "Use Favicon" to cache)';
+                } catch (e) {
+                    // Invalid URL
+                }
+            }
+        }
+
+        async function useFavicon() {
+            const url = document.getElementById('bookmark-url').value;
+            if (!url) {
+                alert('Please enter a URL first');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/get-favicon`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    selectedIconPath = data.iconPath;
+                    document.getElementById('preview-icon').src = data.iconPath;
+                    document.getElementById('icon-source').textContent = data.cached ? 'Favicon (cached)' : 'Favicon (downloaded)';
+                    document.getElementById('bookmark-icon-path').value = data.iconPath;
+                }
+            } catch (error) {
+                console.error('Error fetching favicon:', error);
+                alert('Failed to fetch favicon');
+            }
+        }
+
+        function toggleIconSearch() {
+            const container = document.getElementById('icon-search-container');
+            container.style.display = container.style.display === 'none' ? 'block' : 'none';
+
+            if (container.style.display === 'block') {
+                const title = document.getElementById('bookmark-title').value;
+                const url = document.getElementById('bookmark-url').value;
+                let searchQuery = title;
+
+                if (!searchQuery && url) {
+                    try {
+                        searchQuery = new URL(url).hostname.split('.')[0];
+                    } catch (e) {}
+                }
+
+                if (searchQuery) {
+                    document.getElementById('icon-search-query').value = searchQuery;
+                }
+            }
+        }
+
+        async function searchIcons() {
+            const query = document.getElementById('icon-search-query').value;
+            if (!query) {
+                alert('Please enter a search term');
+                return;
+            }
+
+            const loadingEl = document.getElementById('icon-search-loading');
+            const resultsEl = document.getElementById('icon-results');
+
+            loadingEl.style.display = 'block';
+            resultsEl.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search-icons?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                loadingEl.style.display = 'none';
+
+                if (data.icons && data.icons.length > 0) {
+                    resultsEl.innerHTML = data.icons.map((icon, index) => `
+                        <div class="icon-result" onclick="selectWikimediaIcon('${icon.thumbUrl}', '${icon.title}', ${index})">
+                            <img src="${icon.thumbUrl}" alt="${icon.title}">
+                        </div>
+                    `).join('');
+                } else {
+                    resultsEl.innerHTML = '<p style="color: #666; padding: 20px; text-align: center;">No icons found. Try a different search term.</p>';
+                }
+            } catch (error) {
+                console.error('Error searching icons:', error);
+                loadingEl.style.display = 'none';
+                resultsEl.innerHTML = '<p style="color: #f44; padding: 20px; text-align: center;">Error searching for icons</p>';
+            }
+        }
+
+        async function selectWikimediaIcon(url, title, index) {
+            // Update selection visually
+            document.querySelectorAll('.icon-result').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.icon-result')[index].classList.add('selected');
+
+            // Show loading
+            document.getElementById('icon-source').textContent = 'Downloading icon...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/download-icon`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, source: 'wikimedia' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    selectedIconPath = data.iconPath;
+                    document.getElementById('preview-icon').src = data.iconPath;
+                    document.getElementById('icon-source').textContent = `Wikimedia: ${title.substring(0, 30)}...`;
+                    document.getElementById('bookmark-icon-path').value = data.iconPath;
+                }
+            } catch (error) {
+                console.error('Error downloading icon:', error);
+                alert('Failed to download icon');
+            }
+        }
+
+        async function uploadCustomIcon(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('icon', file);
+
+            document.getElementById('icon-source').textContent = 'Uploading...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/upload-icon`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    selectedIconPath = data.iconPath;
+                    document.getElementById('preview-icon').src = data.iconPath;
+                    document.getElementById('icon-source').textContent = `Custom: ${file.name}`;
+                    document.getElementById('bookmark-icon-path').value = data.iconPath;
+                }
+            } catch (error) {
+                console.error('Error uploading icon:', error);
+                alert('Failed to upload icon');
+            }
+        }
+
+        // Drag and drop for upload area
+        const uploadArea = document.getElementById('upload-area');
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const input = document.getElementById('custom-icon-input');
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                input.files = dataTransfer.files;
+                uploadCustomIcon({ target: input });
+            }
+        });
+
+        // Save bookmark
+        function saveBookmark(event) {
+            event.preventDefault();
+            const title = document.getElementById('bookmark-title').value;
+            const url = document.getElementById('bookmark-url').value;
+            const categoryId = document.getElementById('bookmark-category-id').value;
+            const iconPath = document.getElementById('bookmark-icon-path').value || null;
+
+            const category = categories.find(c => c.id === categoryId);
+            if (category) {
+                const newBookmark = {
+                    id: 'b' + Date.now(),
+                    title,
+                    url,
+                    iconPath
+                };
+                category.bookmarks.push(newBookmark);
+                saveData();
+                renderCategories();
+                closeBookmarkModal();
+            }
+        }
+
+        // Save category
+        function saveCategory(event) {
+            event.preventDefault();
+            const name = document.getElementById('category-name').value;
+
+            const newCategory = {
+                id: 'c' + Date.now(),
+                name,
+                bookmarks: []
+            };
+            categories.push(newCategory);
+            saveData();
+            renderCategories();
+            closeCategoryModal();
+        }
+
+        // Delete bookmark
+        function deleteBookmark(categoryId, bookmarkId) {
+            const category = categories.find(c => c.id === categoryId);
+            if (category && confirm('Delete this bookmark?')) {
+                category.bookmarks = category.bookmarks.filter(b => b.id !== bookmarkId);
+                saveData();
+                renderCategories();
+            }
+        }
+
+        // Delete category
+        function deleteCategory(categoryId) {
+            if (confirm('Delete this entire category and all its bookmarks?')) {
+                categories = categories.filter(c => c.id !== categoryId);
+                saveData();
+                renderCategories();
+            }
+        }
+
+        // Export data
+        function exportData() {
+            const dataStr = JSON.stringify(categories, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'speed-dial-backup.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Import data
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            if (confirm('This will replace all current data. Continue?')) {
+                                categories = importedData;
+                                saveData();
+                                renderCategories();
+                                alert('Data imported successfully!');
+                            }
+                        } catch (error) {
+                            alert('Error importing data. Please check the file format.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('bookmark-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'bookmark-modal') closeBookmarkModal();
+        });
+
+        document.getElementById('category-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'category-modal') closeCategoryModal();
+        });
+
+        // Initialize on load
+        initializeData();
+    </script>
+</body>
+</html>
