@@ -499,24 +499,25 @@
         /* Delete button */
         .delete-btn {
             position: absolute;
-            top: var(--space-sm);
-            right: var(--space-sm);
-            width: 24px;
-            height: 24px;
+            top: 4px;
+            right: 4px;
+            width: 20px;
+            height: 20px;
             background: var(--bg-primary);
             border: 1px solid var(--border);
             color: var(--text-muted);
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: all 0.2s ease;
+            transition: opacity 0.2s ease, background 0.2s ease;
             z-index: 10;
         }
 
-        .bookmark-card:hover .delete-btn {
+        .bookmark-card:hover .delete-btn,
+        .delete-btn:hover {
             opacity: 1;
         }
 
@@ -524,8 +525,6 @@
             background: var(--danger);
             border-color: var(--danger);
             color: white;
-            transform: translate(-2px, -2px);
-            box-shadow: 2px 2px 0 var(--danger-dim);
         }
 
         /* Modal - Stark overlay */
@@ -1040,24 +1039,25 @@
         /* Edit button */
         .edit-btn {
             position: absolute;
-            top: var(--space-sm);
-            right: 36px;
-            width: 24px;
-            height: 24px;
+            top: 4px;
+            right: 28px;
+            width: 20px;
+            height: 20px;
             background: var(--bg-primary);
             border: 1px solid var(--border);
             color: var(--text-muted);
             cursor: pointer;
-            font-size: 12px;
+            font-size: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: all 0.2s ease;
+            transition: opacity 0.2s ease, background 0.2s ease;
             z-index: 10;
         }
 
-        .bookmark-card:hover .edit-btn {
+        .bookmark-card:hover .edit-btn,
+        .edit-btn:hover {
             opacity: 1;
         }
 
@@ -1065,8 +1065,6 @@
             background: var(--accent);
             border-color: var(--accent);
             color: var(--bg-primary);
-            transform: translate(-2px, -2px);
-            box-shadow: 2px 2px 0 var(--accent-dim);
         }
 
 
@@ -1138,6 +1136,7 @@
                         <div class="icon-options">
                             <button type="button" class="btn btn-small" onclick="useFavicon()">Use Favicon</button>
                             <button type="button" class="btn btn-small" onclick="toggleIconSearch()">Search Wikimedia</button>
+                            <button type="button" class="btn btn-small" onclick="toggleEmojiSearch()">Use Emoji</button>
                             <button type="button" class="btn btn-small" onclick="document.getElementById('custom-icon-input').click()">Upload Custom</button>
                         </div>
 
@@ -1152,6 +1151,14 @@
                                 <p>Searching Wikimedia Commons...</p>
                             </div>
                             <div id="icon-results" class="icon-results"></div>
+                        </div>
+
+                        <!-- Emoji Search -->
+                        <div id="emoji-search-container" style="display: none;">
+                            <div class="icon-search-box">
+                                <input type="text" id="emoji-search-query" placeholder="Search emoji (home, work, star...)" oninput="searchEmojis()">
+                            </div>
+                            <div id="emoji-results" class="icon-results"></div>
                         </div>
 
                         <!-- Custom Upload -->
@@ -1959,6 +1966,73 @@
             } catch (error) {
                 console.error('Error downloading icon:', error);
                 alert('Failed to download icon');
+            }
+        }
+
+        function toggleEmojiSearch() {
+            const container = document.getElementById('emoji-search-container');
+            const iconContainer = document.getElementById('icon-search-container');
+            
+            // Hide wikimedia search if open
+            iconContainer.style.display = 'none';
+            
+            container.style.display = container.style.display === 'none' ? 'block' : 'none';
+        }
+
+        let emojiSearchTimeout;
+        async function searchEmojis() {
+            const query = document.getElementById('emoji-search-query').value;
+            if (!query || query.length < 2) {
+                document.getElementById('emoji-results').innerHTML = '';
+                return;
+            }
+
+            // Debounce the search
+            clearTimeout(emojiSearchTimeout);
+            emojiSearchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/search-emojis?query=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+
+                    const resultsEl = document.getElementById('emoji-results');
+                    
+                    if (data.emojis && data.emojis.length > 0) {
+                        resultsEl.innerHTML = data.emojis.map((emoji, index) => `
+                            <div class="icon-result" onclick="selectEmoji('${emoji.code}', '${emoji.keyword}', ${index})">
+                                <img src="${emoji.thumbUrl}" alt="${emoji.keyword}">
+                            </div>
+                        `).join('');
+                    } else {
+                        resultsEl.innerHTML = '<p style="color: var(--text-muted); padding: 20px; text-align: center; grid-column: 1/-1;">No emojis found</p>';
+                    }
+                } catch (error) {
+                    console.error('Error searching emojis:', error);
+                }
+            }, 300);
+        }
+
+        async function selectEmoji(code, keyword, index) {
+            document.querySelectorAll('#emoji-results .icon-result').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('#emoji-results .icon-result')[index].classList.add('selected');
+            document.getElementById('icon-source').textContent = 'Downloading emoji...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/download-emoji`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    selectedIconPath = data.iconPath;
+                    document.getElementById('preview-icon').src = data.iconPath;
+                    document.getElementById('icon-source').textContent = `Emoji: ${keyword}`;
+                    document.getElementById('bookmark-icon-path').value = data.iconPath;
+                }
+            } catch (error) {
+                console.error('Error downloading emoji:', error);
+                alert('Failed to download emoji');
             }
         }
 
