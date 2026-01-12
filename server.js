@@ -7,14 +7,31 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const cors = require('cors');
 
+// Authentication
+require('dotenv').config();
+const { setupClerkMiddleware, protectApiRoutes } = require('./middleware/clerk-auth');
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 app.use('/icons', express.static('icons'));
+
+// Clerk authentication middleware
+setupClerkMiddleware(app);
+
+// ============ CONFIG ENDPOINT (PUBLIC) ============
+app.get('/api/config', (req, res) => {
+  res.json({
+    clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY || null,
+  });
+});
+
+// ============ API ROUTE PROTECTION ============
+app.use('/api', protectApiRoutes);
 
 // Ensure icons directory exists
 const ICONS_DIR = path.join(__dirname, 'icons');

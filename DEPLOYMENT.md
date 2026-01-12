@@ -151,7 +151,7 @@ User Browser
      ↓
   Proxy Pass
      ↓
-Node.js/Express (3000)
+Node.js/Express (3002)
      ↓
   ├── Static Files (public/)
   ├── API Endpoints
@@ -202,7 +202,7 @@ sudo systemctl restart bookmarks
 
 ### Port Configuration
 
-Default port is 3000. To change:
+Default port is 3002. To change:
 
 **Option 1: Environment variable**
 ```bash
@@ -219,7 +219,7 @@ sudo systemctl restart bookmarks
 
 **Option 2: Edit server.js**
 ```javascript
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 ```
 
 ### Node Environment
@@ -349,7 +349,7 @@ sudo systemctl status bookmarks
 ps aux | grep node
 
 # Port usage
-sudo netstat -tlnp | grep 3000
+sudo netstat -tlnp | grep 3002
 ```
 
 ## Backup and Restore
@@ -412,7 +412,7 @@ sudo systemctl restart bookmarks
 
    location /api/ {
        limit_req zone=api burst=20;
-       proxy_pass http://localhost:3000;
+       proxy_pass http://localhost:3002;
    }
    ```
 
@@ -493,7 +493,7 @@ location / {
 For issues:
 1. Check logs: `journalctl -u bookmarks -n 100`
 2. Verify configuration: `nginx -t`
-3. Test connectivity: `curl localhost:3000`
+3. Test connectivity: `curl localhost:3002`
 4. Review README.md for troubleshooting
 5. Check GitHub issues
 
