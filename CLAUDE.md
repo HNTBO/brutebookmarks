@@ -6,43 +6,98 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Brute Bookmarks is a self-hosted bookmark manager with automatic icon fetching. Single-page vanilla JS frontend communicating with an Express backend. Optional Clerk authentication.
+Brute Bookmarks is a self-hosted bookmark manager with automatic icon fetching. TypeScript frontend built with Vite, migrating from Express/file-based storage to Convex for real-time cross-device sync. Optional Clerk authentication.
 
 ## Commands
 
 ```bash
-# Development (hot-reload via nodemon)
+# Frontend dev (Vite, port 5173)
 npm run dev
 
-# Production
+# Backend dev (Express, port 3002) — run alongside Vite
+npm run dev:server
+
+# Production build
+npm run build
+
+# Preview production build
+npm run preview
+
+# Production backend
 npm start
 
 # Docker
 docker-compose up --build
 ```
 
-Server runs on `http://localhost:3002` by default.
+Vite dev server proxies `/api/*` and `/icons/*` to Express on port 3002.
 
 ## Architecture
 
-### Frontend (`public/index.html`)
-- Single HTML file with embedded CSS and JavaScript (~2300 lines)
-- Data stored in browser `localStorage` key: `speedDialData`
-- Syncs to backend via `/api/data` endpoint
-- Auth handled by `public/js/auth.js` (Clerk SDK) and `public/js/auth-fetch.js` (token injection)
+### Frontend (Vite + TypeScript)
 
-### Backend (`server.js`)
-- Express server handling icon fetching, caching, and data persistence
+Entry point: `index.html` -> `src/main.ts`
+
+```
+src/
+  main.ts                    # Entry: init CSS, Clerk, Convex, render app
+  app.ts                     # renderApp(): HTML shell
+  types.ts                   # Category, Bookmark, UserPreferences interfaces
+  styles/main.css            # All CSS (extracted from legacy monolith)
+  auth/
+    clerk.ts                 # @clerk/clerk-js init + Convex setAuth wiring
+    auth-fetch.ts            # Token-injecting fetch wrapper (transitional)
+  components/
+    header.ts                # 2D size controller
+    categories.ts            # Category list rendering
+    bookmark-card.ts         # Card render + proximity hover
+    icon-picker.ts           # Wikimedia/emoji/upload/favicon search UI
+    modals/
+      bookmark-modal.ts      # Add/edit bookmark
+      category-modal.ts      # Add/edit category
+      settings-modal.ts      # Settings (theme, export/import)
+  data/
+    store.ts                 # Categories state, initializeData, saveData
+    local-storage.ts         # Typed localStorage helpers
+    convex-client.ts         # ConvexClient setup + setAuth
+  features/
+    drag-drop.ts             # All drag & drop handlers
+    theme.ts                 # Toggle, accent color management
+    preferences.ts           # Card size, page width, card names
+  utils/
+    icons.ts                 # getIconUrl() helper
+```
+
+### Convex (real-time backend — in progress)
+
+```
+convex/
+  schema.ts                  # categories, bookmarks, userPreferences tables
+  auth.config.ts             # Clerk JWT issuer config
+  categories.ts              # Stub (TODO: beads-zml)
+  bookmarks.ts               # Stub (TODO: beads-zml)
+  preferences.ts             # Stub (TODO: beads-1ri)
+  icons.ts                   # Stub (TODO: beads-c5h)
+```
+
+Schema uses normalized tables: categories and bookmarks are separate with foreign keys. `float64` ordering for drag-drop reordering.
+
+### Express Backend (`server.js`) — transitional
+
+- Handles icon fetching, caching, and data persistence during migration
 - Icons cached in `/icons/` directory (hash-based filenames)
 - Bookmark data stored in `/data/bookmarks.json`
 - All `/api/*` routes protected by Clerk (except `/api/config`)
+- Will be replaced by Convex functions incrementally
 
-### Authentication (`middleware/clerk-auth.js`)
+### Authentication
+
+- **Frontend**: `@clerk/clerk-js` npm package (src/auth/clerk.ts)
+- **Backend (Express)**: `@clerk/express` middleware (middleware/clerk-auth.js)
+- **Convex**: Clerk JWT template wired via `ConvexClient.setAuth`
 - Optional: runs without auth if `CLERK_SECRET_KEY` is empty
-- `setupClerkMiddleware(app)` - initializes Clerk
-- `protectApiRoutes` - middleware for `/api/*` protection
 
-## Key API Endpoints
+## Key API Endpoints (Express — transitional)
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -59,7 +114,7 @@ Server runs on `http://localhost:3002` by default.
 
 All icons (Wikimedia, favicons, uploads, emojis) go through Sharp:
 1. Download/receive image
-2. Resize to 128×128px (contain mode, transparent background)
+2. Resize to 128x128px (contain mode, transparent background)
 3. Convert to PNG
 4. Save with MD5 hash filename to `/icons/`
 5. Return path like `/icons/abc123.png`
@@ -67,21 +122,24 @@ All icons (Wikimedia, favicons, uploads, emojis) go through Sharp:
 ## Environment Variables
 
 ```env
-CLERK_PUBLISHABLE_KEY=pk_test_...   # Frontend auth (optional)
-CLERK_SECRET_KEY=sk_test_...        # Backend auth (optional)
-PORT=3002                           # Server port
-NODE_ENV=development                # development or production
+CLERK_PUBLISHABLE_KEY=pk_test_...      # Frontend auth (optional)
+CLERK_SECRET_KEY=sk_test_...           # Backend auth (optional)
+VITE_CONVEX_URL=https://...convex.cloud  # Convex deployment URL
+CLERK_JWT_ISSUER_DOMAIN=https://...    # Clerk JWT issuer for Convex
+PORT=3002                              # Express server port
+NODE_ENV=development                   # development or production
 ```
 
 ## Data Storage
 
-- **Bookmarks**: `/data/bookmarks.json` - array of category objects
-- **Icons**: `/icons/` - cached PNG files with hash-based names
-- Both directories auto-created on startup and persisted via Docker volumes
+- **Convex** (target): categories, bookmarks, userPreferences tables
+- **Express/file** (transitional): `/data/bookmarks.json` + `/icons/` cache
+- **localStorage**: `speedDialData` (fallback), theme/accent/cardSize/pageWidth
 
 ## Tech Stack
 
-- **Backend**: Express, Sharp (image processing), Multer (uploads), Axios
-- **Frontend**: Vanilla JS, CSS custom properties for theming
-- **Auth**: Clerk (optional)
+- **Frontend**: TypeScript, Vite, CSS custom properties for theming
+- **Real-time backend**: Convex (schema deployed, CRUD stubs pending)
+- **Transitional backend**: Express, Sharp (image processing), Multer, Axios
+- **Auth**: Clerk (@clerk/clerk-js + @clerk/express)
 - **Deployment**: Docker multi-stage build, nginx reverse proxy, systemd service
