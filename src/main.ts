@@ -9,6 +9,8 @@ import { initSettingsModal, openSettingsModal, closeSettingsModal } from './comp
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI } from './features/theme';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth } from './features/preferences';
+import { initClerk } from './auth/clerk';
+import { enableAuthFetch } from './auth/auth-fetch';
 
 // Render the HTML shell
 renderApp();
@@ -80,6 +82,10 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize app data and render
 async function init(): Promise<void> {
+  // Initialize Clerk auth (non-blocking for app load)
+  const clerk = await initClerk();
+  if (clerk) enableAuthFetch();
+
   await initializeData();
 
   // Sync UI controls with restored preferences
