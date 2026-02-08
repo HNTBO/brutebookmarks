@@ -11,6 +11,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Instant preference restore (runs before first paint) -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+
+            var accent = localStorage.getItem('accentColor_' + theme);
+            if (accent) document.documentElement.style.setProperty('--accent', accent);
+
+            var pw = localStorage.getItem('pageWidth');
+            if (pw) document.documentElement.style.setProperty('--page-width', (800 + (pw / 100) * 800) + 'px');
+        })();
+    </script>
+
     <!-- Clerk Authentication -->
     <script src="/js/auth.js"></script>
     <script src="/js/auth-fetch.js"></script>
@@ -1304,10 +1318,10 @@
         // Data structure
         let selectedIconUrl = null;
         let selectedIconPath = null;
-        let currentCardSize = 90; // Default to mid-range
-        let currentPageWidth = 100; // percentage
-        let currentTheme = 'dark';
-        let showCardNames = true;
+        let currentCardSize = parseInt(localStorage.getItem('cardSize')) || 90;
+        let currentPageWidth = parseInt(localStorage.getItem('pageWidth')) || 100;
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+        let showCardNames = localStorage.getItem('showCardNames') !== 'false';
 
         // Theme Toggle
         function toggleTheme() {
@@ -1513,41 +1527,12 @@
                 }
             }
 
-            // Restore saved card size
-            const savedSize = localStorage.getItem('cardSize');
-            if (savedSize) {
-                currentCardSize = parseInt(savedSize);
-            }
-
-            // Restore saved page width
-            const savedPageWidth = localStorage.getItem('pageWidth');
-            if (savedPageWidth) {
-                currentPageWidth = parseInt(savedPageWidth);
-            }
-
-            // Restore theme
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme) {
-                currentTheme = savedTheme;
-            }
-            document.documentElement.setAttribute('data-theme', currentTheme);
+            // Sync UI controls with already-restored preferences
             document.getElementById('theme-toggle-btn').innerHTML = currentTheme === 'dark' ? '☀' : '☾';
-
-            // Restore Accent Color for current theme
-            const savedAccent = localStorage.getItem(`accentColor_${currentTheme}`);
             const picker = document.getElementById('accent-color-picker');
-            if (savedAccent) {
-                document.documentElement.style.setProperty('--accent', savedAccent);
-                if (picker) picker.value = savedAccent;
-            } else if (picker) {
-                // Initialize picker with default value
-                picker.value = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-            }
-
-            // Restore card names setting
-            const savedShowCardNames = localStorage.getItem('showCardNames');
-            if (savedShowCardNames !== null) {
-                showCardNames = savedShowCardNames === 'true';
+            if (picker) {
+                const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+                picker.value = accent;
             }
             document.getElementById('show-card-names').checked = showCardNames;
 
