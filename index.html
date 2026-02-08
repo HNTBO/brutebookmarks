@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brute Bookmarks</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+    <!-- Distinctive Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Instant preference restore (runs before first paint) -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+
+            var accent = localStorage.getItem('accentColor_' + theme);
+            if (accent) document.documentElement.style.setProperty('--accent', accent);
+
+            var pw = localStorage.getItem('pageWidth');
+            if (pw) document.documentElement.style.setProperty('--page-width', (800 + (pw / 100) * 800) + 'px');
+        })();
+    </script>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
