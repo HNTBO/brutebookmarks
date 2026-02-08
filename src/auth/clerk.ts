@@ -67,10 +67,10 @@ function showSignInOverlay(): void {
   }
 }
 
-export async function getAuthToken(): Promise<string | null> {
+export async function getAuthToken(options?: { template?: string }): Promise<string | null> {
   if (!clerk?.session) return null;
   try {
-    return await clerk.session.getToken();
+    return await clerk.session.getToken(options);
   } catch {
     return null;
   }

@@ -16,7 +16,7 @@ node_modules/
 icons/
 
 # Data directory (user bookmarks - stored on server)
-data/
+/data/
 
 # Logs
 *.log
@@ -32,6 +32,9 @@ logs/
 
 # Build output
 dist/
+
+# Convex generated files
+convex/_generated/
 
 # Environment variables
 .env
