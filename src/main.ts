@@ -1,7 +1,5 @@
 import './styles/main.css';
+import { renderApp } from './app';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <p style="color: #fafafa; font-family: Outfit, sans-serif; padding: 40px;">
-    Brute Bookmarks — Vite build loading...
-  </p>
-`;
+// Render the HTML shell
+renderApp();
