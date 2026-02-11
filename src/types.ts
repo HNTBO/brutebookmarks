@@ -3,12 +3,14 @@ export interface Bookmark {
   title: string;
   url: string;
   iconPath: string | null;
+  order?: number;
 }
 
 export interface Category {
   id: string;
   name: string;
   bookmarks: Bookmark[];
+  order?: number;
 }
 
 export interface UserPreferences {

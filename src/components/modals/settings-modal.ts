@@ -1,4 +1,4 @@
-import { categories, setCategories, saveData } from '../../data/store';
+import { getCategories, setCategories, saveData, importBulk, isConvexMode } from '../../data/store';
 import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
@@ -13,7 +13,7 @@ export function closeSettingsModal(): void {
 }
 
 function exportData(): void {
-  const dataStr = JSON.stringify(categories, null, 2);
+  const dataStr = JSON.stringify(getCategories(), null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(dataBlob);
   const link = document.createElement('a');
@@ -31,13 +31,17 @@ function importData(): void {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
           const importedData = JSON.parse(event.target!.result as string);
           if (confirm('Replace all current data?')) {
-            setCategories(importedData);
-            saveData();
-            renderCategories();
+            if (isConvexMode()) {
+              await importBulk(importedData);
+            } else {
+              setCategories(importedData);
+              saveData();
+              renderCategories();
+            }
             alert('Import successful');
           }
         } catch {

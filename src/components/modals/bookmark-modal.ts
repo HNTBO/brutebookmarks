@@ -1,7 +1,6 @@
-import { categories, saveData } from '../../data/store';
+import { getCategories, createBookmark, updateBookmark, deleteBookmarkById } from '../../data/store';
 import { getIconUrl } from '../../utils/icons';
 import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange } from '../icon-picker';
-import { renderCategories } from '../categories';
 
 let editingBookmarkId: string | null = null;
 
@@ -22,7 +21,7 @@ export function openAddBookmarkModal(categoryId: string): void {
 
 export function openEditBookmarkModal(categoryId: string, bookmarkId: string): void {
   editingBookmarkId = bookmarkId;
-  const category = categories.find((c) => c.id === categoryId);
+  const category = getCategories().find((c) => c.id === categoryId);
   if (!category) return;
 
   const bookmark = category.bookmarks.find((b) => b.id === bookmarkId);
@@ -53,43 +52,24 @@ export function closeBookmarkModal(): void {
   document.getElementById('bookmark-modal')!.classList.remove('active');
 }
 
-export function saveBookmark(event: Event): void {
+async function saveBookmark(event: Event): Promise<void> {
   event.preventDefault();
   const title = (document.getElementById('bookmark-title') as HTMLInputElement).value;
   const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
   const categoryId = (document.getElementById('bookmark-category-id') as HTMLInputElement).value;
   const iconPath = (document.getElementById('bookmark-icon-path') as HTMLInputElement).value || null;
 
-  const category = categories.find((c) => c.id === categoryId);
-  if (category) {
-    if (editingBookmarkId) {
-      const bookmark = category.bookmarks.find((b) => b.id === editingBookmarkId);
-      if (bookmark) {
-        bookmark.title = title;
-        bookmark.url = url;
-        bookmark.iconPath = iconPath;
-      }
-    } else {
-      const newBookmark = {
-        id: 'b' + Date.now(),
-        title,
-        url,
-        iconPath,
-      };
-      category.bookmarks.push(newBookmark);
-    }
-    saveData();
-    renderCategories();
-    closeBookmarkModal();
+  if (editingBookmarkId) {
+    await updateBookmark(editingBookmarkId, title, url, iconPath);
+  } else {
+    await createBookmark(categoryId, title, url, iconPath);
   }
+  closeBookmarkModal();
 }
 
-export function deleteBookmark(categoryId: string, bookmarkId: string): void {
-  const category = categories.find((c) => c.id === categoryId);
-  if (category && confirm('Delete this bookmark?')) {
-    category.bookmarks = category.bookmarks.filter((b) => b.id !== bookmarkId);
-    saveData();
-    renderCategories();
+export async function deleteBookmark(categoryId: string, bookmarkId: string): Promise<void> {
+  if (confirm('Delete this bookmark?')) {
+    await deleteBookmarkById(bookmarkId);
   }
 }
 

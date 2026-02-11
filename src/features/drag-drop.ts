@@ -1,4 +1,4 @@
-import { categories, saveData } from '../data/store';
+import { getCategories, saveData, reorderBookmark, isConvexMode } from '../data/store';
 
 let draggedElement: HTMLElement | null = null;
 let draggedBookmark: { categoryId: string; bookmarkId: string; index: number } | null = null;
@@ -34,6 +34,18 @@ export function handleDragLeave(e: DragEvent): void {
   (e.currentTarget as HTMLElement).classList.remove('drag-over');
 }
 
+function computeMidpoint(
+  bookmarks: { order?: number }[],
+  targetIndex: number,
+): number {
+  const prev = targetIndex > 0 ? (bookmarks[targetIndex - 1].order ?? targetIndex - 1) : 0;
+  const next =
+    targetIndex < bookmarks.length
+      ? (bookmarks[targetIndex].order ?? targetIndex)
+      : (bookmarks.length > 0 ? (bookmarks[bookmarks.length - 1].order ?? bookmarks.length - 1) + 1 : 1);
+  return (prev + next) / 2;
+}
+
 export function handleDrop(e: DragEvent, renderCallback: () => void): void {
   e.stopPropagation();
   e.preventDefault();
@@ -46,38 +58,81 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
     return;
   }
 
-  if (draggedBookmark.categoryId === targetCategoryId) {
-    const category = categories.find((c) => c.id === targetCategoryId);
-    if (!category) return;
+  const categories = getCategories();
 
-    const sourceIndex = category.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
-    const targetIndex = category.bookmarks.findIndex((b) => b.id === targetBookmarkId);
+  if (isConvexMode()) {
+    // Float64 midpoint reorder via Convex
+    if (draggedBookmark.categoryId === targetCategoryId) {
+      const category = categories.find((c) => c.id === targetCategoryId);
+      if (!category) return;
 
-    if (sourceIndex !== -1 && targetIndex !== -1) {
-      const [movedBookmark] = category.bookmarks.splice(sourceIndex, 1);
-      category.bookmarks.splice(targetIndex, 0, movedBookmark);
-      saveData();
-      renderCallback();
+      const targetIndex = category.bookmarks.findIndex((b) => b.id === targetBookmarkId);
+      if (targetIndex === -1) return;
+
+      // Local optimistic splice for instant feedback
+      const sourceIndex = category.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+      if (sourceIndex !== -1) {
+        const [moved] = category.bookmarks.splice(sourceIndex, 1);
+        const insertAt = sourceIndex < targetIndex ? targetIndex : targetIndex;
+        category.bookmarks.splice(insertAt, 0, moved);
+        renderCallback();
+      }
+
+      const newOrder = computeMidpoint(category.bookmarks, targetIndex);
+      reorderBookmark(draggedBookmark.bookmarkId, newOrder);
+    } else {
+      const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
+      const targetCategory = categories.find((c) => c.id === targetCategoryId);
+      if (!sourceCategory || !targetCategory) return;
+
+      const targetIndex = targetCategory.bookmarks.findIndex((b) => b.id === targetBookmarkId);
+      if (targetIndex === -1) return;
+
+      // Local optimistic splice
+      const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+      if (sourceIndex !== -1) {
+        const [moved] = sourceCategory.bookmarks.splice(sourceIndex, 1);
+        targetCategory.bookmarks.splice(targetIndex, 0, moved);
+        renderCallback();
+      }
+
+      const newOrder = computeMidpoint(targetCategory.bookmarks, targetIndex);
+      reorderBookmark(draggedBookmark.bookmarkId, newOrder, targetCategoryId);
     }
   } else {
-    const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
-    const targetCategory = categories.find((c) => c.id === targetCategoryId);
+    // Legacy splice-based reorder
+    if (draggedBookmark.categoryId === targetCategoryId) {
+      const category = categories.find((c) => c.id === targetCategoryId);
+      if (!category) return;
 
-    if (!sourceCategory || !targetCategory) return;
+      const sourceIndex = category.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+      const targetIndex = category.bookmarks.findIndex((b) => b.id === targetBookmarkId);
 
-    const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
-    const targetIndex = targetCategory.bookmarks.findIndex((b) => b.id === targetBookmarkId);
+      if (sourceIndex !== -1 && targetIndex !== -1) {
+        const [movedBookmark] = category.bookmarks.splice(sourceIndex, 1);
+        category.bookmarks.splice(targetIndex, 0, movedBookmark);
+        saveData();
+        renderCallback();
+      }
+    } else {
+      const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
+      const targetCategory = categories.find((c) => c.id === targetCategoryId);
 
-    if (sourceIndex !== -1 && targetIndex !== -1) {
-      const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
-      targetCategory.bookmarks.splice(targetIndex, 0, movedBookmark);
-      saveData();
-      renderCallback();
+      if (!sourceCategory || !targetCategory) return;
+
+      const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+      const targetIndex = targetCategory.bookmarks.findIndex((b) => b.id === targetBookmarkId);
+
+      if (sourceIndex !== -1 && targetIndex !== -1) {
+        const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
+        targetCategory.bookmarks.splice(targetIndex, 0, movedBookmark);
+        saveData();
+        renderCallback();
+      }
     }
   }
 
   targetElement.classList.remove('drag-over');
-  return;
 }
 
 export function handleCategoryDragOver(e: DragEvent): void {
@@ -108,18 +163,40 @@ export function handleCategoryDrop(e: DragEvent, renderCallback: () => void): vo
   e.preventDefault();
   e.stopPropagation();
 
-  const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
-  const targetCategory = categories.find((c) => c.id === targetCategoryId);
+  const categories = getCategories();
 
-  if (!sourceCategory || !targetCategory) return;
+  if (isConvexMode()) {
+    const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
+    const targetCategory = categories.find((c) => c.id === targetCategoryId);
+    if (!sourceCategory || !targetCategory) return;
 
-  const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+    // Local optimistic splice
+    const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+    if (sourceIndex !== -1) {
+      const [moved] = sourceCategory.bookmarks.splice(sourceIndex, 1);
+      targetCategory.bookmarks.push(moved);
+      renderCallback();
+    }
 
-  if (sourceIndex !== -1) {
-    const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
-    targetCategory.bookmarks.push(movedBookmark);
-    saveData();
-    renderCallback();
+    // Compute order: after last bookmark in target
+    const lastOrder = targetCategory.bookmarks.length > 0
+      ? Math.max(...targetCategory.bookmarks.map((b) => b.order ?? 0))
+      : 0;
+    reorderBookmark(draggedBookmark.bookmarkId, lastOrder + 1, targetCategoryId);
+  } else {
+    const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
+    const targetCategory = categories.find((c) => c.id === targetCategoryId);
+
+    if (!sourceCategory || !targetCategory) return;
+
+    const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+
+    if (sourceIndex !== -1) {
+      const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
+      targetCategory.bookmarks.push(movedBookmark);
+      saveData();
+      renderCallback();
+    }
   }
 
   (e.currentTarget as HTMLElement).classList.remove('drop-target');

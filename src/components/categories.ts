@@ -1,4 +1,4 @@
-import { categories } from '../data/store';
+import { getCategories } from '../data/store';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { getCardSize, getShowCardNames } from '../features/preferences';
 import { handleCardMouseMove, handleCardMouseLeave } from './bookmark-card';
@@ -16,6 +16,8 @@ import {
 export function renderCategories(): void {
   const container = document.getElementById('categories-container')!;
   container.innerHTML = '';
+
+  const categories = getCategories();
 
   if (categories.length === 0) {
     container.innerHTML = `

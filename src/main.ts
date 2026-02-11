@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData } from './data/store';
+import { initializeData, setRenderCallback, activateConvex } from './data/store';
 import { renderCategories } from './components/categories';
 import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
@@ -83,6 +83,9 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize app data and render
 async function init(): Promise<void> {
+  // Wire render callback so Convex subscriptions can trigger re-renders
+  setRenderCallback(renderCategories);
+
   // Load bookmarks first — don't wait for auth
   await initializeData();
 
@@ -90,7 +93,7 @@ async function init(): Promise<void> {
   syncThemeUI();
   syncPreferencesUI();
 
-  // Render categories
+  // Render categories from localStorage/Express cache
   renderCategories();
 
   // Apply saved settings
@@ -109,6 +112,7 @@ async function init(): Promise<void> {
       const convexClient = initConvexClient();
       if (convexClient) {
         setConvexAuth(() => getAuthToken({ template: 'convex' }));
+        activateConvex();
       }
     }
   });

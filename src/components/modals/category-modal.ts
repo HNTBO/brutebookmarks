@@ -1,5 +1,4 @@
-import { categories, setCategories, saveData } from '../../data/store';
-import { renderCategories } from '../categories';
+import { getCategories, createCategory, updateCategory, deleteCategory } from '../../data/store';
 
 let editingCategoryId: string | null = null;
 
@@ -15,7 +14,7 @@ export function openAddCategoryModal(): void {
 
 export function openEditCategoryModal(categoryId: string): void {
   editingCategoryId = categoryId;
-  const category = categories.find((c) => c.id === categoryId);
+  const category = getCategories().find((c) => c.id === categoryId);
   if (!category) return;
 
   document.getElementById('category-modal-title')!.textContent = 'Edit Category';
@@ -30,35 +29,23 @@ export function closeCategoryModal(): void {
   document.getElementById('category-modal')!.classList.remove('active');
 }
 
-function deleteCategoryFromModal(): void {
+async function deleteCategoryFromModal(): Promise<void> {
   const categoryId = (document.getElementById('editing-category-id') as HTMLInputElement).value;
   if (categoryId && confirm('Delete this category and all its bookmarks?')) {
-    setCategories(categories.filter((c) => c.id !== categoryId));
-    saveData();
-    renderCategories();
+    await deleteCategory(categoryId);
     closeCategoryModal();
   }
 }
 
-function saveCategory(event: Event): void {
+async function saveCategory(event: Event): Promise<void> {
   event.preventDefault();
   const name = (document.getElementById('category-name') as HTMLInputElement).value;
 
   if (editingCategoryId) {
-    const category = categories.find((c) => c.id === editingCategoryId);
-    if (category) {
-      category.name = name;
-    }
+    await updateCategory(editingCategoryId, name);
   } else {
-    const newCategory = {
-      id: 'c' + Date.now(),
-      name,
-      bookmarks: [],
-    };
-    categories.push(newCategory);
+    await createCategory(name);
   }
-  saveData();
-  renderCategories();
   closeCategoryModal();
 }
 
