@@ -349,8 +349,9 @@ h1 em {
     padding: 0 var(--space-md);
     display: flex;
     align-items: center;
-    flex: 1;
     text-transform: uppercase;
+    white-space: nowrap;
+    border-right: 1px solid var(--border);
 }
 
 /* Bookmark Grid - Asymmetric */
@@ -1160,7 +1161,7 @@ footer {
     display: flex;
     flex: 1;
     align-items: stretch;
-    background: transparent;
+    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -1174,7 +1175,7 @@ footer {
     font-size: 1.7rem;
     font-weight: 0;
     padding: 0 var(--space-md);
-    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+    background: transparent;
     border: none;
     border-right: 1px solid var(--border);
     color: var(--accent);

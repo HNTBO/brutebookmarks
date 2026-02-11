@@ -84,8 +84,10 @@ function renderSingleCategory(category: Category, currentCardSize: number, showC
   categoryEl.innerHTML = `
     <div class="category-header" draggable="true">
       <div class="category-drag-handle" title="Drag to reorder">⠿</div>
-      <div class="category-title">
-        ${category.name}
+      <div class="tab-bar">
+        <div class="category-title">
+          ${category.name}
+        </div>
       </div>
       <button class="category-edit-btn" data-category-id="${category.id}" title="Edit category">✎</button>
     </div>
