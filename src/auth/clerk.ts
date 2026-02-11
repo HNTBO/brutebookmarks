@@ -106,8 +106,7 @@ function showSignInOverlay(): void {
 
   if (clerk) {
     clerk.mountSignIn(signInContainer, {
-      afterSignInUrl: window.location.origin,
-      afterSignUpUrl: window.location.origin,
+      fallbackRedirectUrl: window.location.origin,
     });
   }
 }
