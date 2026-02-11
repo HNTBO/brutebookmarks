@@ -1102,12 +1102,13 @@ footer {
     background: var(--accent-glow);
 }
 
-/* Category drag handle */
+/* Category drag handle — always square, matching parent height */
 .category-drag-handle {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
+    width: 44px;
+    min-width: 44px;
     background: var(--accent);
     color: var(--bg-primary);
     font-size: 1rem;
@@ -1152,7 +1153,7 @@ footer {
     margin-bottom: 0;
     background: var(--accent);
     border: none;
-    height: 40px;
+    height: 44px;
 }
 
 .tab-bar {
@@ -1161,12 +1162,17 @@ footer {
     align-items: stretch;
     background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
     overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .tab {
     font-family: var(--font-display);
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 1.7rem;
+    font-weight: 0;
     padding: 0 var(--space-md);
     background: transparent;
     border: none;
@@ -1175,6 +1181,9 @@ footer {
     cursor: pointer;
     text-transform: uppercase;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
     transition: all 0.15s ease;
 }
 
@@ -1185,8 +1194,7 @@ footer {
 
 .tab.tab-active {
     color: var(--accent);
-    background: var(--bg-primary);
-    box-shadow: inset 0 -3px 0 var(--accent);
+    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
 }
 
 .tab-content {

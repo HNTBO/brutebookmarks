@@ -265,11 +265,16 @@ function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
 
     const relativeY = (e.clientY - rect.top) / rect.height;
 
-    // If dragging over a tab-group, add to that group
+    // If dragging over a tab-group, add to that group (unless dragging a tab FROM this group)
     if (el.classList.contains('tab-group')) {
       if (relativeY < 0.2) return { action: 'reorder-before', targetEl: item };
       if (relativeY > 0.8) continue; // will be caught as reorder-after by next item or end
-      return { action: 'add-to-group', targetGroupId: el.dataset.groupId!, targetEl: el };
+      // Check if dragged category is already in this group
+      const groupId = el.dataset.groupId!;
+      const categories = getCategories();
+      const draggedCat = categories.find((c) => c.id === dragId);
+      if (draggedCat?.groupId === groupId) continue; // skip own group — treat as reorder
+      return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
     }
 
     // If dragging over an ungrouped category, use zones
@@ -352,7 +357,6 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
 
   // Reorder logic
   const items = getLayoutItems();
-  const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
 
   let targetIndex = items.length;
   if (zone.action === 'reorder-before') {
@@ -368,6 +372,13 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
     const id = item.type === 'category' ? item.category.id : item.group.id;
     return id === draggedLayoutItem!.id;
   });
+
+  // Category is nested inside a tab group — ungroup it
+  if (sourceIndex === -1 && draggedLayoutItem.type === 'category') {
+    setCategoryGroup(draggedLayoutItem.id, null);
+    draggedLayoutItem = null;
+    return;
+  }
   if (sourceIndex === -1) { draggedLayoutItem = null; return; }
   if (sourceIndex === targetIndex || sourceIndex === targetIndex - 1) { draggedLayoutItem = null; return; }
 
