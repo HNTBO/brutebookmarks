@@ -38,22 +38,13 @@ export function setCategories(data: Category[]): void {
   _categories = data;
 }
 
-// --- Initialize from localStorage / Express (instant render) ---
+// --- Initialize from localStorage cache (instant render before Convex arrives) ---
 export async function initializeData(): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE}/api/data`);
-    if (response.ok) {
-      _categories = await response.json();
-    } else {
-      throw new Error('Server returned error');
-    }
-  } catch {
-    const savedData = localStorage.getItem('speedDialData');
-    if (savedData) {
-      _categories = JSON.parse(savedData);
-    } else {
-      _categories = [];
-    }
+  const savedData = localStorage.getItem('speedDialData');
+  if (savedData) {
+    _categories = JSON.parse(savedData);
+  } else {
+    _categories = [];
   }
 }
 
