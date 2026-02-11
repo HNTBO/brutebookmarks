@@ -1,8 +1,9 @@
-import { Clerk } from '@clerk/clerk-js';
+// Dynamic import — keeps the ~3MB Clerk bundle out of the main chunk
+type ClerkInstance = import('@clerk/clerk-js').Clerk;
 
-let clerk: InstanceType<typeof Clerk> | null = null;
+let clerk: ClerkInstance | null = null;
 
-export async function initClerk(): Promise<InstanceType<typeof Clerk> | null> {
+export async function initClerk(): Promise<ClerkInstance | null> {
   try {
     // Get publishable key from backend
     const res = await fetch('/api/config');
@@ -14,6 +15,7 @@ export async function initClerk(): Promise<InstanceType<typeof Clerk> | null> {
     }
 
     console.log('[Auth] Loading Clerk SDK...');
+    const { Clerk } = await import('@clerk/clerk-js');
     clerk = new Clerk(config.clerkPublishableKey);
     await clerk.load();
 
@@ -80,6 +82,6 @@ export function getCurrentUser() {
   return clerk?.user || null;
 }
 
-export function getClerkInstance(): InstanceType<typeof Clerk> | null {
+export function getClerkInstance(): ClerkInstance | null {
   return clerk;
 }
