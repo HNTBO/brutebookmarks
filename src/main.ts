@@ -83,16 +83,7 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize app data and render
 async function init(): Promise<void> {
-  // Initialize Clerk auth (non-blocking for app load)
-  const clerk = await initClerk();
-  if (clerk) enableAuthFetch();
-
-  // Initialize Convex client and wire auth
-  const convexClient = initConvexClient();
-  if (convexClient && clerk) {
-    setConvexAuth(() => getAuthToken({ template: 'convex' }));
-  }
-
+  // Load bookmarks first — don't wait for auth
   await initializeData();
 
   // Sync UI controls with restored preferences
@@ -108,6 +99,19 @@ async function init(): Promise<void> {
 
   // Initialize the 2D size controller
   initSizeController();
+
+  // Initialize auth in the background — don't block the app
+  initClerk().then((clerk) => {
+    if (clerk) {
+      enableAuthFetch();
+
+      // Wire Convex auth if available
+      const convexClient = initConvexClient();
+      if (convexClient) {
+        setConvexAuth(() => getAuthToken({ template: 'convex' }));
+      }
+    }
+  });
 }
 
 init();

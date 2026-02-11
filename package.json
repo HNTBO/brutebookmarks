@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node -r dotenv/config server.js",
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"nodemon -r dotenv/config server.js\"",
+    "dev:client": "vite",
     "dev:server": "nodemon -r dotenv/config server.js",
     "build": "vite build",
     "preview": "vite preview"
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.2.2",
+    "concurrently": "^9.2.1",
     "nodemon": "^3.0.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
