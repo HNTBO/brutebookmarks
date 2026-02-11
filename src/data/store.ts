@@ -2,6 +2,7 @@ import type { Category, TabGroup, LayoutItem, UserPreferences } from '../types';
 import { getConvexClient } from './convex-client';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
+import { DEFAULT_LAYOUT } from './defaults';
 
 const API_BASE = window.location.origin;
 
@@ -182,6 +183,9 @@ function rebuild(): void {
           return;
         }
       }
+      // No legacy data either — offer seed defaults
+      promptSeedDefaults();
+      return;
     }
   }
 
@@ -288,6 +292,24 @@ async function promptMigration(legacy: Category[]): Promise<void> {
   } catch (error) {
     console.error('[Store] Migration failed:', error);
     alert('Migration failed. Your local data is preserved.');
+  }
+}
+
+// --- Seed defaults prompt ---
+async function promptSeedDefaults(): Promise<void> {
+  if (!confirm('Load sample bookmarks to explore the app?')) {
+    return;
+  }
+
+  const client = getConvexClient();
+  if (!client) return;
+
+  try {
+    await client.mutation(api.seed.seedDefaults, { items: DEFAULT_LAYOUT });
+    console.log('[Store] Seed defaults loaded');
+    // Subscriptions will fire and rebuild automatically
+  } catch (error) {
+    console.error('[Store] Seed defaults failed:', error);
   }
 }
 
