@@ -1,13 +1,52 @@
+import { savePreferencesToConvex, isApplyingFromConvex } from '../data/store';
+import { collectPreferences } from './preferences';
+
 let currentTheme = localStorage.getItem('theme') || 'dark';
 
 export function getCurrentTheme(): string {
   return currentTheme;
 }
 
+export function getAccentColorDark(): string | null {
+  return localStorage.getItem('accentColor_dark');
+}
+
+export function getAccentColorLight(): string | null {
+  return localStorage.getItem('accentColor_light');
+}
+
+function syncToConvex(): void {
+  savePreferencesToConvex(collectPreferences);
+}
+
 export function toggleTheme(): void {
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', currentTheme);
+  applyThemeToDOM();
   localStorage.setItem('theme', currentTheme);
+  syncToConvex();
+}
+
+/** Apply theme from Convex subscription — updates state + DOM + localStorage, no save back. */
+export function applyTheme(theme: 'dark' | 'light', accentDark: string | null, accentLight: string | null): void {
+  currentTheme = theme;
+  localStorage.setItem('theme', theme);
+
+  if (accentDark) {
+    localStorage.setItem('accentColor_dark', accentDark);
+  } else {
+    localStorage.removeItem('accentColor_dark');
+  }
+  if (accentLight) {
+    localStorage.setItem('accentColor_light', accentLight);
+  } else {
+    localStorage.removeItem('accentColor_light');
+  }
+
+  applyThemeToDOM();
+}
+
+function applyThemeToDOM(): void {
+  document.documentElement.setAttribute('data-theme', currentTheme);
 
   const btn = document.getElementById('theme-toggle-btn')!;
   btn.innerHTML = currentTheme === 'dark' ? '☀' : '☾';
@@ -32,6 +71,7 @@ export function toggleTheme(): void {
 export function updateAccentColor(color: string): void {
   document.documentElement.style.setProperty('--accent', color);
   localStorage.setItem(`accentColor_${currentTheme}`, color);
+  syncToConvex();
 }
 
 export function resetAccentColor(): void {
@@ -43,6 +83,7 @@ export function resetAccentColor(): void {
     const picker = document.getElementById('accent-color-picker') as HTMLInputElement | null;
     if (picker) picker.value = defaultColor;
   }, 10);
+  syncToConvex();
 }
 
 export function syncThemeUI(): void {

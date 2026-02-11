@@ -1,4 +1,4 @@
-import type { Category } from '../types';
+import type { Category, UserPreferences } from '../types';
 import { getConvexClient } from './convex-client';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
@@ -14,6 +14,11 @@ let _convexActive = false;
 let _rawCategories: any[] | null = null;
 let _rawBookmarks: any[] | null = null;
 let _migrationChecked = false;
+
+// --- Preferences sync ---
+let _prefsCallback: ((prefs: UserPreferences) => void) | null = null;
+let _prefsSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let _applyingFromConvex = false; // guard against save loops
 
 // --- Public getters ---
 export function getCategories(): Category[] {
@@ -67,6 +72,43 @@ export async function saveData(): Promise<void> {
   }
 }
 
+// --- Preferences callback ---
+export function setPreferencesCallback(cb: (prefs: UserPreferences) => void): void {
+  _prefsCallback = cb;
+}
+
+/**
+ * Called by theme.ts / preferences.ts after any user-initiated preference change.
+ * Debounced — collects current state and saves to Convex after 500ms of inactivity.
+ */
+export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
+  if (!_convexActive || _applyingFromConvex) return;
+
+  if (_prefsSaveTimer) clearTimeout(_prefsSaveTimer);
+  _prefsSaveTimer = setTimeout(async () => {
+    const client = getConvexClient();
+    if (!client) return;
+    const prefs = getPrefs();
+    try {
+      await client.mutation(api.preferences.set, {
+        theme: prefs.theme,
+        accentColorDark: prefs.accentColorDark ?? undefined,
+        accentColorLight: prefs.accentColorLight ?? undefined,
+        cardSize: prefs.cardSize,
+        pageWidth: prefs.pageWidth,
+        showCardNames: prefs.showCardNames,
+      });
+    } catch (err) {
+      console.error('[Store] Failed to save preferences:', err);
+    }
+  }, 500);
+}
+
+/** True when applying preferences from a Convex subscription (prevents save loops). */
+export function isApplyingFromConvex(): boolean {
+  return _applyingFromConvex;
+}
+
 // --- Convex activation ---
 export function activateConvex(): void {
   const client = getConvexClient();
@@ -85,6 +127,25 @@ export function activateConvex(): void {
   client.onUpdate(api.bookmarks.listAll, {}, (result) => {
     _rawBookmarks = result as any[];
     rebuild();
+  });
+
+  // Subscribe to preferences
+  client.onUpdate(api.preferences.get, {}, (result) => {
+    if (!result || !_prefsCallback) return;
+    const prefs: UserPreferences = {
+      theme: (result as any).theme === 'light' ? 'light' : 'dark',
+      accentColorDark: (result as any).accentColorDark ?? null,
+      accentColorLight: (result as any).accentColorLight ?? null,
+      cardSize: (result as any).cardSize ?? 90,
+      pageWidth: (result as any).pageWidth ?? 100,
+      showCardNames: (result as any).showCardNames ?? true,
+    };
+    _applyingFromConvex = true;
+    try {
+      _prefsCallback(prefs);
+    } finally {
+      _applyingFromConvex = false;
+    }
   });
 }
 

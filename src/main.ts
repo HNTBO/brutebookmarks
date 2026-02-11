@@ -1,14 +1,14 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData, setRenderCallback, activateConvex } from './data/store';
+import { initializeData, setRenderCallback, setPreferencesCallback, activateConvex } from './data/store';
 import { renderCategories } from './components/categories';
 import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
 import { initCategoryModal, openAddCategoryModal, openEditCategoryModal } from './components/modals/category-modal';
 import { initSettingsModal, openSettingsModal, closeSettingsModal } from './components/modals/settings-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
-import { toggleTheme, syncThemeUI } from './features/theme';
-import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth } from './features/preferences';
+import { toggleTheme, syncThemeUI, applyTheme } from './features/theme';
+import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences } from './features/preferences';
 import { initClerk, getAuthToken } from './auth/clerk';
 import { enableAuthFetch } from './auth/auth-fetch';
 import { initConvexClient, setConvexAuth } from './data/convex-client';
@@ -83,8 +83,12 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize app data and render
 async function init(): Promise<void> {
-  // Wire render callback so Convex subscriptions can trigger re-renders
+  // Wire callbacks so Convex subscriptions can trigger re-renders
   setRenderCallback(renderCategories);
+  setPreferencesCallback((prefs) => {
+    applyTheme(prefs.theme, prefs.accentColorDark, prefs.accentColorLight);
+    applyPreferences(prefs, renderCategories);
+  });
 
   // Load bookmarks first — don't wait for auth
   await initializeData();
