@@ -1174,26 +1174,25 @@ footer {
     font-size: 1.7rem;
     font-weight: 0;
     padding: 0 var(--space-md);
-    background: transparent;
+    background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
     border: none;
     border-right: 1px solid var(--border);
-    color: var(--text-secondary);
+    color: var(--accent);
     cursor: pointer;
     text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 220px;
+    min-width: 0;
+    flex-shrink: 1;
     transition: all 0.15s ease;
 }
 
 .tab:hover {
-    color: var(--accent);
-    background: var(--accent-glow);
+    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
 }
 
 .tab.tab-active {
-    color: var(--accent);
     background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
 }
 
