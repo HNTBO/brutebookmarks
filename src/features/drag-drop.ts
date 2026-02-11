@@ -1,7 +1,22 @@
-import { getCategories, saveData, reorderBookmark, isConvexMode } from '../data/store';
+import {
+  getCategories,
+  getLayoutItems,
+  saveData,
+  reorderBookmark,
+  reorderCategory,
+  reorderTabGroup,
+  isConvexMode,
+  createTabGroup,
+  setCategoryGroup,
+  deleteTabGroup,
+} from '../data/store';
+import type { LayoutItem } from '../types';
 
 let draggedElement: HTMLElement | null = null;
 let draggedBookmark: { categoryId: string; bookmarkId: string; index: number } | null = null;
+
+// --- Category / layout item drag state ---
+let draggedLayoutItem: { type: 'category' | 'tabGroup'; id: string } | null = null;
 
 export function handleDragStart(e: DragEvent): void {
   const target = e.currentTarget as HTMLElement;
@@ -200,4 +215,195 @@ export function handleCategoryDrop(e: DragEvent, renderCallback: () => void): vo
   }
 
   (e.currentTarget as HTMLElement).classList.remove('drop-target');
+}
+
+// --- Category reorder handlers ---
+
+export function isDraggingLayoutItem(): boolean {
+  return draggedLayoutItem !== null;
+}
+
+export function handleCategoryHeaderDragStart(e: DragEvent): void {
+  const header = (e.currentTarget as HTMLElement).closest('.category') as HTMLElement;
+  if (!header) return;
+  const categoryId = header.dataset.categoryId!;
+  draggedLayoutItem = { type: 'category', id: categoryId };
+  header.classList.add('dragging-category');
+  e.dataTransfer!.effectAllowed = 'move';
+  e.dataTransfer!.setData('text/plain', ''); // Required for Firefox
+}
+
+export function handleCategoryHeaderDragEnd(e: DragEvent): void {
+  draggedLayoutItem = null;
+  document.querySelectorAll('.category').forEach((cat) => {
+    cat.classList.remove('dragging-category');
+  });
+  document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+}
+
+// Drop zone detection result
+type DropZone =
+  | { action: 'reorder-before'; targetEl: Element }
+  | { action: 'reorder-after' }
+  | { action: 'group'; targetCategoryId: string; targetEl: HTMLElement }
+  | { action: 'add-to-group'; targetGroupId: string; targetEl: HTMLElement }
+  | null;
+
+function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
+  const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
+  if (layoutEls.length === 0) return null;
+
+  const dragId = draggedLayoutItem!.id;
+
+  for (const item of layoutEls) {
+    const rect = item.getBoundingClientRect();
+    const el = item as HTMLElement;
+    const elId = el.dataset.categoryId || el.dataset.groupId;
+    if (elId === dragId) continue;
+
+    if (e.clientY < rect.top || e.clientY > rect.bottom) continue;
+
+    const relativeY = (e.clientY - rect.top) / rect.height;
+
+    // If dragging over a tab-group, add to that group
+    if (el.classList.contains('tab-group')) {
+      if (relativeY < 0.2) return { action: 'reorder-before', targetEl: item };
+      if (relativeY > 0.8) continue; // will be caught as reorder-after by next item or end
+      return { action: 'add-to-group', targetGroupId: el.dataset.groupId!, targetEl: el };
+    }
+
+    // If dragging over an ungrouped category, use zones
+    if (el.classList.contains('category')) {
+      if (relativeY < 0.3) return { action: 'reorder-before', targetEl: item };
+      if (relativeY > 0.7) continue; // reorder-after
+      // Center zone: create group
+      return { action: 'group', targetCategoryId: el.dataset.categoryId!, targetEl: el };
+    }
+  }
+
+  return { action: 'reorder-after' };
+}
+
+export function handleLayoutDragOver(e: DragEvent): void {
+  if (!draggedLayoutItem) return;
+  e.preventDefault();
+  e.dataTransfer!.dropEffect = 'move';
+
+  const container = e.currentTarget as HTMLElement;
+  // Clean up visual feedback
+  container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+  container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
+
+  const zone = detectDropZone(e, container);
+  if (!zone) return;
+
+  if (zone.action === 'reorder-before') {
+    // Don't show indicator right before or after the dragged item
+    const prev = zone.targetEl.previousElementSibling as HTMLElement | null;
+    const prevId = prev?.dataset.categoryId || prev?.dataset.groupId;
+    if (prevId === draggedLayoutItem.id) return;
+
+    const indicator = document.createElement('div');
+    indicator.className = 'layout-drop-indicator';
+    container.insertBefore(indicator, zone.targetEl);
+  } else if (zone.action === 'reorder-after') {
+    const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
+    const last = layoutEls[layoutEls.length - 1] as HTMLElement;
+    const lastId = last?.dataset.categoryId || last?.dataset.groupId;
+    if (lastId === draggedLayoutItem.id) return;
+
+    const indicator = document.createElement('div');
+    indicator.className = 'layout-drop-indicator';
+    container.appendChild(indicator);
+  } else if (zone.action === 'group') {
+    zone.targetEl.classList.add('group-drop-target');
+  } else if (zone.action === 'add-to-group') {
+    zone.targetEl.classList.add('group-drop-target');
+  }
+}
+
+export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void {
+  if (!draggedLayoutItem) return;
+  e.preventDefault();
+
+  const container = e.currentTarget as HTMLElement;
+  container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+  container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
+
+  if (!isConvexMode()) return;
+
+  const zone = detectDropZone(e, container);
+  if (!zone) { draggedLayoutItem = null; return; }
+
+  if (zone.action === 'group' && draggedLayoutItem.type === 'category') {
+    // Create new tab group from two categories
+    const name = 'Tab Group';
+    createTabGroup(name, [zone.targetCategoryId, draggedLayoutItem.id]);
+    draggedLayoutItem = null;
+    return;
+  }
+
+  if (zone.action === 'add-to-group' && draggedLayoutItem.type === 'category') {
+    // Add category to existing tab group
+    setCategoryGroup(draggedLayoutItem.id, zone.targetGroupId);
+    draggedLayoutItem = null;
+    return;
+  }
+
+  // Reorder logic
+  const items = getLayoutItems();
+  const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
+
+  let targetIndex = items.length;
+  if (zone.action === 'reorder-before') {
+    const targetElId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
+    targetIndex = items.findIndex((item) => {
+      const id = item.type === 'category' ? item.category.id : item.group.id;
+      return id === targetElId;
+    });
+    if (targetIndex === -1) targetIndex = items.length;
+  }
+
+  const sourceIndex = items.findIndex((item) => {
+    const id = item.type === 'category' ? item.category.id : item.group.id;
+    return id === draggedLayoutItem!.id;
+  });
+  if (sourceIndex === -1) { draggedLayoutItem = null; return; }
+  if (sourceIndex === targetIndex || sourceIndex === targetIndex - 1) { draggedLayoutItem = null; return; }
+
+  // Build order list for midpoint computation
+  const orderList = items.map((item) =>
+    item.type === 'category' ? (item.category.order ?? 0) : item.group.order
+  );
+
+  const withoutDragged = orderList.filter((_, i) => i !== sourceIndex);
+  const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+  const prev = adjustedTarget > 0 ? withoutDragged[adjustedTarget - 1] : 0;
+  const next = adjustedTarget < withoutDragged.length
+    ? withoutDragged[adjustedTarget]
+    : prev + 2;
+  const newOrder = (prev + next) / 2;
+
+  if (draggedLayoutItem.type === 'category') {
+    reorderCategory(draggedLayoutItem.id, newOrder);
+  } else {
+    reorderTabGroup(draggedLayoutItem.id, newOrder);
+  }
+
+  renderCallback();
+  draggedLayoutItem = null;
+}
+
+// --- Tab ungroup: drag a tab out of the tab bar ---
+export function handleTabUngroupDragStart(e: DragEvent, categoryId: string): void {
+  draggedLayoutItem = { type: 'category', id: categoryId };
+  e.dataTransfer!.effectAllowed = 'move';
+  e.dataTransfer!.setData('text/plain', '');
+}
+
+export function handleTabUngroupDragEnd(): void {
+  draggedLayoutItem = null;
+  document.querySelectorAll('.dragging-category').forEach((el) => el.classList.remove('dragging-category'));
+  document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+  document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
 }

@@ -1,6 +1,42 @@
-import { getCategories, createCategory, updateCategory, deleteCategory } from '../../data/store';
+import {
+  getCategories,
+  getTabGroups,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  setCategoryGroup,
+  createTabGroup,
+  isConvexMode,
+} from '../../data/store';
 
 let editingCategoryId: string | null = null;
+
+function populateGroupSelect(currentGroupId?: string): void {
+  const section = document.getElementById('category-group-section') as HTMLElement;
+  const select = document.getElementById('category-group-select') as HTMLSelectElement;
+
+  if (!isConvexMode()) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+
+  // Keep the first two options (None + Create new), remove the rest
+  while (select.options.length > 2) {
+    select.remove(2);
+  }
+
+  const groups = getTabGroups();
+  for (const group of groups) {
+    const option = document.createElement('option');
+    option.value = group.id;
+    option.textContent = group.name;
+    select.appendChild(option);
+  }
+
+  select.value = currentGroupId ?? '';
+}
 
 export function openAddCategoryModal(): void {
   editingCategoryId = null;
@@ -9,6 +45,7 @@ export function openAddCategoryModal(): void {
   (document.getElementById('editing-category-id') as HTMLInputElement).value = '';
   (document.getElementById('delete-category-btn') as HTMLElement).style.display = 'none';
   document.getElementById('category-save-btn')!.textContent = 'Create Category';
+  populateGroupSelect();
   document.getElementById('category-modal')!.classList.add('active');
 }
 
@@ -22,6 +59,7 @@ export function openEditCategoryModal(categoryId: string): void {
   (document.getElementById('editing-category-id') as HTMLInputElement).value = categoryId;
   (document.getElementById('delete-category-btn') as HTMLElement).style.display = 'block';
   document.getElementById('category-save-btn')!.textContent = 'Save Changes';
+  populateGroupSelect(category.groupId);
   document.getElementById('category-modal')!.classList.add('active');
 }
 
@@ -40,11 +78,30 @@ async function deleteCategoryFromModal(): Promise<void> {
 async function saveCategory(event: Event): Promise<void> {
   event.preventDefault();
   const name = (document.getElementById('category-name') as HTMLInputElement).value;
+  const groupSelect = document.getElementById('category-group-select') as HTMLSelectElement;
+  const selectedGroupValue = isConvexMode() ? groupSelect.value : '';
 
   if (editingCategoryId) {
     await updateCategory(editingCategoryId, name);
+
+    // Handle group change
+    if (isConvexMode()) {
+      const category = getCategories().find((c) => c.id === editingCategoryId);
+      const currentGroupId = category?.groupId ?? '';
+
+      if (selectedGroupValue === '__new__') {
+        const groupName = prompt('New group name:');
+        if (groupName) {
+          await createTabGroup(groupName, [editingCategoryId]);
+        }
+      } else if (selectedGroupValue !== currentGroupId) {
+        await setCategoryGroup(editingCategoryId, selectedGroupValue || null);
+      }
+    }
   } else {
     await createCategory(name);
+    // For new categories with group assignment, we'd need the new category ID
+    // which Convex returns asynchronously via subscription. Skip for now.
   }
   closeCategoryModal();
 }

@@ -14,8 +14,8 @@ export const list = query({
 });
 
 export const create = mutation({
-  args: { name: v.string() },
-  handler: async (ctx, { name }) => {
+  args: { name: v.string(), groupId: v.optional(v.id('tabGroups')) },
+  handler: async (ctx, { name, groupId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
@@ -30,6 +30,7 @@ export const create = mutation({
       name,
       order: maxOrder + 1,
       userId,
+      groupId,
     });
   },
 });
@@ -69,6 +70,41 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(id);
+  },
+});
+
+export const setGroup = mutation({
+  args: {
+    id: v.id('categories'),
+    groupId: v.optional(v.id('tabGroups')),
+  },
+  handler: async (ctx, { id, groupId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Not authenticated');
+
+    const category = await ctx.db.get(id);
+    if (!category || category.userId !== identity.subject) {
+      throw new Error('Category not found');
+    }
+
+    if (groupId) {
+      // Assigning to a group: compute order as last tab in that group
+      const siblings = await ctx.db
+        .query('categories')
+        .withIndex('by_user', (q) => q.eq('userId', identity.subject))
+        .collect();
+      const inGroup = siblings.filter((c) => c.groupId === groupId);
+      const maxOrder = inGroup.reduce((max, c) => Math.max(max, c.order), 0);
+      await ctx.db.patch(id, { groupId, order: maxOrder + 1 });
+    } else {
+      // Ungrouping: compute order for the main vertical list
+      const allCats = await ctx.db
+        .query('categories')
+        .withIndex('by_user_order', (q) => q.eq('userId', identity.subject))
+        .collect();
+      const maxOrder = allCats.reduce((max, c) => Math.max(max, c.order), 0);
+      await ctx.db.patch(id, { groupId: undefined, order: maxOrder + 1 });
+    }
   },
 });
 

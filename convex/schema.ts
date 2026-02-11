@@ -2,10 +2,19 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 export default defineSchema({
+  tabGroups: defineTable({
+    name: v.string(),
+    order: v.float64(),
+    userId: v.string(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_order', ['userId', 'order']),
+
   categories: defineTable({
     name: v.string(),
     order: v.float64(),
     userId: v.string(),
+    groupId: v.optional(v.id('tabGroups')),
   })
     .index('by_user', ['userId'])
     .index('by_user_order', ['userId', 'order']),

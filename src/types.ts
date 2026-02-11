@@ -11,7 +11,19 @@ export interface Category {
   name: string;
   bookmarks: Bookmark[];
   order?: number;
+  groupId?: string;
 }
+
+export interface TabGroup {
+  id: string;
+  name: string;
+  order: number;
+  categories: Category[];
+}
+
+export type LayoutItem =
+  | { type: 'category'; category: Category }
+  | { type: 'tabGroup'; group: TabGroup };
 
 export interface UserPreferences {
   theme: 'dark' | 'light';

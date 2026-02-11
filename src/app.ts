@@ -119,6 +119,13 @@ export function renderApp(): void {
               <label>Category Name</label>
               <input type="text" id="category-name" required placeholder="Work, Social, Tools...">
             </div>
+            <div class="form-group" id="category-group-section" style="display: none;">
+              <label>Tab Group</label>
+              <select id="category-group-select">
+                <option value="">None (standalone)</option>
+                <option value="__new__">+ Create new group...</option>
+              </select>
+            </div>
             <input type="hidden" id="editing-category-id">
           </div>
           <div class="modal-actions">
