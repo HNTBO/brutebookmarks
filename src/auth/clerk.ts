@@ -1,35 +1,47 @@
-// Type-only import — erased at compile time, zero runtime cost
+// Type-only — erased at compile time
 type ClerkInstance = import('@clerk/clerk-js').Clerk;
 
 let clerk: ClerkInstance | null = null;
 
 /**
- * Wait for the Clerk CDN script (already in index.html <head>) to finish loading.
- * Because the script is `async`, it downloads in parallel with our app bundle.
- * By the time this runs, the script is usually already parsed and ready.
+ * Inject the Clerk CDN script with data-clerk-publishable-key.
+ * The browser may already have the file cached thanks to the <link rel="preload"> in index.html.
+ * After execution, Clerk auto-creates an instance on window.Clerk — we poll for it
+ * in case auto-init is async.
  */
-function waitForClerkScript(): Promise<void> {
-  // Already loaded?
-  if ((window as any).Clerk) return Promise.resolve();
-
+function loadClerkScript(publishableKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const script = document.getElementById('clerk-script');
-    if (!script) {
-      reject(new Error('Clerk <script id="clerk-script"> not found in index.html'));
-      return;
-    }
+    const script = document.createElement('script');
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.dataset.clerkPublishableKey = publishableKey;
+    script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
 
-    script.addEventListener('load', () => resolve());
-    script.addEventListener('error', () => reject(new Error('Clerk CDN script failed to load')));
+    script.addEventListener('load', () => {
+      // Auto-init may use microtasks — poll until window.Clerk is set
+      const start = Date.now();
+      const check = () => {
+        if ((window as any).Clerk) {
+          resolve();
+        } else if (Date.now() - start > 10000) {
+          reject(new Error('Clerk not available on window after 10s'));
+        } else {
+          setTimeout(check, 50);
+        }
+      };
+      check();
+    });
 
-    // Re-check in case it loaded between our first check and adding the listener
-    if ((window as any).Clerk) resolve();
+    script.addEventListener('error', () =>
+      reject(new Error('Failed to load Clerk from CDN'))
+    );
+
+    document.head.appendChild(script);
   });
 }
 
 export async function initClerk(): Promise<ClerkInstance | null> {
   try {
-    // Get publishable key from backend
     const res = await fetch('/api/config');
     const config = await res.json();
 
@@ -38,23 +50,22 @@ export async function initClerk(): Promise<ClerkInstance | null> {
       return null;
     }
 
-    console.log('[Auth] Waiting for Clerk SDK...');
-    await waitForClerkScript();
+    console.log('[Auth] Loading Clerk SDK from CDN...');
+    await loadClerkScript(config.clerkPublishableKey);
 
-    // Without data-clerk-publishable-key, window.Clerk is the constructor
-    const ClerkConstructor = (window as any).Clerk;
-    if (!ClerkConstructor) {
-      throw new Error('Clerk constructor not available after script load');
+    // With data-clerk-publishable-key, window.Clerk is the auto-created instance
+    clerk = (window as any).Clerk;
+    if (!clerk) {
+      throw new Error('Clerk instance not available after script load');
     }
 
-    console.log('[Auth] Instantiating Clerk...');
-    clerk = new ClerkConstructor(config.clerkPublishableKey);
-    await clerk!.load();
+    console.log('[Auth] Clerk instance ready, calling load()...');
+    await clerk.load();
 
-    console.log('[Auth] Clerk loaded, user:', clerk!.user ? 'signed in' : 'not signed in');
+    console.log('[Auth] Clerk loaded, user:', clerk.user ? 'signed in' : 'not signed in');
 
-    if (clerk!.user) {
-      console.log('[Auth] User:', clerk!.user.primaryEmailAddress?.emailAddress);
+    if (clerk.user) {
+      console.log('[Auth] User:', clerk.user.primaryEmailAddress?.emailAddress);
       mountUserButton();
     } else {
       console.log('[Auth] Showing sign-in overlay');
