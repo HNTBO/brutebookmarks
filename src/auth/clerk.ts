@@ -1,23 +1,29 @@
-// Type-only import — erased at compile time, no runtime code
+// Type-only import — erased at compile time, zero runtime cost
 type ClerkInstance = import('@clerk/clerk-js').Clerk;
 
 let clerk: ClerkInstance | null = null;
 
 /**
- * Load Clerk via CDN <script> tag instead of bundling.
- * The ~3MB npm bundle freezes the browser during parse even when code-split.
- * External <script> tags benefit from V8 streaming compilation while downloading.
+ * Wait for the Clerk CDN script (already in index.html <head>) to finish loading.
+ * Because the script is `async`, it downloads in parallel with our app bundle.
+ * By the time this runs, the script is usually already parsed and ready.
  */
-function loadClerkScript(publishableKey: string): Promise<void> {
+function waitForClerkScript(): Promise<void> {
+  // Already loaded?
+  if ((window as any).Clerk) return Promise.resolve();
+
   return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.async = true;
-    script.crossOrigin = 'anonymous';
-    script.dataset.clerkPublishableKey = publishableKey;
-    script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+    const script = document.getElementById('clerk-script');
+    if (!script) {
+      reject(new Error('Clerk <script id="clerk-script"> not found in index.html'));
+      return;
+    }
+
     script.addEventListener('load', () => resolve());
-    script.addEventListener('error', () => reject(new Error('Failed to load Clerk from CDN')));
-    document.head.appendChild(script);
+    script.addEventListener('error', () => reject(new Error('Clerk CDN script failed to load')));
+
+    // Re-check in case it loaded between our first check and adding the listener
+    if ((window as any).Clerk) resolve();
   });
 }
 
@@ -32,21 +38,23 @@ export async function initClerk(): Promise<ClerkInstance | null> {
       return null;
     }
 
-    console.log('[Auth] Loading Clerk SDK from CDN...');
-    await loadClerkScript(config.clerkPublishableKey);
+    console.log('[Auth] Waiting for Clerk SDK...');
+    await waitForClerkScript();
 
-    // CDN build with data-clerk-publishable-key auto-creates instance on window.Clerk
-    clerk = (window as any).Clerk ?? null;
-    if (!clerk) {
-      throw new Error('Clerk not available after script load');
+    // Without data-clerk-publishable-key, window.Clerk is the constructor
+    const ClerkConstructor = (window as any).Clerk;
+    if (!ClerkConstructor) {
+      throw new Error('Clerk constructor not available after script load');
     }
 
-    await clerk.load();
+    console.log('[Auth] Instantiating Clerk...');
+    clerk = new ClerkConstructor(config.clerkPublishableKey);
+    await clerk!.load();
 
-    console.log('[Auth] Clerk loaded, user:', clerk.user ? 'signed in' : 'not signed in');
+    console.log('[Auth] Clerk loaded, user:', clerk!.user ? 'signed in' : 'not signed in');
 
-    if (clerk.user) {
-      console.log('[Auth] User:', clerk.user.primaryEmailAddress?.emailAddress);
+    if (clerk!.user) {
+      console.log('[Auth] User:', clerk!.user.primaryEmailAddress?.emailAddress);
       mountUserButton();
     } else {
       console.log('[Auth] Showing sign-in overlay');
