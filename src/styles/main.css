@@ -1197,6 +1197,11 @@ footer {
     background: color-mix(in srgb, var(--bg-primary) 96%, transparent);
 }
 
+/* When hovering an inactive tab, preview-swap: dim the active tab to inactive */
+.tab-bar:has(.tab:not(.tab-active):hover) .tab.tab-active {
+    background: transparent;
+}
+
 .tab-content {
     background: var(--bg-primary);
 }
