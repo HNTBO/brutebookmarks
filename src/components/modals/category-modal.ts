@@ -29,9 +29,11 @@ function populateGroupSelect(currentGroupId?: string): void {
 
   const groups = getTabGroups();
   for (const group of groups) {
+    if (group.categories.length === 0) continue; // skip empty/orphan groups
     const option = document.createElement('option');
     option.value = group.id;
-    option.textContent = group.name;
+    const tabNames = group.categories.map((c) => c.name).join(', ');
+    option.textContent = `${group.name} (${tabNames})`;
     select.appendChild(option);
   }
 
