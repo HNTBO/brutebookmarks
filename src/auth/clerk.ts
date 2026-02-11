@@ -1,7 +1,25 @@
-// Dynamic import — keeps the ~3MB Clerk bundle out of the main chunk
+// Type-only import — erased at compile time, no runtime code
 type ClerkInstance = import('@clerk/clerk-js').Clerk;
 
 let clerk: ClerkInstance | null = null;
+
+/**
+ * Load Clerk via CDN <script> tag instead of bundling.
+ * The ~3MB npm bundle freezes the browser during parse even when code-split.
+ * External <script> tags benefit from V8 streaming compilation while downloading.
+ */
+function loadClerkScript(publishableKey: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.dataset.clerkPublishableKey = publishableKey;
+    script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+    script.addEventListener('load', () => resolve());
+    script.addEventListener('error', () => reject(new Error('Failed to load Clerk from CDN')));
+    document.head.appendChild(script);
+  });
+}
 
 export async function initClerk(): Promise<ClerkInstance | null> {
   try {
@@ -14,9 +32,15 @@ export async function initClerk(): Promise<ClerkInstance | null> {
       return null;
     }
 
-    console.log('[Auth] Loading Clerk SDK...');
-    const { Clerk } = await import('@clerk/clerk-js');
-    clerk = new Clerk(config.clerkPublishableKey);
+    console.log('[Auth] Loading Clerk SDK from CDN...');
+    await loadClerkScript(config.clerkPublishableKey);
+
+    // CDN build with data-clerk-publishable-key auto-creates instance on window.Clerk
+    clerk = (window as any).Clerk ?? null;
+    if (!clerk) {
+      throw new Error('Clerk not available after script load');
+    }
+
     await clerk.load();
 
     console.log('[Auth] Clerk loaded, user:', clerk.user ? 'signed in' : 'not signed in');
