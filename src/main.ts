@@ -44,7 +44,13 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
   // Category edit button
   const categoryEditBtn = target.closest('.category-edit-btn') as HTMLElement | null;
   if (categoryEditBtn) {
-    openEditCategoryModal(categoryEditBtn.dataset.categoryId!);
+    let categoryId = categoryEditBtn.dataset.categoryId;
+    if (!categoryId) {
+      // Tab group: resolve from the currently active tab
+      const activeTab = categoryEditBtn.closest('.tab-group')?.querySelector('.tab-active') as HTMLElement | null;
+      categoryId = activeTab?.dataset.tabCategoryId;
+    }
+    if (categoryId) openEditCategoryModal(categoryId);
     return;
   }
 
