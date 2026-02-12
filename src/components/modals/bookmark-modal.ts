@@ -1,10 +1,58 @@
-import { getCategories, createBookmark, updateBookmark, deleteBookmarkById } from '../../data/store';
+import { getCategories, createBookmark, updateBookmark, deleteBookmarkById, isConvexMode } from '../../data/store';
+import { getConvexClient } from '../../data/convex-client';
+import { api } from '../../../convex/_generated/api';
 import { getIconUrl } from '../../utils/icons';
 import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange } from '../icon-picker';
 import { styledConfirm } from './confirm-modal';
 import { getAutofillUrl } from '../../features/preferences';
 
 let editingBookmarkId: string | null = null;
+let titleFetchGeneration = 0;
+
+async function fetchAndSetTitle(url: string): Promise<void> {
+  const titleInput = document.getElementById('bookmark-title') as HTMLInputElement;
+  // Never overwrite user-entered title
+  if (titleInput.value.trim()) return;
+
+  const generation = ++titleFetchGeneration;
+  titleInput.placeholder = 'Fetching title...';
+
+  let title: string | null = null;
+
+  if (isConvexMode()) {
+    const client = getConvexClient();
+    if (client) {
+      try {
+        const result = await client.action(api.metadata.fetchPageTitle, { url });
+        title = result.title;
+      } catch {
+        // Silently fail
+      }
+    }
+  }
+
+  // Fallback: capitalize domain name
+  if (!title) {
+    try {
+      const hostname = new URL(url).hostname.replace(/^www\./, '');
+      const name = hostname.split('.')[0];
+      title = name.charAt(0).toUpperCase() + name.slice(1);
+    } catch {
+      // Invalid URL — do nothing
+    }
+  }
+
+  // Discard if user typed a title in the meantime, or a newer fetch started
+  if (generation !== titleFetchGeneration || titleInput.value.trim()) {
+    titleInput.placeholder = 'Title';
+    return;
+  }
+
+  if (title) {
+    titleInput.value = title;
+  }
+  titleInput.placeholder = 'Title';
+}
 
 export async function openAddBookmarkModal(categoryId: string): Promise<void> {
   editingBookmarkId = null;
@@ -96,8 +144,15 @@ export function initBookmarkModal(): void {
   // Form submit
   document.getElementById('bookmark-form')!.addEventListener('submit', saveBookmark);
 
-  // URL change
-  document.getElementById('bookmark-url')!.addEventListener('change', handleUrlChange);
+  // URL change — favicon + title fetch
+  const urlInput = document.getElementById('bookmark-url')!;
+  urlInput.addEventListener('change', handleUrlChange);
+  urlInput.addEventListener('change', () => {
+    const url = (urlInput as HTMLInputElement).value.trim();
+    if (url && /^https?:\/\//i.test(url)) {
+      fetchAndSetTitle(url);
+    }
+  });
 
   // Backdrop click
   let mouseDownOnBackdrop = false;

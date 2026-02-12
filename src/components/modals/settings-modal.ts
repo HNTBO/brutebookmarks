@@ -3,6 +3,8 @@ import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
+import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
+import type { Category } from '../../types';
 
 export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
@@ -30,26 +32,43 @@ function importData(): void {
 
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'application/json';
+  input.accept = '.json,.html,.htm';
   input.onchange = (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const importedData = JSON.parse(event.target!.result as string);
+          const content = event.target!.result as string;
+          const format = detectFormat(content);
+
+          let importedData: Category[];
+
+          if (format === 'json') {
+            importedData = parseJSON(content);
+          } else if (format === 'netscape-html') {
+            importedData = parseNetscapeHTML(content);
+          } else {
+            await styledAlert('Unrecognized file format. Please use a JSON backup or browser HTML export.', 'Import');
+            return;
+          }
+
+          if (importedData.length === 0) {
+            await styledAlert('No bookmarks found in this file.', 'Import');
+            return;
+          }
+
           const hasData = getCategories().length > 0;
 
           if (hasData) {
-            // Ask append or replace — null means dismissed (cancel)
             const choice = await styledConfirm(
               'You have existing bookmarks. Replace them or append?',
               'Import',
               'Replace',
               'Append',
             );
-            if (choice === null) return; // dismissed — cancel entirely
-            if (choice) await eraseAllData(); // replace
+            if (choice === null) return;
+            if (choice) await eraseAllData();
           }
 
           if (isConvexMode()) {
@@ -63,7 +82,12 @@ function importData(): void {
             saveData();
             renderCategories();
           }
-          await styledAlert('Import successful', 'Import');
+
+          const totalBookmarks = importedData.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
+          await styledAlert(
+            `Imported ${importedData.length} categories with ${totalBookmarks} bookmarks.`,
+            'Import',
+          );
         } catch {
           await styledAlert('Invalid file format', 'Import');
         }
