@@ -11,7 +11,6 @@ import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiS
 import { toggleTheme, syncThemeUI, applyTheme } from './features/theme';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge } from './auth/clerk';
-import { enableAuthFetch } from './auth/auth-fetch';
 import { initConvexClient, setConvexAuth } from './data/convex-client';
 
 // Render the HTML shell
@@ -118,8 +117,6 @@ async function init(): Promise<void> {
   // Initialize auth in the background — don't block the app
   initClerk().then((clerk) => {
     if (clerk) {
-      enableAuthFetch();
-
       // Wire Convex auth if available
       const convexClient = initConvexClient();
       if (convexClient) {

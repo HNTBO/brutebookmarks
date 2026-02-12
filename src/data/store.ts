@@ -5,8 +5,6 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { DEFAULT_LAYOUT } from './defaults';
 import { styledConfirm, styledAlert } from '../components/modals/confirm-modal';
 
-const API_BASE = window.location.origin;
-
 // --- State ---
 let _categories: Category[] = [];
 let _layoutItems: LayoutItem[] = [];
@@ -66,23 +64,10 @@ export async function initializeData(): Promise<void> {
   }
 }
 
-// --- Legacy save (no Convex) ---
+// --- Legacy save (localStorage fallback when Convex is not active) ---
 export async function saveData(): Promise<void> {
   if (_convexActive) return; // Convex handles persistence
   localStorage.setItem('speedDialData', JSON.stringify(_categories));
-
-  try {
-    const response = await fetch(`${API_BASE}/api/data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(_categories),
-    });
-    if (!response.ok) {
-      console.error('Failed to save to server');
-    }
-  } catch (error) {
-    console.error('Error saving to server:', error);
-  }
 }
 
 // --- Preferences callback ---

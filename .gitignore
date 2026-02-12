@@ -12,10 +12,8 @@ Thumbs.db
 # Dependencies
 node_modules/
 
-# Icons directory (user uploaded/downloaded icons)
+# Legacy local directories (no longer used in production)
 icons/
-
-# Data directory (user bookmarks - stored on server)
 /data/
 
 # Logs
