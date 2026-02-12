@@ -1,10 +1,13 @@
 import { styledAlert } from './modals/confirm-modal';
-
-const API_BASE = window.location.origin;
+import { getConvexClient } from '../data/convex-client';
+import { api } from '../../convex/_generated/api';
+import { EMOJI_DATA } from '../data/emoji-data';
 
 let selectedIconUrl: string | null = null;
 let selectedIconPath: string | null = null;
 let emojiSearchTimeout: ReturnType<typeof setTimeout>;
+
+const TWEMOJI_BASE = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/';
 
 export function getSelectedIconPath(): string | null {
   return selectedIconPath;
@@ -39,27 +42,22 @@ export async function useFavicon(): Promise<void> {
   }
 
   try {
-    const response = await fetch(`${API_BASE}/api/get-favicon`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      selectedIconPath = data.iconPath;
-      (document.getElementById('preview-icon') as HTMLImageElement).src = data.iconPath;
-      document.getElementById('icon-source')!.textContent = data.cached ? 'Favicon (cached)' : 'Favicon (downloaded)';
-      (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = data.iconPath;
-    }
-  } catch (error) {
-    console.error('Error fetching favicon:', error);
-    styledAlert('Failed to fetch favicon');
+    const domain = new URL(url).hostname;
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    selectedIconPath = faviconUrl;
+    (document.getElementById('preview-icon') as HTMLImageElement).src = faviconUrl;
+    document.getElementById('icon-source')!.textContent = 'Favicon';
+    (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = faviconUrl;
+  } catch {
+    styledAlert('Invalid URL');
   }
 }
 
 export function toggleIconSearch(): void {
   const container = document.getElementById('icon-search-container')!;
+  const emojiContainer = document.getElementById('emoji-search-container')!;
+
+  emojiContainer.style.display = 'none';
   container.style.display = container.style.display === 'none' ? 'block' : 'none';
 
   if (container.style.display === 'block') {
@@ -93,8 +91,15 @@ export async function searchIcons(): Promise<void> {
   resultsEl.innerHTML = '';
 
   try {
-    const response = await fetch(`${API_BASE}/api/search-icons?query=${encodeURIComponent(query)}`);
-    const data = await response.json();
+    const client = getConvexClient();
+    if (!client) {
+      loadingEl.style.display = 'none';
+      resultsEl.innerHTML =
+        '<p style="color: var(--danger); padding: 20px; text-align: center; grid-column: 1/-1;">Not connected</p>';
+      return;
+    }
+
+    const data = await client.action(api.icons.searchWikimedia, { query });
 
     loadingEl.style.display = 'none';
 
@@ -111,10 +116,10 @@ export async function searchIcons(): Promise<void> {
 
       resultsEl.querySelectorAll('.icon-result').forEach((el) => {
         el.addEventListener('click', () => {
-          const url = (el as HTMLElement).dataset.iconUrl!;
+          const thumbUrl = (el as HTMLElement).dataset.iconUrl!;
           const title = (el as HTMLElement).dataset.iconTitle!;
           const index = parseInt((el as HTMLElement).dataset.iconIndex!);
-          selectWikimediaIcon(url, title, index);
+          selectWikimediaIcon(thumbUrl, title, index);
         });
       });
     } else {
@@ -129,29 +134,14 @@ export async function searchIcons(): Promise<void> {
   }
 }
 
-async function selectWikimediaIcon(url: string, title: string, index: number): Promise<void> {
-  document.querySelectorAll('.icon-result').forEach((el) => el.classList.remove('selected'));
-  document.querySelectorAll('.icon-result')[index]?.classList.add('selected');
-  document.getElementById('icon-source')!.textContent = 'Downloading...';
+function selectWikimediaIcon(thumbUrl: string, title: string, index: number): void {
+  document.querySelectorAll('#icon-results .icon-result').forEach((el) => el.classList.remove('selected'));
+  document.querySelectorAll('#icon-results .icon-result')[index]?.classList.add('selected');
 
-  try {
-    const response = await fetch(`${API_BASE}/api/download-icon`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, source: 'wikimedia' }),
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      selectedIconPath = data.iconPath;
-      (document.getElementById('preview-icon') as HTMLImageElement).src = data.iconPath;
-      document.getElementById('icon-source')!.textContent = `Wikimedia: ${title.substring(0, 25)}...`;
-      (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = data.iconPath;
-    }
-  } catch (error) {
-    console.error('Error downloading icon:', error);
-    styledAlert('Failed to download icon');
-  }
+  selectedIconPath = thumbUrl;
+  (document.getElementById('preview-icon') as HTMLImageElement).src = thumbUrl;
+  document.getElementById('icon-source')!.textContent = `Wikimedia: ${title.substring(0, 25)}...`;
+  (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = thumbUrl;
 }
 
 export function toggleEmojiSearch(): void {
@@ -170,90 +160,102 @@ export function searchEmojis(): void {
   }
 
   clearTimeout(emojiSearchTimeout);
-  emojiSearchTimeout = setTimeout(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/search-emojis?query=${encodeURIComponent(query)}`);
-      const data = await response.json();
+  emojiSearchTimeout = setTimeout(() => {
+    const lowerQuery = query.toLowerCase();
+    const matches = EMOJI_DATA.filter((entry) =>
+      entry.keywords.some((kw) => kw.includes(lowerQuery)),
+    ).slice(0, 40);
 
-      const resultsEl = document.getElementById('emoji-results')!;
+    const resultsEl = document.getElementById('emoji-results')!;
 
-      if (data.emojis && data.emojis.length > 0) {
-        resultsEl.innerHTML = data.emojis
-          .map(
-            (emoji: { code: string; keyword: string; thumbUrl: string }, index: number) => `
-          <div class="icon-result" data-emoji-index="${index}" data-emoji-code="${emoji.code}" data-emoji-keyword="${emoji.keyword}">
-            <img src="${emoji.thumbUrl}" alt="${emoji.keyword}">
+    if (matches.length > 0) {
+      resultsEl.innerHTML = matches
+        .map(
+          (entry, index) => {
+            const svgUrl = `${TWEMOJI_BASE}${entry.codepoint}.svg`;
+            return `
+          <div class="icon-result" data-emoji-index="${index}" data-emoji-codepoint="${entry.codepoint}" data-emoji-keyword="${entry.keywords[0]}">
+            <img src="${svgUrl}" alt="${entry.emoji}">
           </div>
-        `,
-          )
-          .join('');
+        `;
+          },
+        )
+        .join('');
 
-        resultsEl.querySelectorAll('.icon-result').forEach((el) => {
-          el.addEventListener('click', () => {
-            const code = (el as HTMLElement).dataset.emojiCode!;
-            const keyword = (el as HTMLElement).dataset.emojiKeyword!;
-            const index = parseInt((el as HTMLElement).dataset.emojiIndex!);
-            selectEmoji(code, keyword, index);
-          });
+      resultsEl.querySelectorAll('.icon-result').forEach((el) => {
+        el.addEventListener('click', () => {
+          const codepoint = (el as HTMLElement).dataset.emojiCodepoint!;
+          const keyword = (el as HTMLElement).dataset.emojiKeyword!;
+          const idx = parseInt((el as HTMLElement).dataset.emojiIndex!);
+          selectEmoji(codepoint, keyword, idx);
         });
-      } else {
-        resultsEl.innerHTML =
-          '<p style="color: var(--text-muted); padding: 20px; text-align: center; grid-column: 1/-1;">No emojis found</p>';
-      }
-    } catch (error) {
-      console.error('Error searching emojis:', error);
+      });
+    } else {
+      resultsEl.innerHTML =
+        '<p style="color: var(--text-muted); padding: 20px; text-align: center; grid-column: 1/-1;">No emojis found</p>';
     }
-  }, 300);
+  }, 150);
 }
 
-async function selectEmoji(code: string, keyword: string, index: number): Promise<void> {
+function selectEmoji(codepoint: string, keyword: string, index: number): void {
   document.querySelectorAll('#emoji-results .icon-result').forEach((el) => el.classList.remove('selected'));
   document.querySelectorAll('#emoji-results .icon-result')[index]?.classList.add('selected');
-  document.getElementById('icon-source')!.textContent = 'Downloading emoji...';
 
-  try {
-    const response = await fetch(`${API_BASE}/api/download-emoji`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      selectedIconPath = data.iconPath;
-      (document.getElementById('preview-icon') as HTMLImageElement).src = data.iconPath;
-      document.getElementById('icon-source')!.textContent = `Emoji: ${keyword}`;
-      (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = data.iconPath;
-    }
-  } catch (error) {
-    console.error('Error downloading emoji:', error);
-    styledAlert('Failed to download emoji');
-  }
+  const svgUrl = `${TWEMOJI_BASE}${codepoint}.svg`;
+  selectedIconPath = svgUrl;
+  (document.getElementById('preview-icon') as HTMLImageElement).src = svgUrl;
+  document.getElementById('icon-source')!.textContent = `Emoji: ${keyword}`;
+  (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = svgUrl;
 }
 
 export async function uploadCustomIcon(file: File): Promise<void> {
-  const formData = new FormData();
-  formData.append('icon', file);
-
-  document.getElementById('icon-source')!.textContent = 'Uploading...';
+  document.getElementById('icon-source')!.textContent = 'Processing...';
 
   try {
-    const response = await fetch(`${API_BASE}/api/upload-icon`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      selectedIconPath = data.iconPath;
-      (document.getElementById('preview-icon') as HTMLImageElement).src = data.iconPath;
-      document.getElementById('icon-source')!.textContent = `Custom: ${file.name}`;
-      (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = data.iconPath;
-    }
+    const dataUri = await resizeImageToDataUri(file, 128);
+    selectedIconPath = dataUri;
+    (document.getElementById('preview-icon') as HTMLImageElement).src = dataUri;
+    document.getElementById('icon-source')!.textContent = `Custom: ${file.name}`;
+    (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = dataUri;
   } catch (error) {
-    console.error('Error uploading icon:', error);
-    styledAlert('Failed to upload icon');
+    console.error('Error processing icon:', error);
+    styledAlert('Failed to process image');
+    document.getElementById('icon-source')!.textContent = 'No icon selected';
   }
+}
+
+function resizeImageToDataUri(file: File, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+
+      // Aspect-fit and center
+      const scale = Math.min(size / img.width, size / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (size - w) / 2;
+      const y = (size - h) / 2;
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(img, x, y, w, h);
+
+      resolve(canvas.toDataURL('image/png'));
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load image'));
+    };
+
+    img.src = objectUrl;
+  });
 }
 
 export function initUploadArea(): void {
