@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Brute Bookmarks is a self-hosted bookmark manager with automatic icon fetching. TypeScript frontend built with Vite, migrating from Express/file-based storage to Convex for real-time cross-device sync. Optional Clerk authentication.
+Brute Bookmarks is a bookmark manager with real-time cross-device sync. TypeScript frontend (Vite) deployed on Vercel, Convex real-time backend, optional Clerk authentication. Also supports self-hosted deployment via Docker/Express for users who prefer local-only storage.
 
 ## Commands
 
