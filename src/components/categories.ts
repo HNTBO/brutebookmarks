@@ -24,6 +24,9 @@ import {
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
 
+// Guard: attach container-level drag listeners only once
+let containerListenersAttached = false;
+
 function getActiveTabId(group: TabGroup): string {
   const stored = activeTabPerGroup.get(group.id);
   if (stored && group.categories.some((c) => c.id === stored)) return stored;
@@ -230,7 +233,10 @@ export function renderCategories(): void {
     }
   });
 
-  // Container-level layout drag handlers
-  container.addEventListener('dragover', handleLayoutDragOver as EventListener);
-  container.addEventListener('drop', ((e: DragEvent) => handleLayoutDrop(e, renderCategories)) as EventListener);
+  // Container-level layout drag handlers — attach only once
+  if (!containerListenersAttached) {
+    container.addEventListener('dragover', handleLayoutDragOver as EventListener);
+    container.addEventListener('drop', ((e: DragEvent) => handleLayoutDrop(e, renderCategories)) as EventListener);
+    containerListenersAttached = true;
+  }
 }
