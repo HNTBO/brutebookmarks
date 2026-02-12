@@ -503,12 +503,22 @@ export async function reorderTabGroup(id: string, order: number): Promise<void> 
   });
 }
 
-export async function setCategoryGroup(categoryId: string, groupId: string | null): Promise<void> {
+export async function setCategoryGroup(categoryId: string, groupId: string | null, order?: number): Promise<void> {
   if (!_convexActive) return;
   const client = getConvexClient()!;
   await client.mutation(api.categories.setGroup, {
     id: categoryId as Id<'categories'>,
     groupId: groupId ? (groupId as Id<'tabGroups'>) : undefined,
+    order,
+  });
+}
+
+export async function mergeTabGroups(sourceId: string, targetId: string): Promise<void> {
+  if (!_convexActive) return;
+  const client = getConvexClient()!;
+  await client.mutation(api.tabGroups.mergeInto, {
+    sourceId: sourceId as Id<'tabGroups'>,
+    targetId: targetId as Id<'tabGroups'>,
   });
 }
 

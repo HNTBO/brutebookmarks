@@ -77,8 +77,9 @@ export const setGroup = mutation({
   args: {
     id: v.id('categories'),
     groupId: v.optional(v.id('tabGroups')),
+    order: v.optional(v.float64()),
   },
-  handler: async (ctx, { id, groupId }) => {
+  handler: async (ctx, { id, groupId, order }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
 
@@ -97,13 +98,17 @@ export const setGroup = mutation({
       const maxOrder = inGroup.reduce((max, c) => Math.max(max, c.order), 0);
       await ctx.db.patch(id, { groupId, order: maxOrder + 1 });
     } else {
-      // Ungrouping: compute order for the main vertical list
-      const allCats = await ctx.db
-        .query('categories')
-        .withIndex('by_user_order', (q) => q.eq('userId', identity.subject))
-        .collect();
-      const maxOrder = allCats.reduce((max, c) => Math.max(max, c.order), 0);
-      await ctx.db.patch(id, { groupId: undefined, order: maxOrder + 1 });
+      // Ungrouping: use provided order or fall back to end of list
+      if (order !== undefined) {
+        await ctx.db.patch(id, { groupId: undefined, order });
+      } else {
+        const allCats = await ctx.db
+          .query('categories')
+          .withIndex('by_user_order', (q) => q.eq('userId', identity.subject))
+          .collect();
+        const maxOrder = allCats.reduce((max, c) => Math.max(max, c.order), 0);
+        await ctx.db.patch(id, { groupId: undefined, order: maxOrder + 1 });
+      }
     }
   },
 });

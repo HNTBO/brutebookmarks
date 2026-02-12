@@ -9,6 +9,7 @@ import {
   createTabGroup,
   setCategoryGroup,
   deleteTabGroup,
+  mergeTabGroups,
 } from '../data/store';
 import type { LayoutItem } from '../types';
 
@@ -233,18 +234,32 @@ export function handleCategoryHeaderDragStart(e: DragEvent): void {
   e.dataTransfer!.setData('text/plain', ''); // Required for Firefox
 }
 
+export function handleTabGroupHeaderDragStart(e: DragEvent): void {
+  const groupEl = (e.currentTarget as HTMLElement).closest('.tab-group') as HTMLElement;
+  if (!groupEl) return;
+  draggedLayoutItem = { type: 'tabGroup', id: groupEl.dataset.groupId! };
+  groupEl.classList.add('dragging-category');
+  e.dataTransfer!.effectAllowed = 'move';
+  e.dataTransfer!.setData('text/plain', '');
+}
+
 export function handleCategoryHeaderDragEnd(e: DragEvent): void {
   draggedLayoutItem = null;
   document.querySelectorAll('.category').forEach((cat) => {
     cat.classList.remove('dragging-category');
   });
+  document.querySelectorAll('.tab-group').forEach((g) => {
+    g.classList.remove('dragging-category');
+  });
   document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+  document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
 }
 
 // Drop zone detection result
 type DropZone =
   | { action: 'reorder-before'; targetEl: Element }
   | { action: 'reorder-after' }
+  | { action: 'reorder-after-item'; targetEl: Element }
   | { action: 'group'; targetCategoryId: string; targetEl: HTMLElement }
   | { action: 'add-to-group'; targetGroupId: string; targetEl: HTMLElement }
   | null;
@@ -254,6 +269,7 @@ function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
   if (layoutEls.length === 0) return null;
 
   const dragId = draggedLayoutItem!.id;
+  const dragType = draggedLayoutItem!.type;
 
   for (const item of layoutEls) {
     const rect = item.getBoundingClientRect();
@@ -265,24 +281,33 @@ function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
 
     const relativeY = (e.clientY - rect.top) / rect.height;
 
-    // If dragging over a tab-group, add to that group (unless dragging a tab FROM this group)
     if (el.classList.contains('tab-group')) {
-      if (relativeY < 0.2) return { action: 'reorder-before', targetEl: item };
-      if (relativeY > 0.8) continue; // will be caught as reorder-after by next item or end
-      // Check if dragged category is already in this group
+      // Tab group zones: top 30% = before, middle 40% = add/merge, bottom 30% = after
+      if (relativeY < 0.3) return { action: 'reorder-before', targetEl: item };
+      if (relativeY > 0.7) return { action: 'reorder-after-item', targetEl: item };
+      // Center zone: add category or merge groups
       const groupId = el.dataset.groupId!;
-      const categories = getCategories();
-      const draggedCat = categories.find((c) => c.id === dragId);
-      if (draggedCat?.groupId === groupId) continue; // skip own group — treat as reorder
-      return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
+      if (dragType === 'category') {
+        const categories = getCategories();
+        const draggedCat = categories.find((c) => c.id === dragId);
+        if (draggedCat?.groupId === groupId) return { action: 'reorder-after-item', targetEl: item };
+        return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
+      }
+      if (dragType === 'tabGroup') {
+        return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
+      }
     }
 
-    // If dragging over an ungrouped category, use zones
     if (el.classList.contains('category')) {
-      if (relativeY < 0.3) return { action: 'reorder-before', targetEl: item };
-      if (relativeY > 0.7) continue; // reorder-after
-      // Center zone: create group
-      return { action: 'group', targetCategoryId: el.dataset.categoryId!, targetEl: el };
+      // Category zones: top 40% = before, middle 20% = group, bottom 40% = after
+      if (relativeY < 0.4) return { action: 'reorder-before', targetEl: item };
+      if (relativeY > 0.6) return { action: 'reorder-after-item', targetEl: item };
+      // Center zone: create group (only for category-on-category)
+      if (dragType === 'category') {
+        return { action: 'group', targetCategoryId: el.dataset.categoryId!, targetEl: el };
+      }
+      // Tab group dragged onto category center — treat as reorder-before
+      return { action: 'reorder-before', targetEl: item };
     }
   }
 
@@ -311,6 +336,17 @@ export function handleLayoutDragOver(e: DragEvent): void {
     const indicator = document.createElement('div');
     indicator.className = 'layout-drop-indicator';
     container.insertBefore(indicator, zone.targetEl);
+  } else if (zone.action === 'reorder-after-item') {
+    // Don't show indicator right after the dragged item
+    const next = zone.targetEl.nextElementSibling as HTMLElement | null;
+    const nextId = next?.dataset.categoryId || next?.dataset.groupId;
+    if (nextId === draggedLayoutItem.id) return;
+    const targetId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
+    if (targetId === draggedLayoutItem.id) return;
+
+    const indicator = document.createElement('div');
+    indicator.className = 'layout-drop-indicator';
+    container.insertBefore(indicator, zone.targetEl.nextSibling);
   } else if (zone.action === 'reorder-after') {
     const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
     const last = layoutEls[layoutEls.length - 1] as HTMLElement;
@@ -348,14 +384,19 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
     return;
   }
 
-  if (zone.action === 'add-to-group' && draggedLayoutItem.type === 'category') {
-    // Add category to existing tab group
-    setCategoryGroup(draggedLayoutItem.id, zone.targetGroupId);
+  if (zone.action === 'add-to-group') {
+    if (draggedLayoutItem.type === 'category') {
+      // Add category to existing tab group
+      setCategoryGroup(draggedLayoutItem.id, zone.targetGroupId);
+    } else if (draggedLayoutItem.type === 'tabGroup') {
+      // Merge two tab groups
+      mergeTabGroups(draggedLayoutItem.id, zone.targetGroupId);
+    }
     draggedLayoutItem = null;
     return;
   }
 
-  // Reorder logic
+  // Reorder logic — compute target index from zone
   const items = getLayoutItems();
 
   let targetIndex = items.length;
@@ -366,6 +407,13 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
       return id === targetElId;
     });
     if (targetIndex === -1) targetIndex = items.length;
+  } else if (zone.action === 'reorder-after-item') {
+    const targetElId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
+    const idx = items.findIndex((item) => {
+      const id = item.type === 'category' ? item.category.id : item.group.id;
+      return id === targetElId;
+    });
+    targetIndex = idx === -1 ? items.length : idx + 1;
   }
 
   const sourceIndex = items.findIndex((item) => {
@@ -373,9 +421,16 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
     return id === draggedLayoutItem!.id;
   });
 
-  // Category is nested inside a tab group — ungroup it
+  // Category is nested inside a tab group — ungroup it with positioned order
   if (sourceIndex === -1 && draggedLayoutItem.type === 'category') {
-    setCategoryGroup(draggedLayoutItem.id, null);
+    // Compute the target order from the layout items
+    const orderList = items.map((item) =>
+      item.type === 'category' ? (item.category.order ?? 0) : item.group.order
+    );
+    const prev = targetIndex > 0 ? orderList[targetIndex - 1] : 0;
+    const next = targetIndex < orderList.length ? orderList[targetIndex] : prev + 2;
+    const newOrder = (prev + next) / 2;
+    setCategoryGroup(draggedLayoutItem.id, null, newOrder);
     draggedLayoutItem = null;
     return;
   }

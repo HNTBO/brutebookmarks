@@ -14,6 +14,7 @@ import {
   handleCategoryDrop,
   handleCategoryHeaderDragStart,
   handleCategoryHeaderDragEnd,
+  handleTabGroupHeaderDragStart,
   handleLayoutDragOver,
   handleLayoutDrop,
   handleTabUngroupDragStart,
@@ -192,21 +193,8 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
 
   // Group header drag (reorder groups)
   const header = groupEl.querySelector('.tab-group-header') as HTMLElement;
-  header.addEventListener('dragstart', (e: DragEvent) => {
-    // Reuse category drag mechanics but with group type
-    const el = e.currentTarget as HTMLElement;
-    const closest = el.closest('.tab-group') as HTMLElement;
-    if (!closest) return;
-    // We'll treat it the same as category drag for layout positioning
-    // Store the group info
-    groupEl.classList.add('dragging-category');
-    e.dataTransfer!.effectAllowed = 'move';
-    e.dataTransfer!.setData('text/plain', '');
-  });
-  header.addEventListener('dragend', () => {
-    groupEl.classList.remove('dragging-category');
-    document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
-  });
+  header.addEventListener('dragstart', handleTabGroupHeaderDragStart as EventListener);
+  header.addEventListener('dragend', handleCategoryHeaderDragEnd as EventListener);
 
   return groupEl;
 }

@@ -1149,12 +1149,17 @@ footer {
 
 /* Drop indicator line between categories */
 .layout-drop-indicator {
-    height: 3px;
+    height: 6px;
     background: var(--accent);
-    margin: var(--space-sm) 0;
+    margin: var(--space-xs) 0;
     border-radius: 0;
     pointer-events: none;
     animation: dropIndicatorPulse 1s ease-in-out infinite;
+}
+
+/* Tab group being dragged */
+.tab-group.dragging-category {
+    opacity: 0.4;
 }
 
 /* Clerk overrides — square avatar + popover to match site aesthetic */

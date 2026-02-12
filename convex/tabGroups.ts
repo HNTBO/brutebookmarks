@@ -88,6 +88,41 @@ export const reorder = mutation({
   },
 });
 
+export const mergeInto = mutation({
+  args: {
+    sourceId: v.id('tabGroups'),
+    targetId: v.id('tabGroups'),
+  },
+  handler: async (ctx, { sourceId, targetId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Not authenticated');
+    const userId = identity.subject;
+
+    const source = await ctx.db.get(sourceId);
+    const target = await ctx.db.get(targetId);
+    if (!source || source.userId !== userId) throw new Error('Source group not found');
+    if (!target || target.userId !== userId) throw new Error('Target group not found');
+
+    // Find all categories in the target group to compute max order
+    const allCats = await ctx.db
+      .query('categories')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    const targetCats = allCats.filter((c) => c.groupId === targetId);
+    let maxOrder = targetCats.reduce((max, c) => Math.max(max, c.order), 0);
+
+    // Move source categories into target group
+    const sourceCats = allCats.filter((c) => c.groupId === sourceId);
+    for (const cat of sourceCats) {
+      maxOrder += 1;
+      await ctx.db.patch(cat._id, { groupId: targetId, order: maxOrder });
+    }
+
+    // Delete the now-empty source group
+    await ctx.db.delete(sourceId);
+  },
+});
+
 export const createWithCategories = mutation({
   args: {
     name: v.string(),
