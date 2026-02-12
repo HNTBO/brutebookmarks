@@ -311,6 +311,27 @@ function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
     }
   }
 
+  // Cursor is in a gap between elements (margin area) or beyond the last element.
+  // Find the insertion point by scanning element positions.
+  let lastNonDraggedEl: Element | null = null;
+  for (const item of layoutEls) {
+    const el = item as HTMLElement;
+    const elId = el.dataset.categoryId || el.dataset.groupId;
+    if (elId === dragId) continue;
+
+    const rect = item.getBoundingClientRect();
+    if (e.clientY < rect.top) {
+      // Cursor is above this element — insert before it
+      return { action: 'reorder-before', targetEl: item };
+    }
+    lastNonDraggedEl = item;
+  }
+
+  // Cursor is below all non-dragged elements
+  if (lastNonDraggedEl) {
+    return { action: 'reorder-after-item', targetEl: lastNonDraggedEl };
+  }
+
   return { action: 'reorder-after' };
 }
 
