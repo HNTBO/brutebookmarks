@@ -6,6 +6,7 @@ import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
 import { initCategoryModal, openAddCategoryModal, openEditCategoryModal } from './components/modals/category-modal';
 import { initSettingsModal, openSettingsModal, closeSettingsModal } from './components/modals/settings-modal';
+import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme } from './features/theme';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences } from './features/preferences';
@@ -20,6 +21,7 @@ renderApp();
 initBookmarkModal();
 initCategoryModal();
 initSettingsModal();
+initConfirmModal();
 initUploadArea();
 
 // Wire header action buttons

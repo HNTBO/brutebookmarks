@@ -1,3 +1,5 @@
+import { styledAlert } from './modals/confirm-modal';
+
 const API_BASE = window.location.origin;
 
 let selectedIconUrl: string | null = null;
@@ -32,7 +34,7 @@ export function handleUrlChange(): void {
 export async function useFavicon(): Promise<void> {
   const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
   if (!url) {
-    alert('Please enter a URL first');
+    styledAlert('Please enter a URL first');
     return;
   }
 
@@ -52,7 +54,7 @@ export async function useFavicon(): Promise<void> {
     }
   } catch (error) {
     console.error('Error fetching favicon:', error);
-    alert('Failed to fetch favicon');
+    styledAlert('Failed to fetch favicon');
   }
 }
 
@@ -80,7 +82,7 @@ export function toggleIconSearch(): void {
 export async function searchIcons(): Promise<void> {
   const query = (document.getElementById('icon-search-query') as HTMLInputElement).value;
   if (!query) {
-    alert('Please enter a search term');
+    styledAlert('Please enter a search term');
     return;
   }
 
@@ -148,7 +150,7 @@ async function selectWikimediaIcon(url: string, title: string, index: number): P
     }
   } catch (error) {
     console.error('Error downloading icon:', error);
-    alert('Failed to download icon');
+    styledAlert('Failed to download icon');
   }
 }
 
@@ -225,7 +227,7 @@ async function selectEmoji(code: string, keyword: string, index: number): Promis
     }
   } catch (error) {
     console.error('Error downloading emoji:', error);
-    alert('Failed to download emoji');
+    styledAlert('Failed to download emoji');
   }
 }
 
@@ -250,7 +252,7 @@ export async function uploadCustomIcon(file: File): Promise<void> {
     }
   } catch (error) {
     console.error('Error uploading icon:', error);
-    alert('Failed to upload icon');
+    styledAlert('Failed to upload icon');
   }
 }
 

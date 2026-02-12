@@ -1,6 +1,7 @@
 import { getCategories, createBookmark, updateBookmark, deleteBookmarkById } from '../../data/store';
 import { getIconUrl } from '../../utils/icons';
 import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange } from '../icon-picker';
+import { styledConfirm } from './confirm-modal';
 
 let editingBookmarkId: string | null = null;
 
@@ -68,7 +69,7 @@ async function saveBookmark(event: Event): Promise<void> {
 }
 
 export async function deleteBookmark(categoryId: string, bookmarkId: string): Promise<void> {
-  if (confirm('Delete this bookmark?')) {
+  if (await styledConfirm('Delete this bookmark?', 'Delete Bookmark')) {
     await deleteBookmarkById(bookmarkId);
   }
 }

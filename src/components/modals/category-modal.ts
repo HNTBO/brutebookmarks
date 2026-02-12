@@ -8,6 +8,7 @@ import {
   createTabGroup,
   isConvexMode,
 } from '../../data/store';
+import { styledConfirm, styledPrompt } from './confirm-modal';
 
 let editingCategoryId: string | null = null;
 
@@ -71,7 +72,7 @@ export function closeCategoryModal(): void {
 
 async function deleteCategoryFromModal(): Promise<void> {
   const categoryId = (document.getElementById('editing-category-id') as HTMLInputElement).value;
-  if (categoryId && confirm('Delete this category and all its bookmarks?')) {
+  if (categoryId && (await styledConfirm('Delete this category and all its bookmarks?', 'Delete Category'))) {
     await deleteCategory(categoryId);
     closeCategoryModal();
   }
@@ -92,7 +93,7 @@ async function saveCategory(event: Event): Promise<void> {
       const currentGroupId = category?.groupId ?? '';
 
       if (selectedGroupValue === '__new__') {
-        const groupName = prompt('New group name:');
+        const groupName = await styledPrompt('Enter a name for the new group:', 'New Tab Group');
         if (groupName) {
           await createTabGroup(groupName, [editingCategoryId]);
         }

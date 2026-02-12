@@ -2,6 +2,7 @@ import { getCategories, setCategories, saveData, importBulk, isConvexMode } from
 import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
+import { styledConfirm, styledAlert } from './confirm-modal';
 
 export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
@@ -24,6 +25,9 @@ function exportData(): void {
 }
 
 function importData(): void {
+  // Close settings first — import flow returns to app, not settings
+  closeSettingsModal();
+
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'application/json';
@@ -34,7 +38,7 @@ function importData(): void {
       reader.onload = async (event) => {
         try {
           const importedData = JSON.parse(event.target!.result as string);
-          if (confirm('Replace all current data?')) {
+          if (await styledConfirm('Replace all current data?', 'Import')) {
             if (isConvexMode()) {
               await importBulk(importedData);
             } else {
@@ -42,10 +46,10 @@ function importData(): void {
               saveData();
               renderCategories();
             }
-            alert('Import successful');
+            await styledAlert('Import successful', 'Import');
           }
         } catch {
-          alert('Invalid file format');
+          await styledAlert('Invalid file format', 'Import');
         }
       };
       reader.readAsText(file);

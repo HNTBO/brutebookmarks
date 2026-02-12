@@ -3,6 +3,7 @@ import { getConvexClient } from './convex-client';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { DEFAULT_LAYOUT } from './defaults';
+import { styledConfirm, styledAlert } from '../components/modals/confirm-modal';
 
 const API_BASE = window.location.origin;
 
@@ -269,7 +270,7 @@ function rebuild(): void {
 
 // --- Migration prompt ---
 async function promptMigration(legacy: Category[]): Promise<void> {
-  if (!confirm('Import your existing bookmarks into Convex for cross-device sync?')) {
+  if (!(await styledConfirm('Import your existing bookmarks into Convex for cross-device sync?', 'Migration'))) {
     return;
   }
 
@@ -291,13 +292,13 @@ async function promptMigration(legacy: Category[]): Promise<void> {
     // Subscriptions will fire and rebuild automatically
   } catch (error) {
     console.error('[Store] Migration failed:', error);
-    alert('Migration failed. Your local data is preserved.');
+    await styledAlert('Migration failed. Your local data is preserved.', 'Migration');
   }
 }
 
 // --- Seed defaults prompt ---
 async function promptSeedDefaults(): Promise<void> {
-  if (!confirm('Load sample bookmarks to explore the app?')) {
+  if (!(await styledConfirm('Load sample bookmarks to explore the app?', 'Welcome'))) {
     return;
   }
 

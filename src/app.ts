@@ -171,5 +171,27 @@ export function renderApp(): void {
         </div>
       </div>
     </div>
+
+    <!-- Confirm/Alert Modal (replaces native browser dialogs) -->
+    <div id="confirm-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="confirm-modal-title">Confirm</h2>
+          <button class="modal-close" id="confirm-modal-close">×</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-modal-message"></p>
+          <div class="form-group" id="confirm-modal-input-group" style="display: none; margin-top: var(--space-md);">
+            <input type="text" id="confirm-modal-input">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <div class="modal-actions-right">
+            <button class="modal-btn cancel" id="confirm-modal-cancel">Cancel</button>
+            <button class="modal-btn save" id="confirm-modal-ok">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 }
