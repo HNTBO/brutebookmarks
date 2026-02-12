@@ -42,16 +42,26 @@ function loadClerkScript(publishableKey: string): Promise<void> {
 
 export async function initClerk(): Promise<ClerkInstance | null> {
   try {
-    const res = await fetch('/api/config');
-    const config = await res.json();
+    // Try Vite env var first (Vercel/production), fall back to Express API (local dev)
+    let publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
-    if (!config.clerkPublishableKey) {
+    if (!publishableKey) {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        publishableKey = config.clerkPublishableKey;
+      } catch {
+        // Express backend not available (e.g. Vercel deployment)
+      }
+    }
+
+    if (!publishableKey) {
       console.log('[Auth] No Clerk key configured - running without auth');
       return null;
     }
 
     console.log('[Auth] Loading Clerk SDK from CDN...');
-    await loadClerkScript(config.clerkPublishableKey);
+    await loadClerkScript(publishableKey);
 
     // With data-clerk-publishable-key, window.Clerk is the auto-created instance
     clerk = (window as any).Clerk;
