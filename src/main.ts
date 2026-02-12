@@ -10,7 +10,7 @@ import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme } from './features/theme';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences } from './features/preferences';
-import { initClerk, getAuthToken } from './auth/clerk';
+import { initClerk, getAuthToken, initExtensionBridge } from './auth/clerk';
 import { enableAuthFetch } from './auth/auth-fetch';
 import { initConvexClient, setConvexAuth } from './data/convex-client';
 
@@ -125,6 +125,11 @@ async function init(): Promise<void> {
       if (convexClient) {
         setConvexAuth(() => getAuthToken({ template: 'convex' }));
         activateConvex();
+      }
+
+      // Send auth token to browser extension (if installed)
+      if (clerk.user) {
+        initExtensionBridge();
       }
     }
   });

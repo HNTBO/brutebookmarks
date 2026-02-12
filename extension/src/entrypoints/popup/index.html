@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+  <title>Brute Bookmarks</title>
+</head>
+<body>
+  <div id="app">
+    <!-- Header — always visible -->
+    <header class="popup-header">
+      <div class="header-title">Brute <span>Bookmarks</span></div>
+      <button id="open-app-btn" class="header-btn" title="Open Brute Bookmarks">↗</button>
+    </header>
+
+    <!-- View: Not Connected (onboarding) -->
+    <div id="view-onboarding" class="view" style="display: none;">
+      <div class="view-body">
+        <p class="onboarding-text">Save any page as a bookmark with one click.</p>
+        <div class="onboarding-tips">
+          <div class="tip">Open <strong>Brute Bookmarks</strong> while logged in to connect this extension automatically.</div>
+          <div class="tip">Set it as your homepage or new tab page for easy access.</div>
+          <div class="tip">Then use this extension button to quickly save any page.</div>
+        </div>
+        <button id="connect-btn" class="btn btn-primary btn-full">Open Brute Bookmarks</button>
+      </div>
+    </div>
+
+    <!-- View: Loading -->
+    <div id="view-loading" class="view" style="display: none;">
+      <div class="view-body view-centered">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- View: Pick Category -->
+    <div id="view-categories" class="view" style="display: none;">
+      <div class="page-info">
+        <div class="page-title" id="page-title"></div>
+        <div class="page-url" id="page-url"></div>
+      </div>
+      <div class="category-list" id="category-list">
+        <!-- Categories injected here -->
+      </div>
+    </div>
+
+    <!-- View: Success -->
+    <div id="view-success" class="view" style="display: none;">
+      <div class="view-body view-centered">
+        <div class="success-check">✓</div>
+        <div class="success-text">Saved</div>
+      </div>
+    </div>
+
+    <!-- View: Already Saved -->
+    <div id="view-already-saved" class="view" style="display: none;">
+      <div class="view-body">
+        <div class="already-saved-label">Already saved</div>
+        <div class="already-saved-category" id="already-saved-category"></div>
+        <button id="save-another-btn" class="btn btn-full">Save to another category</button>
+      </div>
+    </div>
+
+    <!-- View: Error -->
+    <div id="view-error" class="view" style="display: none;">
+      <div class="view-body view-centered">
+        <div class="error-text" id="error-text">Something went wrong.</div>
+        <button id="retry-btn" class="btn btn-full">Retry</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

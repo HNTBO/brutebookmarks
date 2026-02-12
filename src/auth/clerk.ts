@@ -127,3 +127,38 @@ export function getCurrentUser() {
 export function getClerkInstance(): ClerkInstance | null {
   return clerk;
 }
+
+// --- Browser extension auth bridge ---
+
+/**
+ * Send a fresh Convex JWT to the browser extension (if installed).
+ * The extension's content script listens for BB_EXT_AUTH messages via postMessage.
+ */
+async function sendTokenToExtension(): Promise<void> {
+  if (!clerk?.session) return;
+  try {
+    const token = await clerk.session.getToken({ template: 'convex' });
+    if (token) {
+      window.postMessage({ type: 'BB_EXT_AUTH', token }, '*');
+    }
+  } catch {
+    // Silently ignore — extension may not be installed
+  }
+}
+
+/**
+ * Start listening for extension token requests and auto-send on login.
+ * Called once after Clerk initializes with an authenticated user.
+ */
+export function initExtensionBridge(): void {
+  // Send token immediately (extension content script may already be waiting)
+  sendTokenToExtension();
+
+  // Listen for explicit token requests from the extension content script
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    if (event.data?.type === 'BB_EXT_REQUEST_TOKEN') {
+      sendTokenToExtension();
+    }
+  });
+}
