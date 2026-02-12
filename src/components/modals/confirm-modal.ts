@@ -32,11 +32,12 @@ function closePrompt(value: string | null): void {
   }
 }
 
-export function styledConfirm(message: string, title = 'Confirm'): Promise<boolean> {
+export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel'): Promise<boolean> {
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;
-  els.confirmBtn.textContent = 'OK';
+  els.confirmBtn.textContent = okLabel;
+  els.cancelBtn.textContent = cancelLabel;
   els.cancelBtn.style.display = '';
   els.inputGroup.style.display = 'none';
   els.modal.classList.add('active');

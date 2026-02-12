@@ -152,3 +152,35 @@ export const importBulk = mutation({
     }
   },
 });
+
+export const eraseAll = mutation({
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Not authenticated');
+    const userId = identity.subject;
+
+    const bookmarks = await ctx.db
+      .query('bookmarks')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    for (const b of bookmarks) {
+      await ctx.db.delete(b._id);
+    }
+
+    const categories = await ctx.db
+      .query('categories')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    for (const c of categories) {
+      await ctx.db.delete(c._id);
+    }
+
+    const tabGroups = await ctx.db
+      .query('tabGroups')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    for (const g of tabGroups) {
+      await ctx.db.delete(g._id);
+    }
+  },
+});

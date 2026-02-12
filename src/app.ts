@@ -163,10 +163,11 @@ export function renderApp(): void {
             </div>
           </div>
           <div class="settings-section">
-            <h3>Data</h3>
+            <h3>Bookmarks</h3>
             <div class="settings-row">
-              <button class="btn" id="export-data-btn">Export Bookmarks</button>
-              <button class="btn" id="import-data-btn">Import Bookmarks</button>
+              <button class="btn" id="import-data-btn">Import</button>
+              <button class="btn" id="export-data-btn">Export</button>
+              <button class="btn btn-danger" id="erase-data-btn">Erase</button>
             </div>
           </div>
         </div>

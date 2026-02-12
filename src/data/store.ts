@@ -499,6 +499,17 @@ export async function renameTabGroup(id: string, name: string): Promise<void> {
   });
 }
 
+export async function eraseAllData(): Promise<void> {
+  if (_convexActive) {
+    const client = getConvexClient()!;
+    await client.mutation(api.bookmarks.eraseAll, {});
+  } else {
+    _categories = [];
+    saveData();
+    rerender();
+  }
+}
+
 export async function importBulk(data: Category[]): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;

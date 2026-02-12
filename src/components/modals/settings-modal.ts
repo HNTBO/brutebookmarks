@@ -1,4 +1,4 @@
-import { getCategories, setCategories, saveData, importBulk, isConvexMode } from '../../data/store';
+import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode } from '../../data/store';
 import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
@@ -25,7 +25,6 @@ function exportData(): void {
 }
 
 function importData(): void {
-  // Close settings first — import flow returns to app, not settings
   closeSettingsModal();
 
   const input = document.createElement('input');
@@ -38,16 +37,28 @@ function importData(): void {
       reader.onload = async (event) => {
         try {
           const importedData = JSON.parse(event.target!.result as string);
-          if (await styledConfirm('Replace all current data?', 'Import')) {
-            if (isConvexMode()) {
-              await importBulk(importedData);
-            } else {
-              setCategories(importedData);
-              saveData();
-              renderCategories();
-            }
-            await styledAlert('Import successful', 'Import');
+          // Ask append or replace
+          const replace = await styledConfirm(
+            'How do you want to import these bookmarks?',
+            'Import',
+            'Replace',
+            'Append',
+          );
+          if (replace) {
+            await eraseAllData();
           }
+          if (isConvexMode()) {
+            await importBulk(importedData);
+          } else {
+            if (replace) {
+              setCategories(importedData);
+            } else {
+              setCategories([...getCategories(), ...importedData]);
+            }
+            saveData();
+            renderCategories();
+          }
+          await styledAlert('Import successful', 'Import');
         } catch {
           await styledAlert('Invalid file format', 'Import');
         }
@@ -56,6 +67,14 @@ function importData(): void {
     }
   };
   input.click();
+}
+
+async function eraseData(): Promise<void> {
+  closeSettingsModal();
+  if (await styledConfirm('This will permanently erase all your bookmarks.', 'Erase')) {
+    await eraseAllData();
+    await styledAlert('All bookmarks erased.', 'Erase');
+  }
 }
 
 export function initSettingsModal(): void {
@@ -72,6 +91,7 @@ export function initSettingsModal(): void {
   document.getElementById('reset-accent-btn')!.addEventListener('click', resetAccentColor);
   document.getElementById('export-data-btn')!.addEventListener('click', exportData);
   document.getElementById('import-data-btn')!.addEventListener('click', importData);
+  document.getElementById('erase-data-btn')!.addEventListener('click', eraseData);
 
   // Backdrop close for settings
   let mouseDownOnBackdrop = false;
