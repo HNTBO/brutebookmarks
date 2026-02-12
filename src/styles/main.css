@@ -1137,6 +1137,23 @@ footer {
     animation: dropIndicatorPulse 1s ease-in-out infinite;
 }
 
+/* Clerk overrides — square avatar + popover to match site aesthetic */
+.cl-userButtonAvatarBox,
+.cl-avatarBox {
+    border-radius: 0 !important;
+}
+
+.cl-avatarImage {
+    border-radius: 0 !important;
+}
+
+.cl-userButtonPopoverCard,
+.cl-card {
+    border-radius: 0 !important;
+    border: 1px solid var(--border-strong) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
 @keyframes dropIndicatorPulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
