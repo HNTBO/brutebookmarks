@@ -987,6 +987,26 @@ footer {
     color: var(--accent);
 }
 
+.footer-contact {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 31px;
+    padding: 0 var(--space-md);
+    font-size: 12px;
+    font-family: var(--font-body);
+    color: var(--text-secondary);
+    text-decoration: none;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    transition: all 0.15s ease;
+}
+
+.footer-contact:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .container {

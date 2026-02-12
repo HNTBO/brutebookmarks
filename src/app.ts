@@ -27,6 +27,7 @@ export function renderApp(): void {
 
       <footer>
         <span class="footer-text">Brute Bookmarks — <a href="#">v1.0</a></span>
+        <a href="mailto:contact@brutebookmarks.com" class="footer-contact">contact@brutebookmarks.com</a>
         <span class="footer-text">Icons via <a href="https://commons.wikimedia.org" target="_blank">Wikimedia Commons</a></span>
       </footer>
     </div>
