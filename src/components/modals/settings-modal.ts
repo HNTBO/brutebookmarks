@@ -37,20 +37,24 @@ function importData(): void {
       reader.onload = async (event) => {
         try {
           const importedData = JSON.parse(event.target!.result as string);
-          // Ask append or replace
-          const replace = await styledConfirm(
-            'How do you want to import these bookmarks?',
-            'Import',
-            'Replace',
-            'Append',
-          );
-          if (replace) {
-            await eraseAllData();
+          const hasData = getCategories().length > 0;
+
+          if (hasData) {
+            // Ask append or replace — null means dismissed (cancel)
+            const choice = await styledConfirm(
+              'You have existing bookmarks. Replace them or append?',
+              'Import',
+              'Replace',
+              'Append',
+            );
+            if (choice === null) return; // dismissed — cancel entirely
+            if (choice) await eraseAllData(); // replace
           }
+
           if (isConvexMode()) {
             await importBulk(importedData);
           } else {
-            if (replace) {
+            if (!hasData) {
               setCategories(importedData);
             } else {
               setCategories([...getCategories(), ...importedData]);

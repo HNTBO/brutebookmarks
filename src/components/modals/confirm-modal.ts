@@ -1,4 +1,4 @@
-let _resolve: ((value: boolean) => void) | null = null;
+let _resolve: ((value: boolean | null) => void) | null = null;
 let _promptResolve: ((value: string | null) => void) | null = null;
 
 function getElements() {
@@ -14,7 +14,7 @@ function getElements() {
   };
 }
 
-function close(result: boolean): void {
+function close(result: boolean | null): void {
   const { modal } = getElements();
   modal.classList.remove('active');
   if (_resolve) {
@@ -32,7 +32,7 @@ function closePrompt(value: string | null): void {
   }
 }
 
-export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel'): Promise<boolean> {
+export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel'): Promise<boolean | null> {
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;
@@ -82,6 +82,7 @@ export function styledPrompt(message: string, title = 'Input', defaultValue = ''
 export function initConfirmModal(): void {
   const els = getElements();
 
+  // OK button → true
   els.confirmBtn.addEventListener('click', () => {
     if (_promptResolve) {
       closePrompt(els.input.value);
@@ -90,6 +91,7 @@ export function initConfirmModal(): void {
     }
   });
 
+  // Cancel button → false
   els.cancelBtn.addEventListener('click', () => {
     if (_promptResolve) {
       closePrompt(null);
@@ -98,15 +100,16 @@ export function initConfirmModal(): void {
     }
   });
 
+  // X button → null (dismiss)
   els.closeBtn.addEventListener('click', () => {
     if (_promptResolve) {
       closePrompt(null);
     } else {
-      close(false);
+      close(null);
     }
   });
 
-  // Enter key submits, Escape cancels
+  // Enter → true, Escape → null (dismiss)
   els.modal.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -119,12 +122,12 @@ export function initConfirmModal(): void {
       if (_promptResolve) {
         closePrompt(null);
       } else {
-        close(false);
+        close(null);
       }
     }
   });
 
-  // Backdrop click
+  // Backdrop → null (dismiss)
   let mouseDownOnBackdrop = false;
   els.modal.addEventListener('mousedown', (e) => {
     mouseDownOnBackdrop = e.target === els.modal;
@@ -134,7 +137,7 @@ export function initConfirmModal(): void {
       if (_promptResolve) {
         closePrompt(null);
       } else {
-        close(false);
+        close(null);
       }
     }
     mouseDownOnBackdrop = false;
