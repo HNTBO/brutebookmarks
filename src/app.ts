@@ -2,7 +2,7 @@ export function renderApp(): void {
   const app = document.querySelector<HTMLDivElement>('#app')!;
   app.innerHTML = `
     <!-- Clerk User Button -->
-    <div id="clerk-user-button" style="position: fixed; top: 16px; right: 16px; z-index: 9999;"></div>
+    <div id="clerk-user-button" style="position: fixed; top: var(--space-xl); right: 16px; z-index: 9999;"></div>
 
     <div class="container">
       <header class="brute-header">
