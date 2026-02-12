@@ -1,6 +1,8 @@
 // Type-only — erased at compile time
 type ClerkInstance = import('@clerk/clerk-js').Clerk;
 
+import { setAppMode } from '../data/local-storage';
+
 let clerk: ClerkInstance | null = null;
 
 /**
@@ -79,8 +81,20 @@ export async function initClerk(): Promise<ClerkInstance | null> {
       mountUserButton();
     } else {
       console.log('[Auth] Showing sign-in overlay');
-      showSignInOverlay();
+      showSignInOverlay({ showLocalEscape: true });
     }
+
+    // Listen for user sign-in events (handles post-sign-in flow)
+    clerk.addListener(({ user }) => {
+      if (user) {
+        removeSignInOverlay();
+        mountUserButton();
+        if (_signInResolve) {
+          _signInResolve(true);
+          _signInResolve = null;
+        }
+      }
+    });
 
     return clerk;
   } catch (err) {
@@ -96,7 +110,10 @@ function mountUserButton(): void {
   }
 }
 
-function showSignInOverlay(): void {
+// Resolvers for sign-in completion (used by triggerSignIn)
+let _signInResolve: ((signedIn: boolean) => void) | null = null;
+
+function showSignInOverlay(options?: { showLocalEscape?: boolean }): void {
   const overlay = document.createElement('div');
   overlay.id = 'auth-overlay';
   overlay.style.cssText = `
@@ -104,6 +121,7 @@ function showSignInOverlay(): void {
     inset: 0;
     background: rgba(0,0,0,0.95);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 10000;
@@ -112,6 +130,31 @@ function showSignInOverlay(): void {
   const signInContainer = document.createElement('div');
   signInContainer.id = 'clerk-sign-in';
   overlay.appendChild(signInContainer);
+
+  if (options?.showLocalEscape) {
+    const escapeBtn = document.createElement('button');
+    escapeBtn.textContent = 'Use locally instead';
+    escapeBtn.style.cssText = `
+      margin-top: 16px;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: underline;
+    `;
+    escapeBtn.addEventListener('click', () => {
+      setAppMode('local');
+      removeSignInOverlay();
+      if (_signInResolve) {
+        _signInResolve(false);
+        _signInResolve = null;
+      }
+    });
+    overlay.appendChild(escapeBtn);
+  }
+
   document.body.appendChild(overlay);
 
   if (clerk) {
@@ -119,6 +162,34 @@ function showSignInOverlay(): void {
       fallbackRedirectUrl: window.location.origin,
     });
   }
+}
+
+function removeSignInOverlay(): void {
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+/**
+ * Trigger sign-in flow. Returns true if user ends up signed in.
+ * Used by upgradeToSync() for local→sync migration.
+ */
+export async function triggerSignIn(): Promise<boolean> {
+  // Already signed in
+  if (clerk?.user) return true;
+
+  // Clerk not loaded yet — init it first
+  if (!clerk) {
+    const result = await initClerk();
+    return !!result?.user;
+  }
+
+  // Clerk loaded but user not signed in — show overlay and wait
+  return new Promise<boolean>((resolve) => {
+    _signInResolve = resolve;
+    showSignInOverlay();
+  });
 }
 
 export async function getAuthToken(options?: { template?: string }): Promise<string | null> {

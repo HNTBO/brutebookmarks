@@ -301,6 +301,40 @@ async function promptSeedDefaults(): Promise<void> {
   }
 }
 
+// --- Local seed defaults (for first-time local-only users) ---
+export function seedLocalDefaults(): void {
+  // Only seed if localStorage is empty
+  const savedData = localStorage.getItem('speedDialData');
+  if (savedData) {
+    const parsed = JSON.parse(savedData);
+    if (Array.isArray(parsed) && parsed.length > 0) return;
+  }
+
+  // Flatten DEFAULT_LAYOUT into Category[] (no tab groups in local mode)
+  let order = 1;
+  const categories: Category[] = [];
+  for (const item of DEFAULT_LAYOUT) {
+    for (const cat of item.categories) {
+      categories.push({
+        id: 'c' + Date.now() + '-' + order,
+        name: cat.name,
+        order: order++,
+        bookmarks: cat.bookmarks.map((b, i) => ({
+          id: 'b' + Date.now() + '-' + i,
+          title: b.title,
+          url: b.url,
+          iconPath: null,
+          order: b.order,
+        })),
+      });
+    }
+  }
+
+  _categories = categories;
+  localStorage.setItem('speedDialData', JSON.stringify(_categories));
+  rerender();
+}
+
 // --- Mutation helpers ---
 
 export async function createCategory(name: string): Promise<void> {

@@ -1,6 +1,24 @@
 export function renderApp(): void {
   const app = document.querySelector<HTMLDivElement>('#app')!;
   app.innerHTML = `
+    <!-- Welcome Gate -->
+    <div id="welcome-gate" class="welcome-gate">
+      <div class="welcome-gate-content">
+        <h1 class="welcome-gate-title">Brute <em>Bookmarks</em></h1>
+        <p class="welcome-gate-subtitle">Your bookmarks, your way.</p>
+        <div class="welcome-gate-options">
+          <button id="gate-local-btn" class="welcome-gate-btn gate-btn-local">
+            <span class="gate-btn-label">Use Locally</span>
+            <span class="gate-btn-desc">No account needed. Stored in this browser.</span>
+          </button>
+          <button id="gate-sync-btn" class="welcome-gate-btn gate-btn-sync">
+            <span class="gate-btn-label">Sign Up / Sign In</span>
+            <span class="gate-btn-desc">Sync across devices. Free for founding members.</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Clerk User Button -->
     <div id="clerk-user-button" style="position: fixed; top: var(--space-xl); right: 16px; z-index: 9999;"></div>
 
@@ -148,6 +166,7 @@ export function renderApp(): void {
           <button class="modal-close" id="settings-modal-close">×</button>
         </div>
         <div class="modal-body">
+          <div class="settings-section" id="settings-account-section"></div>
           <div class="settings-section">
             <h3>Display</h3>
             <div class="settings-row">

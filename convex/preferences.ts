@@ -48,7 +48,10 @@ export const set = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, data);
     } else {
-      await ctx.db.insert('userPreferences', data);
+      await ctx.db.insert('userPreferences', {
+        ...data,
+        foundingMemberSince: Date.now(),
+      });
     }
   },
 });

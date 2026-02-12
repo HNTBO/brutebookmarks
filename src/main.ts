@@ -10,8 +10,11 @@ import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme } from './features/theme';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences } from './features/preferences';
-import { initClerk, getAuthToken, initExtensionBridge } from './auth/clerk';
+import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth } from './data/convex-client';
+import { getAppMode, setAppMode } from './data/local-storage';
+import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
+import { seedLocalDefaults } from './data/store';
 
 // Render the HTML shell
 renderApp();
@@ -104,7 +107,7 @@ async function init(): Promise<void> {
   syncThemeUI();
   syncPreferencesUI();
 
-  // Render categories from localStorage/Express cache
+  // Render categories from localStorage cache
   renderCategories();
 
   // Apply saved settings
@@ -114,7 +117,26 @@ async function init(): Promise<void> {
   // Initialize the 2D size controller
   initSizeController();
 
-  // Initialize auth in the background — don't block the app
+  // Check app mode
+  const mode = getAppMode();
+
+  if (mode === null) {
+    // First visit — show welcome gate
+    const choice = await showWelcomeGate();
+    setAppMode(choice);
+    hideWelcomeGate();
+
+    if (choice === 'local') {
+      seedLocalDefaults();
+      return;
+    }
+    // choice === 'sync' — fall through to Clerk init
+  } else if (mode === 'local') {
+    // Local mode — skip Clerk entirely
+    return;
+  }
+
+  // Sync mode — initialize auth
   initClerk().then((clerk) => {
     if (clerk) {
       // Wire Convex auth if available
@@ -130,6 +152,31 @@ async function init(): Promise<void> {
       }
     }
   });
+}
+
+/**
+ * Upgrade from local mode to sync mode.
+ * Called from settings modal when a local user wants to sign up.
+ */
+export async function upgradeToSync(): Promise<void> {
+  setAppMode('sync');
+
+  const signedIn = await triggerSignIn();
+  if (!signedIn) {
+    // User abandoned sign-in — revert to local
+    setAppMode('local');
+    return;
+  }
+
+  // Wire Convex
+  const convexClient = initConvexClient();
+  if (convexClient) {
+    setConvexAuth(() => getAuthToken({ template: 'convex' }));
+    activateConvex();
+    // rebuild() → promptMigration() in store.ts handles pushing localStorage data to Convex
+  }
+
+  initExtensionBridge();
 }
 
 init();

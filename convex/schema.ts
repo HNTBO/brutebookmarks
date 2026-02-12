@@ -41,6 +41,7 @@ export default defineSchema({
     pageWidth: v.float64(),
     showCardNames: v.boolean(),
     autofillUrl: v.optional(v.boolean()),
+    foundingMemberSince: v.optional(v.float64()),
     updatedAt: v.float64(),
   }).index('by_user', ['userId']),
 });

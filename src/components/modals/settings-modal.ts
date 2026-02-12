@@ -5,11 +5,50 @@ import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
 import type { Category } from '../../types';
+import { getAppMode } from '../../data/local-storage';
 
 export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
   (document.getElementById('show-card-names') as HTMLInputElement).checked = getShowCardNames();
   (document.getElementById('autofill-url') as HTMLInputElement).checked = getAutofillUrl();
+  populateAccountSection();
+}
+
+function populateAccountSection(): void {
+  const section = document.getElementById('settings-account-section');
+  if (!section) return;
+
+  const mode = getAppMode();
+
+  if (mode === 'local') {
+    section.innerHTML = `
+      <h3>Account</h3>
+      <div class="settings-row">
+        <span class="account-status-text">Using locally (this browser only)</span>
+      </div>
+      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: var(--space-sm);">
+        <button class="account-upgrade-btn" id="upgrade-sync-btn">Sign Up for Cross-Device Sync</button>
+        <span class="account-note">Free for founding members</span>
+      </div>
+    `;
+
+    document.getElementById('upgrade-sync-btn')!.addEventListener('click', async () => {
+      closeSettingsModal();
+      // Dynamic import to avoid circular dependency (main.ts imports settings-modal.ts)
+      const { upgradeToSync } = await import('../../main');
+      await upgradeToSync();
+    });
+  } else if (mode === 'sync') {
+    section.innerHTML = `
+      <h3>Account</h3>
+      <div class="account-status">
+        <span class="account-status-text">Synced across devices</span>
+        <span class="account-badge">Founding Member</span>
+      </div>
+    `;
+  } else {
+    section.innerHTML = '';
+  }
 }
 
 export function closeSettingsModal(): void {
