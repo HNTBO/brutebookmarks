@@ -42,6 +42,7 @@ export function handleDragEnd(e: DragEvent): void {
 }
 
 export function handleDragOver(e: DragEvent): void {
+  if (draggedLayoutItem) return; // Layout drag — let event bubble to container
   e.preventDefault();
   e.dataTransfer!.dropEffect = 'move';
 }
@@ -63,6 +64,8 @@ function computeMidpoint(
 }
 
 export function handleDrop(e: DragEvent, renderCallback: () => void): void {
+  if (!draggedBookmark) return; // Not a bookmark drag — let event bubble for layout handling
+
   e.stopPropagation();
   e.preventDefault();
 
@@ -70,7 +73,7 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
   const targetCategoryId = targetElement.dataset.categoryId!;
   const targetBookmarkId = targetElement.dataset.bookmarkId!;
 
-  if (!draggedBookmark || draggedBookmark.bookmarkId === targetBookmarkId) {
+  if (draggedBookmark.bookmarkId === targetBookmarkId) {
     return;
   }
 
