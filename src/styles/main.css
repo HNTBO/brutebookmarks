@@ -304,11 +304,17 @@ h1 em {
     }
 }
 
-.category:nth-child(1) { animation-delay: 0s; }
-.category:nth-child(2) { animation-delay: 0.08s; }
-.category:nth-child(3) { animation-delay: 0.16s; }
-.category:nth-child(4) { animation-delay: 0.24s; }
-.category:nth-child(5) { animation-delay: 0.32s; }
+.category:nth-child(1), .tab-group:nth-child(1) { animation-delay: 0s; }
+.category:nth-child(2), .tab-group:nth-child(2) { animation-delay: 0.08s; }
+.category:nth-child(3), .tab-group:nth-child(3) { animation-delay: 0.16s; }
+.category:nth-child(4), .tab-group:nth-child(4) { animation-delay: 0.24s; }
+.category:nth-child(5), .tab-group:nth-child(5) { animation-delay: 0.32s; }
+
+/* After initial load, disable entrance animation so re-renders are instant */
+#categories-container.loaded .category,
+#categories-container.loaded .tab-group {
+    animation: none;
+}
 
 .category-header {
     display: flex;

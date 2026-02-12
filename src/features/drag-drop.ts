@@ -493,7 +493,8 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
     reorderTabGroup(draggedLayoutItem.id, newOrder);
   }
 
-  renderCallback();
+  // No renderCallback() here — Convex subscription will re-render with the correct new order.
+  // Calling it now would re-render with stale data (old order) and replay fadeSlide animation.
   draggedLayoutItem = null;
 }
 

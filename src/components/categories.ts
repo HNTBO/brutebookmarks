@@ -239,4 +239,10 @@ export function renderCategories(): void {
     container.addEventListener('drop', ((e: DragEvent) => handleLayoutDrop(e, renderCategories)) as EventListener);
     containerListenersAttached = true;
   }
+
+  // After initial render, suppress fadeSlide animation on subsequent re-renders
+  // (prevents visual disruption when Convex subscription updates the DOM)
+  requestAnimationFrame(() => {
+    container.classList.add('loaded');
+  });
 }
