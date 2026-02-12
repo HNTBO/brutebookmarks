@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { DEFAULT_LAYOUT } from './defaults';
 import { styledConfirm, styledAlert } from '../components/modals/confirm-modal';
+import { getAppMode } from './local-storage';
 
 // --- State ---
 let _categories: Category[] = [];
@@ -159,10 +160,10 @@ export function activateConvex(): void {
 function rebuild(): void {
   if (_rawCategories === null || _rawBookmarks === null) return;
 
-  // Check migration on first data arrival
+  // Check migration on first data arrival (only in sync mode)
   if (!_migrationChecked) {
     _migrationChecked = true;
-    if (_rawCategories.length === 0 && _rawBookmarks.length === 0) {
+    if (getAppMode() === 'sync' && _rawCategories.length === 0 && _rawBookmarks.length === 0) {
       const savedData = localStorage.getItem('speedDialData');
       if (savedData) {
         const legacy: Category[] = JSON.parse(savedData);
@@ -257,7 +258,7 @@ function rebuild(): void {
 
 // --- Migration prompt ---
 async function promptMigration(legacy: Category[]): Promise<void> {
-  if (!(await styledConfirm('Import your existing bookmarks into Convex for cross-device sync?', 'Migration'))) {
+  if (!(await styledConfirm('Save your existing bookmarks to the cloud for cross-device sync?', 'Migration'))) {
     return;
   }
 
