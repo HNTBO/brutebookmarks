@@ -262,6 +262,7 @@ type DropZone =
   | { action: 'reorder-after-item'; targetEl: Element }
   | { action: 'group'; targetCategoryId: string; targetEl: HTMLElement }
   | { action: 'add-to-group'; targetGroupId: string; targetEl: HTMLElement }
+  | { action: 'absorb-category'; targetCategoryId: string; groupId: string; targetEl: HTMLElement }
   | null;
 
 function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
@@ -306,7 +307,10 @@ function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
       if (dragType === 'category') {
         return { action: 'group', targetCategoryId: el.dataset.categoryId!, targetEl: el };
       }
-      // Tab group dragged onto category center — treat as reorder-before
+      // Tab group dragged onto category center — absorb category into group
+      if (dragType === 'tabGroup') {
+        return { action: 'absorb-category', targetCategoryId: el.dataset.categoryId!, groupId: dragId, targetEl: el };
+      }
       return { action: 'reorder-before', targetEl: item };
     }
   }
@@ -381,6 +385,8 @@ export function handleLayoutDragOver(e: DragEvent): void {
     zone.targetEl.classList.add('group-drop-target');
   } else if (zone.action === 'add-to-group') {
     zone.targetEl.classList.add('group-drop-target');
+  } else if (zone.action === 'absorb-category') {
+    zone.targetEl.classList.add('group-drop-target');
   }
 }
 
@@ -413,6 +419,13 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
       // Merge two tab groups
       mergeTabGroups(draggedLayoutItem.id, zone.targetGroupId);
     }
+    draggedLayoutItem = null;
+    return;
+  }
+
+  if (zone.action === 'absorb-category' && draggedLayoutItem.type === 'tabGroup') {
+    // Tab group dragged onto category — add category into the dragged group
+    setCategoryGroup(zone.targetCategoryId, draggedLayoutItem.id);
     draggedLayoutItem = null;
     return;
   }
