@@ -27,7 +27,7 @@ function populateAccountSection(): void {
         <span class="account-status-text">Using locally (this browser only)</span>
       </div>
       <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: var(--space-sm);">
-        <button class="account-upgrade-btn" id="upgrade-sync-btn">Sign Up for Cross-Device Sync</button>
+        <button class="account-upgrade-btn" id="upgrade-sync-btn">Sign In for Cross-Device Sync</button>
         <span class="account-note">Free for founding members</span>
       </div>
     `;

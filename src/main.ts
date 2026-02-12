@@ -11,7 +11,7 @@ import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiS
 import { toggleTheme, syncThemeUI, applyTheme } from './features/theme';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
-import { initConvexClient, setConvexAuth } from './data/convex-client';
+import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
 import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
@@ -138,18 +138,29 @@ async function init(): Promise<void> {
 
   // Sync mode — initialize auth
   initClerk().then((clerk) => {
-    if (clerk) {
-      // Wire Convex auth if available
+    if (!clerk) return;
+
+    const startConvex = () => {
+      if (getConvexClient()) return; // Already initialized
       const convexClient = initConvexClient();
       if (convexClient) {
         setConvexAuth(() => getAuthToken({ template: 'convex' }));
         activateConvex();
       }
+      initExtensionBridge();
+    };
 
-      // Send auth token to browser extension (if installed)
-      if (clerk.user) {
-        initExtensionBridge();
-      }
+    if (clerk.user) {
+      // Already signed in — activate immediately
+      startConvex();
+    } else {
+      // Not signed in — wait for sign-in via overlay
+      const unsub = clerk.addListener(({ user }) => {
+        if (user && getAppMode() === 'sync') {
+          unsub?.();
+          startConvex();
+        }
+      });
     }
   });
 }
