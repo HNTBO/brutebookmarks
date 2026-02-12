@@ -994,17 +994,17 @@ footer {
     height: 31px;
     padding: 0 var(--space-md);
     font-size: 12px;
+    font-weight: 600;
     font-family: var(--font-body);
-    color: var(--text-secondary);
+    color: var(--bg-primary);
     text-decoration: none;
-    border: 1px solid var(--border-strong);
-    background: var(--bg-secondary);
+    border: none;
+    background: var(--accent);
     transition: all 0.15s ease;
 }
 
 .footer-contact:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    opacity: 0.85;
 }
 
 /* Responsive */

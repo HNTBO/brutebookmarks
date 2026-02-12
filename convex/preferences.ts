@@ -33,7 +33,12 @@ export const set = mutation({
       .first();
 
     const data = {
-      ...args,
+      theme: args.theme,
+      accentColorDark: args.accentColorDark,
+      accentColorLight: args.accentColorLight,
+      cardSize: args.cardSize,
+      pageWidth: args.pageWidth,
+      showCardNames: args.showCardNames,
       userId,
       updatedAt: Date.now(),
     };
