@@ -6,6 +6,7 @@ import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
 import type { Category } from '../../types';
 import { getAppMode } from '../../data/local-storage';
+import { getFoundingMemberStats } from '../../data/founding-stats';
 
 export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
@@ -28,9 +29,15 @@ function populateAccountSection(): void {
       </div>
       <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: var(--space-sm);">
         <button class="account-upgrade-btn" id="upgrade-sync-btn">Sign In for Cross-Device Sync</button>
-        <span class="account-note">Free for founding members</span>
+        <span class="account-note">Free for founding members <span id="settings-founding-count"></span></span>
       </div>
     `;
+
+    // Fetch founding count
+    getFoundingMemberStats().then((stats) => {
+      const el = document.getElementById('settings-founding-count');
+      if (el) el.textContent = `(${stats.count} / ${stats.cap} claimed)`;
+    });
 
     document.getElementById('upgrade-sync-btn')!.addEventListener('click', async () => {
       closeSettingsModal();

@@ -1,6 +1,16 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
 
+const FOUNDING_MEMBER_CAP = 1000;
+
+export const getFoundingMemberStats = query({
+  handler: async (ctx) => {
+    const allPrefs = await ctx.db.query('userPreferences').collect();
+    const count = allPrefs.filter((p) => p.foundingMemberSince !== undefined).length;
+    return { count, cap: FOUNDING_MEMBER_CAP };
+  },
+});
+
 export const get = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -48,9 +58,13 @@ export const set = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, data);
     } else {
+      // Check if founding member slots are available
+      const allPrefs = await ctx.db.query('userPreferences').collect();
+      const foundingCount = allPrefs.filter((p) => p.foundingMemberSince !== undefined).length;
+
       await ctx.db.insert('userPreferences', {
         ...data,
-        foundingMemberSince: Date.now(),
+        ...(foundingCount < FOUNDING_MEMBER_CAP ? { foundingMemberSince: Date.now() } : {}),
       });
     }
   },

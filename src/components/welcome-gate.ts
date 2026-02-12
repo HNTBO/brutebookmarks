@@ -1,4 +1,5 @@
 import type { AppMode } from '../data/local-storage';
+import { getFoundingMemberStats } from '../data/founding-stats';
 
 let _resolve: ((mode: AppMode) => void) | null = null;
 
@@ -7,6 +8,12 @@ export function showWelcomeGate(): Promise<AppMode> {
   if (!gate) return Promise.resolve('local');
 
   gate.classList.add('active');
+
+  // Fetch founding member count in the background
+  getFoundingMemberStats().then((stats) => {
+    const el = document.getElementById('gate-founding-count');
+    if (el) el.textContent = `(${stats.count} / ${stats.cap} claimed)`;
+  });
 
   return new Promise<AppMode>((resolve) => {
     _resolve = resolve;

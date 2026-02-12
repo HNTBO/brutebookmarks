@@ -13,7 +13,7 @@ export function renderApp(): void {
           </button>
           <button id="gate-sync-btn" class="welcome-gate-btn gate-btn-sync">
             <span class="gate-btn-label">Sign Up / Sign In</span>
-            <span class="gate-btn-desc">Sync across devices. Free for founding members.</span>
+            <span class="gate-btn-desc">Sync across devices. Free for founding members. <span id="gate-founding-count"></span></span>
           </button>
         </div>
       </div>
