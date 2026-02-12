@@ -4,6 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **MANDATORY**: Read [AGENTS.md](AGENTS.md) before starting any work. It contains critical workflow rules for issue tracking with beads (`bd`) and session completion protocols.
 
+## Project Conventions
+- This is a TypeScript-first workspace. Always use TypeScript (.ts/.tsx) over JavaScript unless explicitly told otherwise.
+- Primary stack: Vite + TypeScript + Convex. When making architectural decisions, default to these technologies.
+
+## UI/CSS Styling Rules
+- When making visual/styling changes, make the MINIMAL change requested. Do not introduce new colors or design elements unless asked.
+- For active/inactive states, hover effects, and positioning: confirm the expected behavior BEFORE implementing. These are high-error areas.
+- Preferred palette: stick to existing theme colors. When in doubt, ask.
+
+## Build & Deploy
+- Always run `npm run build` after multi-file changes before committing.
+- For Convex deploys: `npx convex deploy && npm run build` (not `--cmd` wrapper).
+- Watch for Clerk auth initialization issues — if the app hangs, check for zombie processes on dev ports (3000, 3002, 5173).
+
 ## Project Overview
 
 Brute Bookmarks is a self-hosted bookmark manager with automatic icon fetching. TypeScript frontend built with Vite, migrating from Express/file-based storage to Convex for real-time cross-device sync. Optional Clerk authentication.
