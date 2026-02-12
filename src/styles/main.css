@@ -1147,10 +1147,6 @@ footer {
     border-radius: 0 !important;
 }
 
-.cl-avatarBox {
-    background: var(--accent) !important;
-}
-
 .cl-userButtonPopoverCard,
 .cl-card {
     border-radius: 0 !important;
