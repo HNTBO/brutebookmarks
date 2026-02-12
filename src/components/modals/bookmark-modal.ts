@@ -2,10 +2,11 @@ import { getCategories, createBookmark, updateBookmark, deleteBookmarkById } fro
 import { getIconUrl } from '../../utils/icons';
 import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange } from '../icon-picker';
 import { styledConfirm } from './confirm-modal';
+import { getAutofillUrl } from '../../features/preferences';
 
 let editingBookmarkId: string | null = null;
 
-export function openAddBookmarkModal(categoryId: string): void {
+export async function openAddBookmarkModal(categoryId: string): Promise<void> {
   editingBookmarkId = null;
   document.getElementById('bookmark-modal-title')!.textContent = 'Add Bookmark';
   (document.getElementById('bookmark-title') as HTMLInputElement).value = '';
@@ -18,6 +19,19 @@ export function openAddBookmarkModal(categoryId: string): void {
   document.getElementById('icon-results')!.innerHTML = '';
   resetIconPicker();
   document.getElementById('bookmark-modal')!.classList.add('active');
+
+  if (getAutofillUrl()) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && /^https?:\/\/.+/i.test(text.trim())) {
+        const urlInput = document.getElementById('bookmark-url') as HTMLInputElement;
+        urlInput.value = text.trim();
+        urlInput.dispatchEvent(new Event('change'));
+      }
+    } catch {
+      // Clipboard access denied or unavailable — silently ignore
+    }
+  }
 }
 
 export function openEditBookmarkModal(categoryId: string, bookmarkId: string): void {

@@ -155,6 +155,10 @@ export function renderApp(): void {
               <input type="checkbox" id="show-card-names" checked>
             </div>
             <div class="settings-row">
+              <label for="autofill-url">Autofill URL from Clipboard</label>
+              <input type="checkbox" id="autofill-url">
+            </div>
+            <div class="settings-row">
               <label for="accent-color-picker">Accent Color</label>
               <div style="display: flex; gap: 8px; align-items: center;">
                 <input type="color" id="accent-color-picker" style="background: none; border: none; width: 32px; height: 32px; cursor: pointer; padding: 0;">

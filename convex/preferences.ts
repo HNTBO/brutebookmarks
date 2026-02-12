@@ -21,6 +21,7 @@ export const set = mutation({
     cardSize: v.float64(),
     pageWidth: v.float64(),
     showCardNames: v.boolean(),
+    autofillUrl: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -39,6 +40,7 @@ export const set = mutation({
       cardSize: args.cardSize,
       pageWidth: args.pageWidth,
       showCardNames: args.showCardNames,
+      autofillUrl: args.autofillUrl,
       userId,
       updatedAt: Date.now(),
     };

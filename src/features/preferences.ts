@@ -5,6 +5,7 @@ import { getCurrentTheme, getAccentColorDark, getAccentColorLight } from './them
 let currentCardSize = parseInt(localStorage.getItem('cardSize') || '90');
 let currentPageWidth = parseInt(localStorage.getItem('pageWidth') || '100');
 let showCardNames = localStorage.getItem('showCardNames') !== 'false';
+let autofillUrl = localStorage.getItem('autofillUrl') === 'true';
 
 export function getCardSize(): number {
   return currentCardSize;
@@ -18,6 +19,10 @@ export function getShowCardNames(): boolean {
   return showCardNames;
 }
 
+export function getAutofillUrl(): boolean {
+  return autofillUrl;
+}
+
 /** Collect all current preferences into one object (used by savePreferencesToConvex). */
 export function collectPreferences(): UserPreferences {
   return {
@@ -27,6 +32,7 @@ export function collectPreferences(): UserPreferences {
     cardSize: currentCardSize,
     pageWidth: currentPageWidth,
     showCardNames,
+    autofillUrl,
   };
 }
 
@@ -55,6 +61,12 @@ export function toggleCardNames(show: boolean, renderCallback: () => void): void
   syncToConvex();
 }
 
+export function toggleAutofillUrl(enabled: boolean): void {
+  autofillUrl = enabled;
+  localStorage.setItem('autofillUrl', String(autofillUrl));
+  syncToConvex();
+}
+
 /** Apply preferences from Convex subscription — updates state + DOM + localStorage, no save back. */
 export function applyPreferences(prefs: UserPreferences, renderCallback: () => void): void {
   const cardChanged = currentCardSize !== prefs.cardSize;
@@ -64,10 +76,12 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   currentCardSize = prefs.cardSize;
   currentPageWidth = prefs.pageWidth;
   showCardNames = prefs.showCardNames;
+  autofillUrl = prefs.autofillUrl;
 
   localStorage.setItem('cardSize', String(currentCardSize));
   localStorage.setItem('pageWidth', String(currentPageWidth));
   localStorage.setItem('showCardNames', String(showCardNames));
+  localStorage.setItem('autofillUrl', String(autofillUrl));
 
   if (cardChanged) applyCardSizeToDOM();
   if (widthChanged) applyPageWidthToDOM();
@@ -93,4 +107,6 @@ function applyPageWidthToDOM(): void {
 export function syncPreferencesUI(): void {
   const checkbox = document.getElementById('show-card-names') as HTMLInputElement | null;
   if (checkbox) checkbox.checked = showCardNames;
+  const autofillCheckbox = document.getElementById('autofill-url') as HTMLInputElement | null;
+  if (autofillCheckbox) autofillCheckbox.checked = autofillUrl;
 }

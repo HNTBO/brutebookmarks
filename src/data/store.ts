@@ -110,6 +110,7 @@ export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
         cardSize: prefs.cardSize,
         pageWidth: prefs.pageWidth,
         showCardNames: prefs.showCardNames,
+      autofillUrl: prefs.autofillUrl ?? undefined,
       });
     } catch (err) {
       console.error('[Store] Failed to save preferences:', err);
@@ -158,6 +159,7 @@ export function activateConvex(): void {
       cardSize: (result as any).cardSize ?? 90,
       pageWidth: (result as any).pageWidth ?? 100,
       showCardNames: (result as any).showCardNames ?? true,
+      autofillUrl: (result as any).autofillUrl ?? false,
     };
     _applyingFromConvex = true;
     try {

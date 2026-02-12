@@ -1,12 +1,13 @@
 import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode } from '../../data/store';
 import { renderCategories } from '../categories';
-import { toggleCardNames, getShowCardNames } from '../../features/preferences';
+import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
 
 export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
   (document.getElementById('show-card-names') as HTMLInputElement).checked = getShowCardNames();
+  (document.getElementById('autofill-url') as HTMLInputElement).checked = getAutofillUrl();
 }
 
 export function closeSettingsModal(): void {
@@ -86,6 +87,10 @@ export function initSettingsModal(): void {
 
   document.getElementById('show-card-names')!.addEventListener('change', (e) => {
     toggleCardNames((e.target as HTMLInputElement).checked, renderCategories);
+  });
+
+  document.getElementById('autofill-url')!.addEventListener('change', (e) => {
+    toggleAutofillUrl((e.target as HTMLInputElement).checked);
   });
 
   document.getElementById('accent-color-picker')!.addEventListener('input', (e) => {

@@ -40,6 +40,7 @@ export default defineSchema({
     cardSize: v.float64(),
     pageWidth: v.float64(),
     showCardNames: v.boolean(),
+    autofillUrl: v.optional(v.boolean()),
     updatedAt: v.float64(),
   }).index('by_user', ['userId']),
 });

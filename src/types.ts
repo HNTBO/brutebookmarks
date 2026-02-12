@@ -32,4 +32,5 @@ export interface UserPreferences {
   cardSize: number;
   pageWidth: number;
   showCardNames: boolean;
+  autofillUrl: boolean;
 }
