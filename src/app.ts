@@ -28,7 +28,7 @@ export function renderApp(): void {
       <footer>
         <span class="footer-text">Brute Bookmarks — <a href="#">v1.0</a></span>
         <a href="mailto:contact@brutebookmarks.com" class="footer-contact">contact@brutebookmarks.com</a>
-        <span class="footer-text">Icons via <a href="https://commons.wikimedia.org" target="_blank">Wikimedia Commons</a></span>
+        <span class="footer-text">Icons via <a href="https://commons.wikimedia.org" target="_blank">Wikimedia Commons</a> · Emoji by <a href="https://github.com/twitter/twemoji" target="_blank">Twemoji</a> (CC-BY 4.0)</span>
       </footer>
     </div>
 
