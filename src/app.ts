@@ -20,7 +20,7 @@ export function renderApp(): void {
     </div>
 
     <!-- Clerk User Button -->
-    <div id="clerk-user-button" style="position: fixed; top: var(--space-xl); right: 16px; z-index: 9999;"></div>
+    <div id="clerk-user-button" class="clerk-user-button"></div>
 
     <div class="container">
       <header class="brute-header">
@@ -86,12 +86,12 @@ export function renderApp(): void {
               </div>
 
               <!-- Icon Search -->
-              <div id="icon-search-container" style="display: none;">
+              <div id="icon-search-container" class="hidden">
                 <div class="icon-search-box">
                   <input type="text" id="icon-search-query" placeholder="Search for logo...">
                   <button type="button" class="btn btn-small btn-primary" id="icon-search-btn">Search</button>
                 </div>
-                <div id="icon-search-loading" class="loading" style="display: none;">
+                <div id="icon-search-loading" class="loading hidden">
                   <div class="spinner"></div>
                   <p>Searching Wikimedia Commons...</p>
                 </div>
@@ -99,7 +99,7 @@ export function renderApp(): void {
               </div>
 
               <!-- Emoji Search -->
-              <div id="emoji-search-container" style="display: none;">
+              <div id="emoji-search-container" class="hidden">
                 <div class="icon-search-box">
                   <input type="text" id="emoji-search-query" placeholder="Search emoji (home, work, star...)">
                 </div>
@@ -138,7 +138,7 @@ export function renderApp(): void {
               <label>Category Name</label>
               <input type="text" id="category-name" required placeholder="Work, Social, Tools...">
             </div>
-            <div class="form-group" id="category-group-section" style="display: none;">
+            <div class="form-group hidden" id="category-group-section">
               <label>Tab Group</label>
               <select id="category-group-select">
                 <option value="">None (standalone)</option>
@@ -148,7 +148,7 @@ export function renderApp(): void {
             <input type="hidden" id="editing-category-id">
           </div>
           <div class="modal-actions">
-            <button type="button" class="modal-btn delete" id="delete-category-btn" style="display: none;">Delete</button>
+            <button type="button" class="modal-btn delete hidden" id="delete-category-btn">Delete</button>
             <div class="modal-actions-right">
               <button type="button" class="modal-btn cancel" id="category-cancel-btn">Cancel</button>
               <button type="submit" class="modal-btn save" id="category-save-btn">Create Category</button>
@@ -179,8 +179,8 @@ export function renderApp(): void {
             </div>
             <div class="settings-row">
               <label for="accent-color-picker">Accent Color</label>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="color" id="accent-color-picker" style="background: none; border: none; width: 32px; height: 32px; cursor: pointer; padding: 0;">
+              <div class="accent-color-row">
+                <input type="color" id="accent-color-picker" class="accent-color-input">
                 <button class="btn btn-small" id="reset-accent-btn">Reset</button>
               </div>
             </div>
@@ -188,6 +188,7 @@ export function renderApp(): void {
           <div class="settings-section">
             <h3>Bookmarks</h3>
             <div class="settings-row">
+              <button class="btn" id="fetch-favicons-btn">Fetch Favicons</button>
               <button class="btn" id="import-data-btn">Import</button>
               <button class="btn" id="export-data-btn">Export</button>
               <button class="btn btn-danger" id="erase-data-btn">Erase</button>
@@ -206,7 +207,7 @@ export function renderApp(): void {
         </div>
         <div class="modal-body">
           <p id="confirm-modal-message"></p>
-          <div class="form-group" id="confirm-modal-input-group" style="display: none; margin-top: var(--space-md);">
+          <div class="form-group hidden confirm-input-group" id="confirm-modal-input-group">
             <input type="text" id="confirm-modal-input">
           </div>
         </div>

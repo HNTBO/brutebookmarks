@@ -1,4 +1,4 @@
-import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode } from '../../data/store';
+import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
 import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
@@ -27,7 +27,7 @@ function populateAccountSection(): void {
       <div class="settings-row">
         <span class="account-status-text">Using locally (this browser only)</span>
       </div>
-      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: var(--space-sm);">
+      <div class="settings-row settings-upgrade-row">
         <button class="account-upgrade-btn" id="upgrade-sync-btn">Sign In for Cross-Device Sync</button>
         <span class="account-note">Free for founding members <span id="settings-founding-count"></span></span>
       </div>
@@ -144,6 +144,28 @@ function importData(): void {
   input.click();
 }
 
+async function fetchAllFavicons(): Promise<void> {
+  const categories = getCategories();
+  let updated = 0;
+
+  for (const cat of categories) {
+    for (const bk of cat.bookmarks) {
+      try {
+        const domain = new URL(bk.url).hostname;
+        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        if (bk.iconPath !== faviconUrl) {
+          await updateBookmark(bk.id, bk.title, bk.url, faviconUrl);
+          updated++;
+        }
+      } catch {
+        // Invalid URL — skip
+      }
+    }
+  }
+
+  await styledAlert(`Updated favicons for ${updated} bookmark${updated !== 1 ? 's' : ''}.`, 'Favicons');
+}
+
 async function eraseData(): Promise<void> {
   closeSettingsModal();
   if (await styledConfirm('This will permanently erase all your bookmarks.', 'Erase')) {
@@ -168,6 +190,7 @@ export function initSettingsModal(): void {
   });
 
   document.getElementById('reset-accent-btn')!.addEventListener('click', resetAccentColor);
+  document.getElementById('fetch-favicons-btn')!.addEventListener('click', fetchAllFavicons);
   document.getElementById('export-data-btn')!.addEventListener('click', exportData);
   document.getElementById('import-data-btn')!.addEventListener('click', importData);
   document.getElementById('erase-data-btn')!.addEventListener('click', eraseData);

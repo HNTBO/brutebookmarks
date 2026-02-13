@@ -9,8 +9,8 @@
     --text-secondary: #888;
     --text-muted: #555;
 
-    /* Accent - Bright Orange */
-    --accent: #fe9603;
+    /* Accent - Favicon Orange */
+    --accent: #ff5206;
     --accent-dim: color-mix(in srgb, var(--accent), black 20%);
     --accent-glow: color-mix(in srgb, var(--accent), transparent 85%);
 
@@ -330,20 +330,24 @@ h1 em {
     border: none;
     border-left: 2px solid var(--bg-primary);
     color: var(--bg-primary); /* Cutout look */
-    opacity: 1;
+    opacity: 0;
     cursor: pointer;
     font-size: 1rem;
     width: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.category-header:hover .category-edit-btn,
+.tab-group-header:hover .category-edit-btn {
+    opacity: 1;
 }
 
 .category-edit-btn:hover {
     background: rgba(0,0,0,0.1);
     color: var(--bg-primary);
-    opacity: 1;
 }
 
 .category-title {
@@ -1129,7 +1133,7 @@ footer {
     background: var(--accent-glow);
 }
 
-/* Category drag handle — always square, matching parent height */
+/* Category drag handle — hidden by default, visible on header hover */
 .category-drag-handle {
     display: flex;
     align-items: center;
@@ -1142,6 +1146,13 @@ footer {
     cursor: grab;
     border-right: 2px solid var(--bg-primary);
     user-select: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.category-header:hover .category-drag-handle,
+.tab-group-header:hover .category-drag-handle {
+    opacity: 1;
 }
 
 .category-drag-handle:active {
@@ -1410,6 +1421,83 @@ footer {
     font-size: 12px;
     color: var(--text-muted);
     margin-top: var(--space-xs);
+}
+
+/* Utility */
+.hidden {
+    display: none;
+}
+
+/* Clerk user button */
+.clerk-user-button {
+    position: fixed;
+    top: var(--space-xl);
+    right: var(--space-md);
+    z-index: 9999;
+}
+
+/* Accent color picker */
+.accent-color-row {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.accent-color-input {
+    background: none;
+    border: none;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    padding: 0;
+}
+
+/* Confirm modal input group spacing */
+.confirm-input-group {
+    margin-top: var(--space-md);
+}
+
+/* Icon picker status messages */
+.icon-status-message {
+    color: var(--text-muted);
+    padding: 20px;
+    text-align: center;
+    grid-column: 1 / -1;
+}
+
+.icon-status-error {
+    color: var(--danger);
+}
+
+/* Settings upgrade row (account section) */
+.settings-upgrade-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
+}
+
+/* Auth overlay */
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+/* Auth escape button */
+.auth-escape-btn {
+    margin-top: var(--space-md);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    text-decoration: underline;
 }
 
 @media (max-width: 480px) {

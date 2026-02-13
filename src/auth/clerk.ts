@@ -116,16 +116,7 @@ let _signInResolve: ((signedIn: boolean) => void) | null = null;
 function showSignInOverlay(options?: { showLocalEscape?: boolean }): void {
   const overlay = document.createElement('div');
   overlay.id = 'auth-overlay';
-  overlay.style.cssText = `
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.95);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-  `;
+  overlay.classList.add('auth-overlay');
 
   const signInContainer = document.createElement('div');
   signInContainer.id = 'clerk-sign-in';
@@ -134,16 +125,7 @@ function showSignInOverlay(options?: { showLocalEscape?: boolean }): void {
   if (options?.showLocalEscape) {
     const escapeBtn = document.createElement('button');
     escapeBtn.textContent = 'Use locally instead';
-    escapeBtn.style.cssText = `
-      margin-top: 16px;
-      background: none;
-      border: none;
-      color: #888;
-      font-size: 14px;
-      cursor: pointer;
-      font-family: inherit;
-      text-decoration: underline;
-    `;
+    escapeBtn.classList.add('auth-escape-btn');
     escapeBtn.addEventListener('click', () => {
       setAppMode('local');
       removeSignInOverlay();

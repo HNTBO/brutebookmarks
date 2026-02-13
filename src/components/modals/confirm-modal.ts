@@ -38,8 +38,8 @@ export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK'
   els.message.textContent = message;
   els.confirmBtn.textContent = okLabel;
   els.cancelBtn.textContent = cancelLabel;
-  els.cancelBtn.style.display = '';
-  els.inputGroup.style.display = 'none';
+  els.cancelBtn.classList.remove('hidden');
+  els.inputGroup.classList.add('hidden');
   els.modal.classList.add('active');
   els.confirmBtn.focus();
 
@@ -53,8 +53,8 @@ export function styledAlert(message: string, title = 'Notice'): Promise<void> {
   els.title.textContent = title;
   els.message.textContent = message;
   els.confirmBtn.textContent = 'OK';
-  els.cancelBtn.style.display = 'none';
-  els.inputGroup.style.display = 'none';
+  els.cancelBtn.classList.add('hidden');
+  els.inputGroup.classList.add('hidden');
   els.modal.classList.add('active');
   els.confirmBtn.focus();
 
@@ -68,8 +68,8 @@ export function styledPrompt(message: string, title = 'Input', defaultValue = ''
   els.title.textContent = title;
   els.message.textContent = message;
   els.confirmBtn.textContent = 'OK';
-  els.cancelBtn.style.display = '';
-  els.inputGroup.style.display = '';
+  els.cancelBtn.classList.remove('hidden');
+  els.inputGroup.classList.remove('hidden');
   els.input.value = defaultValue;
   els.modal.classList.add('active');
   els.input.focus();

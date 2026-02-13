@@ -58,10 +58,10 @@ export function toggleIconSearch(): void {
   const container = document.getElementById('icon-search-container')!;
   const emojiContainer = document.getElementById('emoji-search-container')!;
 
-  emojiContainer.style.display = 'none';
-  container.style.display = container.style.display === 'none' ? 'block' : 'none';
+  emojiContainer.classList.add('hidden');
+  container.classList.toggle('hidden');
 
-  if (container.style.display === 'block') {
+  if (!container.classList.contains('hidden')) {
     const title = (document.getElementById('bookmark-title') as HTMLInputElement).value;
     const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
     let searchQuery = title;
@@ -88,21 +88,21 @@ export async function searchIcons(): Promise<void> {
   const loadingEl = document.getElementById('icon-search-loading')!;
   const resultsEl = document.getElementById('icon-results')!;
 
-  loadingEl.style.display = 'block';
+  loadingEl.classList.remove('hidden');
   resultsEl.innerHTML = '';
 
   try {
     const client = getConvexClient();
     if (!client) {
-      loadingEl.style.display = 'none';
+      loadingEl.classList.add('hidden');
       resultsEl.innerHTML =
-        '<p style="color: var(--danger); padding: 20px; text-align: center; grid-column: 1/-1;">Not connected</p>';
+        '<p class="icon-status-message icon-status-error">Not connected</p>';
       return;
     }
 
     const data = await client.action(api.icons.searchWikimedia, { query });
 
-    loadingEl.style.display = 'none';
+    loadingEl.classList.add('hidden');
 
     if (data.icons && data.icons.length > 0) {
       resultsEl.innerHTML = data.icons
@@ -125,13 +125,13 @@ export async function searchIcons(): Promise<void> {
       });
     } else {
       resultsEl.innerHTML =
-        '<p style="color: var(--text-muted); padding: 20px; text-align: center; grid-column: 1/-1;">No icons found</p>';
+        '<p class="icon-status-message">No icons found</p>';
     }
   } catch (error) {
     console.error('Error searching icons:', error);
-    loadingEl.style.display = 'none';
+    loadingEl.classList.add('hidden');
     resultsEl.innerHTML =
-      '<p style="color: var(--danger); padding: 20px; text-align: center; grid-column: 1/-1;">Search failed</p>';
+      '<p class="icon-status-message icon-status-error">Search failed</p>';
   }
 }
 
@@ -149,8 +149,8 @@ export function toggleEmojiSearch(): void {
   const container = document.getElementById('emoji-search-container')!;
   const iconContainer = document.getElementById('icon-search-container')!;
 
-  iconContainer.style.display = 'none';
-  container.style.display = container.style.display === 'none' ? 'block' : 'none';
+  iconContainer.classList.add('hidden');
+  container.classList.toggle('hidden');
 }
 
 export function searchEmojis(): void {
@@ -193,7 +193,7 @@ export function searchEmojis(): void {
       });
     } else {
       resultsEl.innerHTML =
-        '<p style="color: var(--text-muted); padding: 20px; text-align: center; grid-column: 1/-1;">No emojis found</p>';
+        '<p class="icon-status-message">No emojis found</p>';
     }
   }, 150);
 }

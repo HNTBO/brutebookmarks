@@ -17,11 +17,11 @@ function populateGroupSelect(currentGroupId?: string): void {
   const select = document.getElementById('category-group-select') as HTMLSelectElement;
 
   if (!isConvexMode()) {
-    section.style.display = 'none';
+    section.classList.add('hidden');
     return;
   }
 
-  section.style.display = 'block';
+  section.classList.remove('hidden');
 
   // Keep the first two options (None + Create new), remove the rest
   while (select.options.length > 2) {
@@ -46,7 +46,7 @@ export function openAddCategoryModal(): void {
   document.getElementById('category-modal-title')!.textContent = 'New Category';
   (document.getElementById('category-name') as HTMLInputElement).value = '';
   (document.getElementById('editing-category-id') as HTMLInputElement).value = '';
-  (document.getElementById('delete-category-btn') as HTMLElement).style.display = 'none';
+  document.getElementById('delete-category-btn')!.classList.add('hidden');
   document.getElementById('category-save-btn')!.textContent = 'Create Category';
   populateGroupSelect();
   document.getElementById('category-modal')!.classList.add('active');
@@ -60,7 +60,7 @@ export function openEditCategoryModal(categoryId: string): void {
   document.getElementById('category-modal-title')!.textContent = 'Edit Category';
   (document.getElementById('category-name') as HTMLInputElement).value = category.name;
   (document.getElementById('editing-category-id') as HTMLInputElement).value = categoryId;
-  (document.getElementById('delete-category-btn') as HTMLElement).style.display = 'block';
+  document.getElementById('delete-category-btn')!.classList.remove('hidden');
   document.getElementById('category-save-btn')!.textContent = 'Save Changes';
   populateGroupSelect(category.groupId);
   document.getElementById('category-modal')!.classList.add('active');

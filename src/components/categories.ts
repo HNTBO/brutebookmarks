@@ -36,7 +36,7 @@ function getActiveTabId(group: TabGroup): string {
 
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
   return `
-    <div class="bookmarks-grid" data-category-id="${category.id}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr))">
+    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr))">
       ${category.bookmarks
         .map(
           (bookmark, index) => `
@@ -54,7 +54,7 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
       `,
         )
         .join('')}
-      <div class="bookmark-card add-bookmark" data-action="add-bookmark" data-category-id="${category.id}">
+      <div class="bookmark-card add-bookmark" data-action="add-bookmark" data-category-id="${escapeHtml(category.id)}">
         <div class="plus-icon">+</div>
         <div class="add-bookmark-text">Add</div>
       </div>
@@ -150,7 +150,7 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
         .map(
           (cat) => `
         <div class="tab-panel ${cat.id === activeTabId ? 'tab-panel-active' : ''}"
-             data-tab-panel-id="${cat.id}">
+             data-tab-panel-id="${escapeHtml(cat.id)}">
           ${renderBookmarksGrid(cat, currentCardSize, showCardNames)}
         </div>
       `,

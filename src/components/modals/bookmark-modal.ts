@@ -63,7 +63,7 @@ export async function openAddBookmarkModal(categoryId: string): Promise<void> {
   (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = '';
   (document.getElementById('preview-icon') as HTMLImageElement).src = '';
   document.getElementById('icon-source')!.textContent = 'No icon selected';
-  document.getElementById('icon-search-container')!.style.display = 'none';
+  document.getElementById('icon-search-container')!.classList.add('hidden');
   document.getElementById('icon-results')!.innerHTML = '';
   resetIconPicker();
   document.getElementById('bookmark-modal')!.classList.add('active');
@@ -106,7 +106,7 @@ export function openEditBookmarkModal(categoryId: string, bookmarkId: string): v
     setSelectedIconPath(null);
   }
 
-  document.getElementById('icon-search-container')!.style.display = 'none';
+  document.getElementById('icon-search-container')!.classList.add('hidden');
   document.getElementById('icon-results')!.innerHTML = '';
   document.getElementById('bookmark-modal')!.classList.add('active');
 }
