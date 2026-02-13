@@ -31,5 +31,5 @@ export function handleCardMouseLeave(e: MouseEvent): void {
 }
 
 export function openBookmark(url: string): void {
-  window.open(url, '_blank');
+  window.open(url, '_blank', 'noopener,noreferrer');
 }

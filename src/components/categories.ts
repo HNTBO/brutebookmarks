@@ -76,7 +76,7 @@ function wireBookmarkCards(el: HTMLElement): void {
       const target = e.target as HTMLElement;
       if (target.closest('[data-action]')) return;
       const url = card.dataset.url;
-      if (url) window.open(url, '_blank');
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
     });
   });
 }

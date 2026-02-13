@@ -1,6 +1,18 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
 
+function validateUrl(url: string): void {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`Invalid URL scheme: ${parsed.protocol} — only http and https are allowed`);
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('Invalid URL scheme')) throw e;
+    throw new Error('Invalid URL format');
+  }
+}
+
 export const listAll = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -24,6 +36,8 @@ export const create = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
+
+    validateUrl(url);
 
     // Verify category ownership
     const category = await ctx.db.get(categoryId);
@@ -59,6 +73,8 @@ export const update = mutation({
   handler: async (ctx, { id, title, url, iconPath }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
+
+    validateUrl(url);
 
     const bookmark = await ctx.db.get(id);
     if (!bookmark || bookmark.userId !== identity.subject) {
@@ -130,6 +146,22 @@ export const importBulk = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
+
+    // Enforce import limits
+    if (data.length > 500) {
+      throw new Error(`Import exceeds maximum of 500 categories (got ${data.length})`);
+    }
+    const totalBookmarks = data.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
+    if (totalBookmarks > 5000) {
+      throw new Error(`Import exceeds maximum of 5000 bookmarks (got ${totalBookmarks})`);
+    }
+
+    // Validate all URLs before inserting anything
+    for (const cat of data) {
+      for (const bk of cat.bookmarks) {
+        validateUrl(bk.url);
+      }
+    }
 
     for (let ci = 0; ci < data.length; ci++) {
       const cat = data[ci];
