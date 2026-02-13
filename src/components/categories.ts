@@ -1,6 +1,7 @@
 import { getCategories, getLayoutItems, setCategoryGroup, deleteTabGroup } from '../data/store';
 import type { Category, TabGroup, LayoutItem } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
+import { escapeHtml } from '../utils/escape-html';
 import { getCardSize, getShowCardNames } from '../features/preferences';
 import { handleCardMouseMove, handleCardMouseLeave } from './bookmark-card';
 import {
@@ -41,14 +42,14 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
           (bookmark, index) => `
         <div class="bookmark-card ${!showCardNames ? 'hide-title' : ''}"
              draggable="true"
-             data-bookmark-id="${bookmark.id}"
-             data-category-id="${category.id}"
+             data-bookmark-id="${escapeHtml(bookmark.id)}"
+             data-category-id="${escapeHtml(category.id)}"
              data-index="${index}"
-             data-url="${bookmark.url}">
-          <button class="edit-btn" data-action="edit-bookmark" data-category-id="${category.id}" data-bookmark-id="${bookmark.id}">✎</button>
-          <button class="delete-btn" data-action="delete-bookmark" data-category-id="${category.id}" data-bookmark-id="${bookmark.id}">×</button>
-          <img class="bookmark-icon" src="${getIconUrl(bookmark)}" alt="${bookmark.title}" onerror="this.src='${FALLBACK_ICON}'">
-          <div class="bookmark-title">${bookmark.title}</div>
+             data-url="${escapeHtml(bookmark.url)}">
+          <button class="edit-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">✎</button>
+          <button class="delete-btn" data-action="delete-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">×</button>
+          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" onerror="this.src='${FALLBACK_ICON}'">
+          <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         </div>
       `,
         )
@@ -90,10 +91,10 @@ function renderSingleCategory(category: Category, currentCardSize: number, showC
       <div class="category-drag-handle" title="Drag to reorder">⠿</div>
       <div class="tab-bar">
         <div class="category-title">
-          ${category.name}
+          ${escapeHtml(category.name)}
         </div>
       </div>
-      <button class="category-edit-btn" data-category-id="${category.id}" title="Edit category">✎</button>
+      <button class="category-edit-btn" data-category-id="${escapeHtml(category.id)}" title="Edit category">✎</button>
     </div>
     ${renderBookmarksGrid(category, currentCardSize, showCardNames)}
   `;
@@ -129,15 +130,15 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
             (cat) => `
           <button class="tab ${cat.id === activeTabId ? 'tab-active' : ''}"
                   draggable="true"
-                  data-tab-category-id="${cat.id}"
-                  data-group-id="${group.id}">
-            ${cat.name}
+                  data-tab-category-id="${escapeHtml(cat.id)}"
+                  data-group-id="${escapeHtml(group.id)}">
+            ${escapeHtml(cat.name)}
           </button>
         `,
           )
           .join('')}
       </div>
-      <button class="category-edit-btn" data-group-id="${group.id}" data-action="edit-group" title="Edit group">✎</button>
+      <button class="category-edit-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit group">✎</button>
     </div>
     <div class="tab-content">
       ${group.categories

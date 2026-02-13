@@ -220,7 +220,7 @@ async function sendTokenToExtension(): Promise<void> {
   try {
     const token = await clerk.session.getToken({ template: 'convex' });
     if (token) {
-      window.postMessage({ type: 'BB_EXT_AUTH', token }, '*');
+      window.postMessage({ type: 'BB_EXT_AUTH', token }, window.location.origin);
     }
   } catch {
     // Silently ignore — extension may not be installed
@@ -238,6 +238,7 @@ export function initExtensionBridge(): void {
   // Listen for explicit token requests from the extension content script
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
+    if (event.origin !== window.location.origin) return;
     if (event.data?.type === 'BB_EXT_REQUEST_TOKEN') {
       sendTokenToExtension();
     }

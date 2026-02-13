@@ -2,6 +2,7 @@ import { styledAlert } from './modals/confirm-modal';
 import { getConvexClient } from '../data/convex-client';
 import { api } from '../../convex/_generated/api';
 import { EMOJI_DATA } from '../data/emoji-data';
+import { escapeHtml } from '../utils/escape-html';
 
 let selectedIconUrl: string | null = null;
 let selectedIconPath: string | null = null;
@@ -107,8 +108,8 @@ export async function searchIcons(): Promise<void> {
       resultsEl.innerHTML = data.icons
         .map(
           (icon: { thumbUrl: string; title: string }, index: number) => `
-        <div class="icon-result" data-icon-index="${index}" data-icon-url="${icon.thumbUrl}" data-icon-title="${icon.title}">
-          <img src="${icon.thumbUrl}" alt="${icon.title}">
+        <div class="icon-result" data-icon-index="${index}" data-icon-url="${escapeHtml(icon.thumbUrl)}" data-icon-title="${escapeHtml(icon.title)}">
+          <img src="${escapeHtml(icon.thumbUrl)}" alt="${escapeHtml(icon.title)}">
         </div>
       `,
         )

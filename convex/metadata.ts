@@ -7,6 +7,29 @@ import { v } from "convex/values";
 const SUFFIX_PATTERN =
   /\s*[\-–—|·•]\s*(YouTube|Reddit|GitHub|Wikipedia|X|Twitter|Facebook|LinkedIn|Medium|Stack Overflow|Amazon|Google).*$/i;
 
+// Private/reserved IP ranges that should not be fetched (SSRF protection)
+const PRIVATE_IP_PATTERNS = [
+  /^127\./,           // Loopback
+  /^10\./,            // Class A private
+  /^172\.(1[6-9]|2\d|3[01])\./,  // Class B private
+  /^192\.168\./,      // Class C private
+  /^169\.254\./,      // Link-local
+  /^0\./,             // Current network
+  /^::1$/,            // IPv6 loopback
+  /^fc00:/i,          // IPv6 unique local
+  /^fe80:/i,          // IPv6 link-local
+];
+
+function isPrivateHost(hostname: string): boolean {
+  // Block numeric IPs in private ranges
+  if (PRIVATE_IP_PATTERNS.some((p) => p.test(hostname))) return true;
+  // Block localhost variants
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) return true;
+  // Block metadata endpoints (cloud providers)
+  if (hostname === '169.254.169.254') return true;
+  return false;
+}
+
 function decodeHTMLEntities(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
@@ -32,9 +55,23 @@ function domainFallback(url: string): string | null {
 
 export const fetchPageTitle = action({
   args: { url: v.string() },
-  handler: async (_ctx, { url }): Promise<{ title: string | null }> => {
+  handler: async (ctx, { url }): Promise<{ title: string | null }> => {
+    // Require authentication
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
     // Validate URL scheme
     if (!/^https?:\/\//i.test(url)) {
+      return { title: domainFallback(url) };
+    }
+
+    // Block requests to private/internal IPs (SSRF protection)
+    try {
+      const parsed = new URL(url);
+      if (isPrivateHost(parsed.hostname)) {
+        return { title: domainFallback(url) };
+      }
+    } catch {
       return { title: domainFallback(url) };
     }
 
