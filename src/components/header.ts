@@ -8,8 +8,10 @@ export function initSizeController(): void {
   function updateHandlePosition(): void {
     const rect = controller.getBoundingClientRect();
     const handleRadius = 8;
-    const xPercent = ((getCardSize() - 60) / 60) * 100;
-    const yPercent = ((100 - getPageWidth()) / 50) * 100;
+    // X = page width (left=narrow 50%, right=wide 100%)
+    const xPercent = ((getPageWidth() - 50) / 50) * 100;
+    // Y = card size (top=small 60, bottom=big 120)
+    const yPercent = ((getCardSize() - 60) / 60) * 100;
 
     const xPos = handleRadius + (xPercent / 100) * (rect.width - handleRadius * 2);
     const yPos = handleRadius + (yPercent / 100) * (rect.height - handleRadius * 2);
@@ -40,8 +42,9 @@ export function initSizeController(): void {
     xPercent = Math.max(0, Math.min(100, xPercent));
     yPercent = Math.max(0, Math.min(100, yPercent));
 
-    const newCardSize = Math.round(60 + (xPercent / 100) * 60);
-    const newPageWidth = Math.round(100 - (yPercent / 100) * 50);
+    // X = page width, Y = card size
+    const newPageWidth = Math.round(50 + (xPercent / 100) * 50);
+    const newCardSize = Math.round(60 + (yPercent / 100) * 60);
 
     updateCardSize(newCardSize);
     updatePageWidth(newPageWidth);
@@ -73,8 +76,9 @@ export function initSizeController(): void {
     xPercent = Math.max(0, Math.min(100, xPercent));
     yPercent = Math.max(0, Math.min(100, yPercent));
 
-    const newCardSize = Math.round(60 + (xPercent / 100) * 60);
-    const newPageWidth = Math.round(100 - (yPercent / 100) * 50);
+    // X = page width, Y = card size
+    const newPageWidth = Math.round(50 + (xPercent / 100) * 50);
+    const newCardSize = Math.round(60 + (yPercent / 100) * 60);
 
     updateCardSize(newCardSize);
     updatePageWidth(newPageWidth);

@@ -7,9 +7,10 @@
         default-src 'self';
         script-src 'self' https://cdn.jsdelivr.net https://*.clerk.accounts.dev;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        img-src 'self' data: blob: https://www.google.com https://cdn.jsdelivr.net https://upload.wikimedia.org https://img.clerk.com;
+        img-src 'self' data: blob: https: http:;
         font-src 'self' https://fonts.gstatic.com;
         connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.com https://cdn.jsdelivr.net https://www.google.com https://upload.wikimedia.org;
+        worker-src 'self' blob:;
         frame-src https://*.clerk.accounts.dev https://*.clerk.com;
     ">
     <title>Brute Bookmarks</title>

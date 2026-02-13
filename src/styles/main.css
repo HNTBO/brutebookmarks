@@ -39,6 +39,11 @@
     --shadow-md: 6px 6px 0 rgba(0,0,0,0.8);
     --shadow-lg: 8px 8px 0 var(--bg-primary);
     --shadow-accent: 4px 4px 0 var(--accent);
+
+    /* Scrollbar colors derived from background */
+    --scrollbar-track: var(--bg-primary);
+    --scrollbar-thumb: color-mix(in srgb, var(--bg-primary) 70%, white 30%);
+    --scrollbar-thumb-hover: color-mix(in srgb, var(--bg-primary) 55%, white 45%);
 }
 
 /* Solarized Light Theme */
@@ -63,6 +68,11 @@
     --shadow-md: 6px 6px 0 rgba(0,0,0,0.05);
     --shadow-lg: 8px 8px 0 rgba(0,0,0,0.02);
     --shadow-accent: 4px 4px 0 var(--accent);
+
+    /* In light mode, darken scrollbar against light background */
+    --scrollbar-track: var(--bg-primary);
+    --scrollbar-thumb: color-mix(in srgb, var(--bg-primary) 78%, black 22%);
+    --scrollbar-thumb-hover: color-mix(in srgb, var(--bg-primary) 62%, black 38%);
 }
 
 
@@ -85,6 +95,7 @@ body {
     min-height: 100vh;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 /* Noise texture overlay */
@@ -103,6 +114,7 @@ body::before {
     margin: 0 auto;
     padding: var(--space-xl);
     transition: max-width 0.2s ease;
+    position: relative;
 }
 
 /* Brute Header - Filled + Cutout Style */
@@ -328,7 +340,6 @@ h1 em {
 .category-edit-btn {
     background: var(--accent); /* Filled accent */
     border: none;
-    border-left: 2px solid var(--bg-primary);
     color: var(--bg-primary); /* Cutout look */
     opacity: 0;
     cursor: pointer;
@@ -361,7 +372,7 @@ h1 em {
     align-items: center;
     text-transform: uppercase;
     white-space: nowrap;
-    border-right: 1px solid var(--border);
+    border-right: none;
 }
 
 /* Bookmark Grid - Asymmetric */
@@ -1058,15 +1069,15 @@ footer {
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--bg-primary);
+    background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--border-strong);
+    background: var(--scrollbar-thumb);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: var(--scrollbar-thumb-hover);
 }
 
 /* Selection color */
@@ -1236,7 +1247,7 @@ footer {
     padding: 0 var(--space-md);
     background: transparent;
     border: none;
-    border-right: 1px solid var(--border);
+    border-right: none;
     color: var(--accent);
     cursor: pointer;
     text-transform: uppercase;
@@ -1432,8 +1443,23 @@ footer {
 .clerk-user-button {
     position: fixed;
     top: var(--space-xl);
-    right: var(--space-md);
+    right: var(--space-xl);
     z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--bg-primary);
+    background: var(--accent);
+    overflow: hidden;
+}
+
+.clerk-user-button .cl-userButtonRootBox,
+.clerk-user-button .cl-userButtonTrigger,
+.clerk-user-button .cl-avatarBox {
+    width: 100%;
+    height: 100%;
 }
 
 /* Accent color picker */

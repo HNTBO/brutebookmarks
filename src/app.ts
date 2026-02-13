@@ -19,10 +19,8 @@ export function renderApp(): void {
       </div>
     </div>
 
-    <!-- Clerk User Button -->
-    <div id="clerk-user-button" class="clerk-user-button"></div>
-
     <div class="container">
+      <div id="clerk-user-button" class="clerk-user-button"></div>
       <header class="brute-header">
         <div class="header-title-box">
           <h1>Brute <em>Bookmarks</em></h1>
