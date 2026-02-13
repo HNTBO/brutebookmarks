@@ -48,7 +48,7 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
              data-url="${escapeHtml(bookmark.url)}">
           <button class="edit-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">✎</button>
           <button class="delete-btn" data-action="delete-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">×</button>
-          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" onerror="this.src='${FALLBACK_ICON}'">
+          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}">
           <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         </div>
       `,
@@ -63,6 +63,11 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
 }
 
 function wireBookmarkCards(el: HTMLElement): void {
+  // Fallback icon for broken images (replaces inline onerror)
+  el.querySelectorAll<HTMLImageElement>('.bookmark-icon').forEach((img) => {
+    img.addEventListener('error', () => { img.src = FALLBACK_ICON; }, { once: true });
+  });
+
   const bookmarkCards = el.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)');
   bookmarkCards.forEach((card) => {
     card.addEventListener('dragstart', handleDragStart as EventListener);

@@ -3,6 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' https://cdn.jsdelivr.net https://*.clerk.accounts.dev;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        img-src 'self' data: blob: https://www.google.com https://cdn.jsdelivr.net https://upload.wikimedia.org https://img.clerk.com;
+        font-src 'self' https://fonts.gstatic.com;
+        connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.com https://cdn.jsdelivr.net https://www.google.com https://upload.wikimedia.org;
+        frame-src https://*.clerk.accounts.dev https://*.clerk.com;
+    ">
     <title>Brute Bookmarks</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
@@ -15,19 +24,8 @@
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
         as="script" crossorigin="anonymous">
 
-    <!-- Instant preference restore (runs before first paint) -->
-    <script>
-        (function() {
-            var theme = localStorage.getItem('theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-
-            var accent = localStorage.getItem('accentColor_' + theme);
-            if (accent) document.documentElement.style.setProperty('--accent', accent);
-
-            var pw = localStorage.getItem('pageWidth');
-            if (pw) document.documentElement.style.setProperty('--page-width', (800 + (pw / 100) * 800) + 'px');
-        })();
-    </script>
+    <!-- Instant preference restore (runs before first paint, avoids flash of wrong theme) -->
+    <script src="/theme-init.js"></script>
 </head>
 <body>
     <div id="app"></div>
