@@ -1,8 +1,8 @@
-import { getCategories, getLayoutItems, setCategoryGroup, deleteTabGroup } from '../data/store';
+import { getCategories, getLayoutItems } from '../data/store';
 import type { Category, TabGroup, LayoutItem } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
-import { getCardSize, getShowCardNames } from '../features/preferences';
+import { getCardGap, getCardSize, getShowCardNames } from '../features/preferences';
 import { handleCardMouseMove, handleCardMouseLeave } from './bookmark-card';
 import {
   handleDragStart,
@@ -13,6 +13,7 @@ import {
   handleCategoryDragOver,
   handleCategoryDragLeave,
   handleCategoryDrop,
+  executeCategoryDrop,
   handleCategoryHeaderDragStart,
   handleCategoryHeaderDragEnd,
   handleTabGroupHeaderDragStart,
@@ -20,6 +21,11 @@ import {
   handleLayoutDrop,
   handleTabUngroupDragStart,
   handleTabUngroupDragEnd,
+  handleTabReorderDragOver,
+  handleTabReorderDragLeave,
+  handleTabReorderDrop,
+  isDraggingLayoutItem,
+  getDragBookmarkState,
 } from '../features/drag-drop';
 
 // Track active tab per group (not persisted — defaults to first tab)
@@ -35,8 +41,9 @@ function getActiveTabId(group: TabGroup): string {
 }
 
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
+  const gap = getCardGap(currentCardSize);
   return `
-    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr))">
+    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr)); gap: ${gap}px;">
       ${category.bookmarks
         .map(
           (bookmark, index) => `
@@ -66,6 +73,12 @@ function wireBookmarkCards(el: HTMLElement): void {
   // Fallback icon for broken images (replaces inline onerror)
   el.querySelectorAll<HTMLImageElement>('.bookmark-icon').forEach((img) => {
     img.addEventListener('error', () => { img.src = FALLBACK_ICON; }, { once: true });
+    img.addEventListener('load', () => {
+      // Google's default globe is 16x16 even at sz=64 — replace with our fallback
+      if (img.naturalWidth <= 16 && img.naturalHeight <= 16 && !img.src.startsWith('data:')) {
+        img.src = FALLBACK_ICON;
+      }
+    }, { once: true });
   });
 
   const bookmarkCards = el.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)');
@@ -133,12 +146,14 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
         ${group.categories
           .map(
             (cat) => `
-          <button class="tab ${cat.id === activeTabId ? 'tab-active' : ''}"
-                  draggable="true"
-                  data-tab-category-id="${escapeHtml(cat.id)}"
-                  data-group-id="${escapeHtml(group.id)}">
+          <div class="tab ${cat.id === activeTabId ? 'tab-active' : ''}"
+               role="button"
+               tabindex="0"
+               draggable="true"
+               data-tab-category-id="${escapeHtml(cat.id)}"
+               data-group-id="${escapeHtml(group.id)}">
             ${escapeHtml(cat.name)}
-          </button>
+          </div>
         `,
           )
           .join('')}
@@ -172,7 +187,7 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
       groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
     });
 
-    // Drag tab out of group to ungroup
+    // Drag tab out of group to ungroup, or reorder within group
     tab.addEventListener('dragstart', (e: DragEvent) => {
       e.stopPropagation(); // Don't trigger group header drag
       handleTabUngroupDragStart(e, tab.dataset.tabCategoryId!);
@@ -180,23 +195,46 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
     tab.addEventListener('dragend', () => {
       handleTabUngroupDragEnd();
     });
+
+    // Tab reorder within group
+    tab.addEventListener('dragover', handleTabReorderDragOver as EventListener);
+    tab.addEventListener('dragleave', handleTabReorderDragLeave as EventListener);
+    tab.addEventListener('drop', ((e: DragEvent) => {
+      handleTabReorderDrop(e, group.categories);
+    }) as EventListener);
   });
 
   // Wire bookmark cards in all panels
   wireBookmarkCards(groupEl);
 
   // Category-level drop (bookmark → tab group)
+  // IMPORTANT: These handlers must NOT mutate the event object (e.g. via Object.assign)
+  // because the event bubbles to the container's layout drag handler which reads e.currentTarget.
   groupEl.querySelectorAll<HTMLElement>('.tab-panel').forEach((panel) => {
     const catId = panel.dataset.tabPanelId!;
+
     panel.addEventListener('dragover', ((e: DragEvent) => {
-      // Forward to category drag handler with the right category ID
-      const fakeEl = { dataset: { categoryId: catId }, classList: panel.classList } as unknown as HTMLElement;
-      handleCategoryDragOver.call(fakeEl, Object.assign(e, { currentTarget: fakeEl }));
+      // Skip layout drags — let them bubble to container cleanly
+      if (isDraggingLayoutItem()) return;
+      // Inline the category dragover logic without mutating the event
+      const dragState = getDragBookmarkState();
+      if (!dragState) return;
+      if (catId === dragState.categoryId) return;
+      e.preventDefault();
+      panel.classList.add('drop-target');
     }) as EventListener);
-    panel.addEventListener('dragleave', handleCategoryDragLeave as EventListener);
+
+    panel.addEventListener('dragleave', ((e: DragEvent) => {
+      const relatedTarget = e.relatedTarget as Node | null;
+      if (relatedTarget && panel.contains(relatedTarget)) return;
+      panel.classList.remove('drop-target');
+    }) as EventListener);
+
     panel.addEventListener('drop', ((e: DragEvent) => {
-      const fakeEl = { dataset: { categoryId: catId }, classList: panel.classList } as unknown as HTMLElement;
-      handleCategoryDrop.call(fakeEl, Object.assign(e, { currentTarget: fakeEl }), renderCategories);
+      // Skip layout drags — let them bubble to container cleanly
+      if (isDraggingLayoutItem()) return;
+      panel.classList.remove('drop-target');
+      executeCategoryDrop(e, catId, renderCategories);
     }) as EventListener);
   });
 

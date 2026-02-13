@@ -90,9 +90,13 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   syncPreferencesUI();
 }
 
+export function getCardGap(size: number): number {
+  const t = (size - 60) / 60;
+  return Math.round(8 + t * 16);
+}
+
 function applyCardSizeToDOM(): void {
-  const t = (currentCardSize - 60) / 60;
-  const gap = Math.round(8 + t * 16);
+  const gap = getCardGap(currentCardSize);
 
   document.querySelectorAll<HTMLElement>('.bookmarks-grid').forEach((grid) => {
     grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;

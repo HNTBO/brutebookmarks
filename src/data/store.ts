@@ -506,11 +506,30 @@ export async function reorderTabGroup(id: string, order: number): Promise<void> 
 export async function setCategoryGroup(categoryId: string, groupId: string | null, order?: number): Promise<void> {
   if (!_convexActive) return;
   const client = getConvexClient()!;
-  await client.mutation(api.categories.setGroup, {
+  const baseArgs = {
     id: categoryId as Id<'categories'>,
     groupId: groupId ? (groupId as Id<'tabGroups'>) : undefined,
-    order,
-  });
+  };
+
+  try {
+    // New backend supports "order" for positioned ungrouping.
+    if (order !== undefined) {
+      await client.mutation(api.categories.setGroup, { ...baseArgs, order });
+    } else {
+      await client.mutation(api.categories.setGroup, baseArgs);
+    }
+  } catch (err) {
+    // Backward compatibility: older deployed validator rejects extra "order".
+    if (
+      order !== undefined &&
+      err instanceof Error &&
+      err.message.includes("extra field `order`")
+    ) {
+      await client.mutation(api.categories.setGroup, baseArgs);
+      return;
+    }
+    throw err;
+  }
 }
 
 export async function mergeTabGroups(sourceId: string, targetId: string): Promise<void> {

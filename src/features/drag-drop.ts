@@ -33,6 +33,8 @@ export function handleDragStart(e: DragEvent): void {
 
 export function handleDragEnd(e: DragEvent): void {
   (e.currentTarget as HTMLElement).classList.remove('dragging');
+  draggedElement = null;
+  draggedBookmark = null;
   document.querySelectorAll('.bookmark-card').forEach((card) => {
     card.classList.remove('drag-over');
   });
@@ -176,7 +178,16 @@ export function handleCategoryDrop(e: DragEvent, renderCallback: () => void): vo
   if (!draggedBookmark) return;
 
   const targetCategoryId = (e.currentTarget as HTMLElement).dataset.categoryId!;
+  (e.currentTarget as HTMLElement).classList.remove('drop-target');
+  executeCategoryDrop(e, targetCategoryId, renderCallback);
+}
 
+/**
+ * Execute a bookmark drop into a category. Separated from handleCategoryDrop so tab-panel
+ * handlers can call it directly with a known categoryId, without mutating the event object.
+ */
+export function executeCategoryDrop(e: DragEvent, targetCategoryId: string, renderCallback: () => void): void {
+  if (!draggedBookmark) return;
   if (targetCategoryId === draggedBookmark.categoryId) return;
 
   e.preventDefault();
@@ -217,14 +228,16 @@ export function handleCategoryDrop(e: DragEvent, renderCallback: () => void): vo
       renderCallback();
     }
   }
-
-  (e.currentTarget as HTMLElement).classList.remove('drop-target');
 }
 
 // --- Category reorder handlers ---
 
 export function isDraggingLayoutItem(): boolean {
   return draggedLayoutItem !== null;
+}
+
+export function getDragBookmarkState(): { categoryId: string; bookmarkId: string } | null {
+  return draggedBookmark;
 }
 
 export function handleCategoryHeaderDragStart(e: DragEvent): void {
@@ -500,6 +513,9 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
 
 // --- Tab ungroup: drag a tab out of the tab bar ---
 export function handleTabUngroupDragStart(e: DragEvent, categoryId: string): void {
+  // Ensure tab drags can't be misclassified as bookmark drags.
+  draggedBookmark = null;
+  draggedElement = null;
   draggedLayoutItem = { type: 'category', id: categoryId };
   e.dataTransfer!.effectAllowed = 'move';
   e.dataTransfer!.setData('text/plain', '');
@@ -510,4 +526,52 @@ export function handleTabUngroupDragEnd(): void {
   document.querySelectorAll('.dragging-category').forEach((el) => el.classList.remove('dragging-category'));
   document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
   document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
+  document.querySelectorAll('.tab-drop-target').forEach((el) => el.classList.remove('tab-drop-target'));
+}
+
+// --- Tab reorder within a tab group ---
+
+export function handleTabReorderDragOver(e: DragEvent): void {
+  if (!draggedLayoutItem || draggedLayoutItem.type !== 'category') return;
+  const targetTab = e.currentTarget as HTMLElement;
+  const targetCategoryId = targetTab.dataset.tabCategoryId;
+  if (!targetCategoryId || targetCategoryId === draggedLayoutItem.id) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer!.dropEffect = 'move';
+
+  // Visual feedback
+  targetTab.classList.add('tab-drop-target');
+}
+
+export function handleTabReorderDragLeave(e: DragEvent): void {
+  (e.currentTarget as HTMLElement).classList.remove('tab-drop-target');
+}
+
+export function handleTabReorderDrop(
+  e: DragEvent,
+  groupCategories: { id: string; order?: number }[],
+): void {
+  if (!draggedLayoutItem || draggedLayoutItem.type !== 'category') return;
+  const targetTab = e.currentTarget as HTMLElement;
+  const targetCategoryId = targetTab.dataset.tabCategoryId!;
+  targetTab.classList.remove('tab-drop-target');
+
+  if (targetCategoryId === draggedLayoutItem.id) return;
+
+  // Only reorder if dragged tab is in this group
+  const draggedInGroup = groupCategories.some((c) => c.id === draggedLayoutItem!.id);
+  if (!draggedInGroup) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Filter out dragged item, compute midpoint at target position
+  const filtered = groupCategories.filter((c) => c.id !== draggedLayoutItem!.id);
+  const targetIndex = filtered.findIndex((c) => c.id === targetCategoryId);
+  const newOrder = computeMidpoint(filtered, targetIndex);
+  reorderCategory(draggedLayoutItem.id, newOrder);
+
+  draggedLayoutItem = null;
 }
