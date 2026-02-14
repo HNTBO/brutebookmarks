@@ -1151,6 +1151,7 @@ footer {
     .header-title-box h1 {
         font-size: clamp(1.5rem, 8vw, 2rem);
         font-weight: 600;
+        letter-spacing: 0.2em;
     }
 
     /* Hide all desktop controls */
@@ -1168,14 +1169,16 @@ footer {
         left: 0;
         right: 0;
         z-index: 100;
-        background: var(--bg-primary);
+        background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
         border-top: 1px solid var(--border);
         padding: var(--space-sm) 0;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
     }
 
     .mobile-toolbar-btn {
-        width: 40px;
-        height: 40px;
+        width: 30px;
+        height: 30px;
         background: var(--accent);
         border: none;
         color: var(--bg-primary);
@@ -1211,8 +1214,8 @@ footer {
 
     /* Mobile avatar slot */
     #mobile-avatar-btn {
-        width: 40px;
-        height: 40px;
+        width: 30px;
+        height: 30px;
         position: relative;
     }
 
@@ -1280,9 +1283,9 @@ footer {
         cursor: pointer;
     }
 
-    /* Force barscale M on mobile */
+    /* Force barscale XS on mobile (~50% of default) */
     :root {
-        --bar-height: 37px;
+        --bar-height: 22px;
     }
 
     /* Modal adjustments */

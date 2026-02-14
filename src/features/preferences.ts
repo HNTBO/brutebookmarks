@@ -147,6 +147,11 @@ export function getBarscale(): BarscaleSize {
 }
 
 function applyBarscaleToDOM(): void {
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    // Let CSS handle the forced XS barscale on mobile
+    document.documentElement.style.removeProperty('--bar-height');
+    return;
+  }
   document.documentElement.style.setProperty('--bar-height', `${BARSCALE_PX[currentBarscale]}px`);
 }
 
