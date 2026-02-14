@@ -1297,9 +1297,79 @@ footer {
         --bar-height: 22px;
     }
 
-    /* Modal adjustments */
+    /* Modal — full-screen drawer on mobile */
+    .modal {
+        padding: 0;
+        align-items: stretch;
+        justify-content: stretch;
+    }
+
     .modal-content {
-        margin: var(--space-md);
+        max-width: none;
+        max-height: none;
+        width: 100%;
+        height: 100%;
+        border: none;
+        box-shadow: none;
+        animation: none;
+    }
+
+    .modal-header {
+        height: 36px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .modal-close {
+        width: 36px;
+    }
+
+    .modal-body {
+        padding: var(--space-md);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Settings: bookmarks button row → 2-column grid */
+    .settings-section:last-child .settings-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-sm);
+    }
+
+    .settings-section:last-child .settings-row .btn {
+        width: 100%;
+    }
+
+    /* Erase button spans full width on its own row */
+    .settings-section:last-child .settings-row .btn-danger {
+        grid-column: 1 / -1;
+    }
+
+    /* Accent color row — don't wrap */
+    .accent-color-row {
+        flex-shrink: 0;
+    }
+
+    .accent-color-input {
+        width: 36px;
+        height: 36px;
+    }
+
+    .accent-color-row .btn {
+        height: 36px;
+    }
+
+    /* Settings row labels */
+    .settings-row label {
+        font-size: 13px;
+    }
+
+    /* Modal actions (bookmark/category modals) */
+    .modal-actions {
+        padding: var(--space-md);
     }
 
     /* Wireframe mode — mobile toolbar buttons */
