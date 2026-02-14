@@ -269,9 +269,16 @@ export function renderCategories(): void {
   // If we have layout items (Convex mode), use them
   const items = layoutItems.length > 0 ? layoutItems : categories.map((c) => ({ type: 'category' as const, category: c }));
 
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
   items.forEach((item) => {
     if (item.type === 'category') {
       container.appendChild(renderSingleCategory(item.category, currentCardSize, showCardNames));
+    } else if (isMobile) {
+      // Auto-ungroup tabs on mobile — render each as standalone category
+      item.group.categories.forEach((cat) => {
+        container.appendChild(renderSingleCategory(cat, currentCardSize, showCardNames));
+      });
     } else {
       container.appendChild(renderTabGroup(item.group, currentCardSize, showCardNames));
     }
