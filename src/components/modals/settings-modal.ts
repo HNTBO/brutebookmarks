@@ -148,25 +148,45 @@ function importData(): void {
 }
 
 async function fetchAllFavicons(): Promise<void> {
-  const categories = getCategories();
-  let updated = 0;
+  const btn = document.getElementById('fetch-favicons-btn') as HTMLButtonElement;
+  const modalContent = document.querySelector('#settings-modal .modal-content') as HTMLElement;
+  btn.textContent = 'Fetching';
+  settingsBusy = true;
+  modalContent.style.pointerEvents = 'none';
+  modalContent.style.opacity = '0.6';
 
-  for (const cat of categories) {
-    for (const bk of cat.bookmarks) {
-      try {
-        const domain = new URL(bk.url).hostname;
-        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-        if (bk.iconPath !== faviconUrl) {
-          await updateBookmark(bk.id, bk.title, bk.url, faviconUrl);
-          updated++;
+  try {
+    const categories = getCategories();
+    let updated = 0;
+
+    for (const cat of categories) {
+      for (const bk of cat.bookmarks) {
+        try {
+          const domain = new URL(bk.url).hostname;
+          const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+          if (bk.iconPath !== faviconUrl) {
+            await updateBookmark(bk.id, bk.title, bk.url, faviconUrl);
+            updated++;
+          }
+        } catch {
+          // Invalid URL — skip
         }
-      } catch {
-        // Invalid URL — skip
       }
     }
-  }
 
-  await styledAlert(`Updated favicons for ${updated} bookmark${updated !== 1 ? 's' : ''}.`, 'Favicons');
+    modalContent.style.pointerEvents = '';
+    modalContent.style.opacity = '';
+    settingsBusy = false;
+    btn.textContent = 'Fetch Favicons';
+    closeSettingsModal();
+    await styledAlert(`Updated favicons for ${updated} bookmark${updated !== 1 ? 's' : ''}.`, 'Favicons');
+  } catch (e) {
+    modalContent.style.pointerEvents = '';
+    modalContent.style.opacity = '';
+    settingsBusy = false;
+    btn.textContent = 'Fetch Favicons';
+    throw e;
+  }
 }
 
 const STOP_WORDS = new Set([
