@@ -8,6 +8,8 @@ import type { Category } from '../../types';
 import { getAppMode } from '../../data/local-storage';
 import { getFoundingMemberStats } from '../../data/founding-stats';
 
+let settingsBusy = false;
+
 export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
   (document.getElementById('show-card-names') as HTMLInputElement).checked = getShowCardNames();
@@ -166,6 +168,77 @@ async function fetchAllFavicons(): Promise<void> {
   await styledAlert(`Updated favicons for ${updated} bookmark${updated !== 1 ? 's' : ''}.`, 'Favicons');
 }
 
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'of', 'for', 'to', 'in', 'on', 'at', 'by',
+  'with', 'and', 'or', 'my', 'your', 'our', 'is', 'it', 'its',
+  'this', 'that', 'app', 'home',
+]);
+
+const DOMAIN_NOISE = new Set([
+  'com', 'org', 'net', 'io', 'co', 'www',
+  'html', 'htm', 'php', 'asp', 'aspx', 'jsp',
+]);
+
+function computeSmartName(title: string): string {
+  // Strip trailing noise after common separators
+  const stripped = title.split(/\s[-|—:·]\s/)[0].trim();
+
+  // Expand dot-containing tokens into parts, filtering TLDs and short segments
+  const tokens = stripped.split(/\s+/).flatMap(w =>
+    w.includes('.') ? w.split('.').filter(p =>
+      p.length > 2 && !DOMAIN_NOISE.has(p.toLowerCase())
+    ) : [w]
+  );
+
+  const meaningful = tokens.filter(w =>
+    w.length > 0 &&
+    !STOP_WORDS.has(w.toLowerCase()) &&
+    !w.includes('=') && !w.includes('/') && !w.includes('#')
+  );
+
+  if (meaningful.length === 0) return title;
+
+  const kept = meaningful.slice(0, 2);
+  return kept.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+async function smartNameAll(): Promise<void> {
+  const btn = document.getElementById('smart-name-btn') as HTMLButtonElement;
+  const modalContent = document.querySelector('#settings-modal .modal-content') as HTMLElement;
+  btn.textContent = 'Renaming';
+  settingsBusy = true;
+  modalContent.style.pointerEvents = 'none';
+  modalContent.style.opacity = '0.6';
+
+  try {
+    const categories = getCategories();
+    let updated = 0;
+
+    for (const cat of categories) {
+      for (const bk of cat.bookmarks) {
+        const smart = computeSmartName(bk.title);
+        if (smart !== bk.title) {
+          await updateBookmark(bk.id, smart, bk.url, bk.iconPath);
+          updated++;
+        }
+      }
+    }
+
+    modalContent.style.pointerEvents = '';
+    modalContent.style.opacity = '';
+    settingsBusy = false;
+    btn.textContent = 'Smart Name';
+    closeSettingsModal();
+    await styledAlert(`Renamed ${updated} bookmark${updated !== 1 ? 's' : ''}.`, 'Smart Name');
+  } catch (e) {
+    modalContent.style.pointerEvents = '';
+    modalContent.style.opacity = '';
+    settingsBusy = false;
+    btn.textContent = 'Smart Name';
+    throw e;
+  }
+}
+
 async function eraseData(): Promise<void> {
   closeSettingsModal();
   if (await styledConfirm('This will permanently erase all your bookmarks.', 'Erase')) {
@@ -190,6 +263,7 @@ export function initSettingsModal(): void {
   });
 
   document.getElementById('reset-accent-btn')!.addEventListener('click', resetAccentColor);
+  document.getElementById('smart-name-btn')!.addEventListener('click', smartNameAll);
   document.getElementById('fetch-favicons-btn')!.addEventListener('click', fetchAllFavicons);
   document.getElementById('export-data-btn')!.addEventListener('click', exportData);
   document.getElementById('import-data-btn')!.addEventListener('click', importData);
@@ -202,7 +276,7 @@ export function initSettingsModal(): void {
     mouseDownOnBackdrop = e.target === modal;
   });
   modal.addEventListener('mouseup', (e) => {
-    if (mouseDownOnBackdrop && e.target === modal) {
+    if (!settingsBusy && mouseDownOnBackdrop && e.target === modal) {
       closeSettingsModal();
     }
     mouseDownOnBackdrop = false;

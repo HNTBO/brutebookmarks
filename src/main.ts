@@ -9,7 +9,7 @@ import { initSettingsModal, openSettingsModal, closeSettingsModal } from './comp
 import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
-import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, getWireframe, initBarscaleAndWireframe } from './features/preferences';
+import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
 import { getAppMode, setAppMode } from './data/local-storage';
@@ -46,6 +46,7 @@ document.getElementById('brand-r')?.addEventListener('click', (e) => {
   randomizeAccentHue();
   randomizeBarscale();
   randomizeWireframe();
+  randomizeXY();
   // Sync wireframe button visual state
   const btn = document.getElementById('wireframe-btn');
   if (btn) btn.classList.toggle('wireframe-active', document.documentElement.hasAttribute('data-wireframe'));
@@ -137,8 +138,10 @@ async function init(): Promise<void> {
     document.getElementById('wireframe-btn')?.classList.add('wireframe-active');
   }
 
-  // Render categories from localStorage cache
-  renderCategories();
+  // Render categories from localStorage cache (sync mode skips — waits for Convex)
+  if (getAppMode() !== 'sync') {
+    renderCategories();
+  }
 
   // Apply saved settings
   updateCardSize(getCardSize());

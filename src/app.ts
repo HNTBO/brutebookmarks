@@ -22,13 +22,13 @@ export function renderApp(): void {
     <div class="container">
       <header class="brute-header">
         <div class="header-title-box">
-          <h1><span id="brand-brute">Br<span id="brand-u">u</span>te</span> <em id="brand-bookmarks">Bookma<span id="brand-r">r</span>ks</em></h1>
+          <h1><span id="brand-brute">Br<span id="brand-u">u</span>te</span><em id="brand-bookmarks">Bookma<span id="brand-r">r</span>k<span class="brand-final-s">s</span></em></h1>
         </div>
         <div class="header-controls">
           <div class="clerk-slot">
-            <button class="clerk-slot-btn" id="wireframe-btn" title="Toggle Wireframe">&#9633;</button>
-            <button class="clerk-slot-btn" id="barscale-btn" title="Cycle Bar Scale">&#9604;</button>
-            <div id="clerk-user-button" class="clerk-user-button"></div>
+            <button class="clerk-slot-btn" id="wireframe-btn" title="Toggle Wireframe"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect x="73.97" y="189.88" width="253" height="253"/><rect x="180.93" y="79.77" width="253" height="253"/><line x1="71.55" y1="186.5" x2="178.18" y2="77.21"/><line x1="326.97" y1="187.88" x2="433.93" y2="79.77"/><line x1="329.5" y1="445.82" x2="436.58" y2="335.19"/><line x1="73.97" y1="440.88" x2="185.9" y2="329.41"/></svg></button>
+            <button class="clerk-slot-btn" id="barscale-btn" title="Cycle Bar Scale"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect x="73.17" y="168.41" width="274.22" height="274.22"/><line x1="73.17" y1="443.46" x2="416.23" y2="98.07"/><polygon fill="currentColor" stroke="none" points="380.1 70.67 443.88 134.03 443.66 70.47 380.1 70.67"/></svg></button>
+            <div id="clerk-user-button" class="clerk-user-button"><svg class="default-avatar-overlay" viewBox="0 0 512 512" aria-hidden="true"><rect class="avatar-bg" width="512" height="512"/><rect class="avatar-shape" x="189.69" y="97.61" width="132.63" height="113.62"/><rect class="avatar-shape" x="110.55" y="225.59" width="290.89" height="188.81"/></svg></div>
           </div>
           <div class="size-controller" id="size-controller">
             <div class="size-handle" id="size-handle"></div>
@@ -190,6 +190,7 @@ export function renderApp(): void {
           <div class="settings-section">
             <h3>Bookmarks</h3>
             <div class="settings-row">
+              <button class="btn" id="smart-name-btn">Smart Name</button>
               <button class="btn" id="fetch-favicons-btn">Fetch Favicons</button>
               <button class="btn" id="import-data-btn">Import</button>
               <button class="btn" id="export-data-btn">Export</button>

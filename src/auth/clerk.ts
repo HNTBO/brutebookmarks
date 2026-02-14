@@ -106,6 +106,7 @@ export async function initClerk(): Promise<ClerkInstance | null> {
 function mountUserButton(): void {
   const container = document.getElementById('clerk-user-button') as HTMLDivElement | null;
   if (container && clerk) {
+    container.innerHTML = '';
     clerk.mountUserButton(container, { afterSignOutUrl: '/' });
 
     // Overlay custom avatar when user hasn't uploaded a profile photo
@@ -116,9 +117,9 @@ function mountUserButton(): void {
       svg.setAttribute('aria-hidden', 'true');
       svg.classList.add('default-avatar-overlay');
       svg.innerHTML =
-        '<rect width="512" height="512" fill="var(--accent)"/>' +
-        '<rect x="173.49" y="117.64" width="165.02" height="141.37" fill="var(--bg-primary)"/>' +
-        '<rect x="75.03" y="276.88" width="361.94" height="234.92" fill="var(--bg-primary)"/>';
+        '<rect class="avatar-bg" width="512" height="512"/>' +
+        '<rect class="avatar-shape" x="189.69" y="97.61" width="132.63" height="113.62"/>' +
+        '<rect class="avatar-shape" x="110.55" y="225.59" width="290.89" height="188.81"/>';
       container.appendChild(svg);
     }
   }

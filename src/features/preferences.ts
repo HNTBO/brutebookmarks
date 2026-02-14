@@ -122,6 +122,17 @@ export function syncPreferencesUI(): void {
   if (autofillCheckbox) autofillCheckbox.checked = autofillUrl;
 }
 
+// --- Randomize XY (size controller) ---
+
+export function randomizeXY(): void {
+  const newCardSize = Math.round(60 + Math.random() * 60);   // 60–120
+  const newPageWidth = Math.round(50 + Math.random() * 50);  // 50–100
+  updateCardSize(newCardSize);
+  updatePageWidth(newPageWidth);
+  // Refresh the size controller handle position
+  (window as any).__refreshSizeHandle?.();
+}
+
 // --- Barscale ---
 
 export function getBarscale(): BarscaleSize {

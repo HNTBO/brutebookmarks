@@ -20,7 +20,7 @@
 
     /* Borders and lines */
     --border: #2a2a2a;
-    --border-strong: #947c33;
+    --border-strong: var(--accent);
 
     /* Typography */
     --font-display: 'Outfit', Georgia, serif;
@@ -76,7 +76,7 @@
     --accent-glow: color-mix(in srgb, var(--accent), transparent 85%);
 
     --border: #93a1a1;        /* Base1 */
-    --border-strong: #002b36; /* Deep Blue */
+    --border-strong: var(--accent);
 
     --shadow-sm: 4px 4px 0 rgba(0,0,0,0.05);
     --shadow-md: 6px 6px 0 rgba(0,0,0,0.05);
@@ -185,6 +185,10 @@ body::before {
     cursor: pointer;
 }
 
+.brand-final-s {
+    letter-spacing: 3px;
+}
+
 .header-controls {
     display: flex;
     align-items: stretch;
@@ -283,6 +287,11 @@ body::before {
     appearance: none;
 }
 
+.clerk-slot-btn svg {
+    width: 60%;
+    height: 60%;
+}
+
 .clerk-slot-btn:hover {
     background: var(--scale-color);
     color: var(--accent);
@@ -375,7 +384,9 @@ h1 em {
 }
 
 .btn-danger {
-    color: var(--danger);
+    background: transparent;
+    color: var(--text-primary);
+    border-color: var(--accent);
 }
 
 .btn-danger:hover {
@@ -522,7 +533,7 @@ h1 em {
     aspect-ratio: 1;
     min-width: 24px;
     max-width: 56px;
-    margin-bottom: 8px;
+    margin-bottom: 10%;
     object-fit: contain;
     filter: grayscale(20%);
     transition: filter 0.3s ease, transform 0.3s ease;
@@ -534,20 +545,22 @@ h1 em {
 }
 
 .bookmark-title {
-    font-size: clamp(9px, 2.5vw, 13px);
+    font-size: clamp(9.5px, 17cqi, 17px);
     font-weight: 500;
     color: var(--text-primary);
-    display: block;
+    position: absolute;
+    bottom: 10%;
+    left: 6%;
+    right: 6%;
     text-align: center;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    word-break: break-all;
     line-height: 1.2;
-    max-width: 100%;
+    max-height: 1.2em;
 }
 
 /* Hide title when card is too small */
-@container (max-width: 75px) {
+@container (max-width: 55px) {
     .bookmark-title, .add-bookmark-text {
         display: none;
     }
@@ -988,6 +1001,13 @@ h1 em {
     align-items: center;
     padding: var(--space-sm) 0;
     gap: var(--space-md);
+}
+
+.settings-row .btn {
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .settings-row label {
@@ -1480,13 +1500,13 @@ footer {
 }
 
 .account-badge {
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--accent);
     border: 1px solid var(--accent);
-    padding: 2px 8px;
+    padding: 6px 14px;
 }
 
 .account-upgrade-btn {
@@ -1605,6 +1625,22 @@ footer {
     z-index: 3;
 }
 
+.default-avatar-overlay .avatar-bg {
+    fill: var(--accent);
+}
+
+.default-avatar-overlay .avatar-shape {
+    fill: var(--bg-primary);
+}
+
+#clerk-user-button:hover .default-avatar-overlay .avatar-bg {
+    fill: var(--scale-color);
+}
+
+#clerk-user-button:hover .default-avatar-overlay .avatar-shape {
+    fill: var(--accent);
+}
+
 /* Accent color picker */
 .accent-color-row {
     display: flex;
@@ -1613,12 +1649,31 @@ footer {
 }
 
 .accent-color-input {
+    -webkit-appearance: none;
+    appearance: none;
     background: none;
-    border: none;
-    width: 32px;
-    height: 32px;
+    border: 1px solid var(--border-strong);
+    width: 42px;
+    height: 42px;
     cursor: pointer;
     padding: 0;
+}
+
+.accent-color-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.accent-color-input::-webkit-color-swatch {
+    border: none;
+}
+
+.accent-color-input::-moz-color-swatch {
+    border: none;
+}
+
+.accent-color-row .btn {
+    height: 42px;
+    min-width: 80px;
 }
 
 /* Confirm modal input group spacing */
