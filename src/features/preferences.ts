@@ -103,11 +103,18 @@ export function getCardGap(size: number): number {
 }
 
 function applyCardSizeToDOM(): void {
-  const gap = getCardGap(currentCardSize);
+  const mobile = window.matchMedia('(max-width: 768px)').matches;
 
   document.querySelectorAll<HTMLElement>('.bookmarks-grid').forEach((grid) => {
-    grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
-    grid.style.gap = `${gap}px`;
+    if (mobile) {
+      // Let CSS handle the 5-column mobile layout
+      grid.style.gridTemplateColumns = '';
+      grid.style.gap = '';
+    } else {
+      const gap = getCardGap(currentCardSize);
+      grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
+      grid.style.gap = `${gap}px`;
+    }
   });
 }
 

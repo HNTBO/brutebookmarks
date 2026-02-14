@@ -104,8 +104,13 @@ export async function initClerk(): Promise<ClerkInstance | null> {
 }
 
 function mountUserButton(): void {
-  const container = document.getElementById('clerk-user-button') as HTMLDivElement | null;
-  if (container && clerk) {
+  if (!clerk) return;
+
+  // Mount to both desktop and mobile avatar containers
+  const targets = ['clerk-user-button', 'mobile-avatar-btn'];
+  for (const id of targets) {
+    const container = document.getElementById(id) as HTMLDivElement | null;
+    if (!container) continue;
     container.innerHTML = '';
     clerk.mountUserButton(container, { afterSignOutUrl: '/' });
 

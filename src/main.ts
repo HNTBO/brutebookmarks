@@ -33,23 +33,45 @@ document.getElementById('settings-btn')!.addEventListener('click', openSettingsM
 document.getElementById('barscale-btn')!.addEventListener('click', cycleBarscale);
 document.getElementById('wireframe-btn')!.addEventListener('click', () => {
   toggleWireframe();
-  document.getElementById('wireframe-btn')!.classList.toggle('wireframe-active');
+  syncWireframeBtnState();
 });
 
-// Easter eggs on brand text
+// Easter eggs on brand text — responsive (mobile taps full words, desktop taps individual letters)
+const isMobileQuery = window.matchMedia('(max-width: 768px)');
+
+function syncWireframeBtnState(): void {
+  const isWF = document.documentElement.hasAttribute('data-wireframe');
+  document.getElementById('wireframe-btn')?.classList.toggle('wireframe-active', isWF);
+  document.getElementById('mobile-wireframe-btn')?.classList.toggle('wireframe-active', isWF);
+}
+
+// Desktop easter eggs (u / r letters)
 document.getElementById('brand-u')?.addEventListener('click', (e) => {
+  if (isMobileQuery.matches) return; // handled by word-level listener on mobile
   e.stopPropagation();
   randomizeAccentHue();
 });
 document.getElementById('brand-r')?.addEventListener('click', (e) => {
+  if (isMobileQuery.matches) return;
   e.stopPropagation();
   randomizeAccentHue();
   randomizeBarscale();
   randomizeWireframe();
   randomizeXY();
-  // Sync wireframe button visual state
-  const btn = document.getElementById('wireframe-btn');
-  if (btn) btn.classList.toggle('wireframe-active', document.documentElement.hasAttribute('data-wireframe'));
+  syncWireframeBtnState();
+});
+
+// Mobile easter eggs (full words "Brute" / "Bookmarks")
+document.getElementById('brand-brute')?.addEventListener('click', () => {
+  if (!isMobileQuery.matches) return;
+  randomizeAccentHue();
+});
+document.getElementById('brand-bookmarks')?.addEventListener('click', () => {
+  if (!isMobileQuery.matches) return;
+  randomizeAccentHue();
+  randomizeBarscale();
+  randomizeWireframe();
+  syncWireframeBtnState();
 });
 
 // Wire icon picker buttons
@@ -118,6 +140,17 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// Wire mobile toolbar buttons
+function wireMobileToolbar(): void {
+  document.getElementById('mobile-add-btn')?.addEventListener('click', openAddCategoryModal);
+  document.getElementById('mobile-theme-btn')?.addEventListener('click', toggleTheme);
+  document.getElementById('mobile-settings-btn')?.addEventListener('click', openSettingsModal);
+  document.getElementById('mobile-wireframe-btn')?.addEventListener('click', () => {
+    toggleWireframe();
+    syncWireframeBtnState();
+  });
+}
+
 // Initialize app data and render
 async function init(): Promise<void> {
   // Wire callbacks so Convex subscriptions can trigger re-renders
@@ -135,7 +168,7 @@ async function init(): Promise<void> {
   syncPreferencesUI();
   initBarscaleAndWireframe();
   if (getWireframe()) {
-    document.getElementById('wireframe-btn')?.classList.add('wireframe-active');
+    syncWireframeBtnState();
   }
 
   // Render categories from localStorage cache (sync mode skips — waits for Convex)
@@ -149,6 +182,9 @@ async function init(): Promise<void> {
 
   // Initialize the 2D size controller
   initSizeController();
+
+  // Wire mobile toolbar buttons
+  wireMobileToolbar();
 
   // Check app mode
   const mode = getAppMode();

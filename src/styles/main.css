@@ -1124,37 +1124,182 @@ footer {
     opacity: 0.85;
 }
 
-/* Responsive */
+/* Mobile toolbar — hidden on desktop */
+.mobile-toolbar {
+    display: none;
+}
+
+/* Responsive — Mobile layout */
 @media (max-width: 768px) {
+    /* Fixed header */
+    .brute-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        height: auto;
+        justify-content: center;
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .header-title-box {
+        padding: 0;
+        justify-content: center;
+    }
+
+    .header-title-box h1 {
+        font-size: clamp(1.5rem, 8vw, 2rem);
+        font-weight: 600;
+    }
+
+    /* Hide all desktop controls */
+    .header-controls {
+        display: none;
+    }
+
+    /* Mobile toolbar */
+    .mobile-toolbar {
+        display: flex;
+        justify-content: space-evenly;
+        align-items: center;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border);
+        padding: var(--space-sm) 0;
+    }
+
+    .mobile-toolbar-btn {
+        width: 40px;
+        height: 40px;
+        background: var(--accent);
+        border: none;
+        color: var(--bg-primary);
+        font-size: 18px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        line-height: 1;
+        appearance: none;
+        transition: all 0.15s ease;
+    }
+
+    .mobile-toolbar-btn:active {
+        background: var(--scale-color);
+        color: var(--accent);
+    }
+
+    .mobile-toolbar-btn svg {
+        width: 60%;
+        height: 60%;
+    }
+
+    /* Wireframe active state on mobile */
+    .mobile-toolbar-btn.wireframe-active {
+        background: transparent;
+        outline: 1px solid var(--accent);
+        outline-offset: -1px;
+        color: var(--accent);
+    }
+
+    /* Mobile avatar slot */
+    #mobile-avatar-btn {
+        width: 40px;
+        height: 40px;
+        position: relative;
+    }
+
+    #mobile-avatar-btn .cl-userButtonRootBox,
+    #mobile-avatar-btn .cl-userButtonTrigger,
+    #mobile-avatar-btn .cl-avatarBox {
+        width: 100%;
+        height: 100%;
+    }
+
+    #mobile-avatar-btn .cl-userButtonTrigger {
+        padding: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: var(--accent) !important;
+    }
+
+    #mobile-avatar-btn .default-avatar-overlay .avatar-bg {
+        fill: var(--accent);
+    }
+
+    #mobile-avatar-btn .default-avatar-overlay .avatar-shape {
+        fill: var(--bg-primary);
+    }
+
+    /* Content area spacing for fixed header/toolbar */
+    #categories-container {
+        padding-top: 60px;
+        padding-bottom: 80px;
+    }
+
     .container {
-        padding: var(--space-lg);
+        max-width: 100%;
+        padding: var(--space-sm);
     }
 
-    header {
-        grid-template-columns: 1fr;
-        gap: var(--space-lg);
-    }
-
-    .controls {
-        justify-content: flex-start;
-    }
-
+    /* Card grid — force 5 columns */
     .bookmarks-grid {
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: var(--space-xs) !important;
+    }
+
+    /* Hide edit/delete buttons */
+    .edit-btn,
+    .delete-btn {
+        display: none !important;
+    }
+
+    /* Hide add-bookmark cards on mobile */
+    .bookmark-card.add-bookmark {
+        display: none;
+    }
+
+    /* Footer */
+    footer {
+        flex-direction: column;
+        text-align: center;
         gap: var(--space-sm);
+        margin-bottom: var(--space-lg);
     }
 
-    .bookmark-card {
-        padding: var(--space-md);
+    /* Easter egg targets */
+    #brand-brute,
+    #brand-bookmarks {
+        cursor: pointer;
     }
 
-    .bookmark-icon {
-        width: 44px;
-        height: 44px;
+    /* Force barscale M on mobile */
+    :root {
+        --bar-height: 37px;
     }
 
+    /* Modal adjustments */
     .modal-content {
         margin: var(--space-md);
+    }
+
+    /* Wireframe mode — mobile toolbar buttons */
+    [data-wireframe] .mobile-toolbar {
+        background: transparent;
+        border-top-color: var(--accent);
+    }
+
+    [data-wireframe] .mobile-toolbar-btn {
+        background: var(--bg-primary);
+        border: 1px solid var(--accent);
+        color: var(--accent);
     }
 }
 

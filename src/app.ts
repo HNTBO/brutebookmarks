@@ -52,6 +52,15 @@ export function renderApp(): void {
       </footer>
     </div>
 
+    <!-- Mobile Toolbar -->
+    <div class="mobile-toolbar">
+      <button class="mobile-toolbar-btn" id="mobile-add-btn" title="Add Category">+</button>
+      <button class="mobile-toolbar-btn" id="mobile-theme-btn" title="Toggle Theme">☀</button>
+      <div class="mobile-toolbar-btn" id="mobile-avatar-btn"><svg class="default-avatar-overlay" viewBox="0 0 512 512" aria-hidden="true"><rect class="avatar-bg" width="512" height="512"/><rect class="avatar-shape" x="189.69" y="97.61" width="132.63" height="113.62"/><rect class="avatar-shape" x="110.55" y="225.59" width="290.89" height="188.81"/></svg></div>
+      <button class="mobile-toolbar-btn" id="mobile-settings-btn" title="Settings">⚙</button>
+      <button class="mobile-toolbar-btn" id="mobile-wireframe-btn" title="Toggle Wireframe"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect x="73.97" y="189.88" width="253" height="253"/><rect x="180.93" y="79.77" width="253" height="253"/><line x1="71.55" y1="186.5" x2="178.18" y2="77.21"/><line x1="326.97" y1="187.88" x2="433.93" y2="79.77"/><line x1="329.5" y1="445.82" x2="436.58" y2="335.19"/><line x1="73.97" y1="440.88" x2="185.9" y2="329.41"/></svg></button>
+    </div>
+
     <!-- Add/Edit Bookmark Modal -->
     <div id="bookmark-modal" class="modal">
       <div class="modal-content">
