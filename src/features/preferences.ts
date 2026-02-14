@@ -6,6 +6,7 @@ let currentCardSize = parseInt(localStorage.getItem('cardSize') || '90');
 let currentPageWidth = parseInt(localStorage.getItem('pageWidth') || '100');
 let showCardNames = localStorage.getItem('showCardNames') !== 'false';
 let autofillUrl = localStorage.getItem('autofillUrl') === 'true';
+let easterEggs = localStorage.getItem('easterEggs') !== 'false'; // default on
 
 // Barscale & wireframe — localStorage only, no Convex sync
 type BarscaleSize = 'S' | 'M' | 'L';
@@ -28,6 +29,15 @@ export function getShowCardNames(): boolean {
 
 export function getAutofillUrl(): boolean {
   return autofillUrl;
+}
+
+export function getEasterEggs(): boolean {
+  return easterEggs;
+}
+
+export function toggleEasterEggs(enabled: boolean): void {
+  easterEggs = enabled;
+  localStorage.setItem('easterEggs', String(easterEggs));
 }
 
 /** Collect all current preferences into one object (used by savePreferencesToConvex). */
@@ -127,6 +137,8 @@ export function syncPreferencesUI(): void {
   if (checkbox) checkbox.checked = showCardNames;
   const autofillCheckbox = document.getElementById('autofill-url') as HTMLInputElement | null;
   if (autofillCheckbox) autofillCheckbox.checked = autofillUrl;
+  const easterEggsCheckbox = document.getElementById('easter-eggs') as HTMLInputElement | null;
+  if (easterEggsCheckbox) easterEggsCheckbox.checked = easterEggs;
 }
 
 // --- Randomize XY (size controller) ---

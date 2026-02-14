@@ -9,7 +9,7 @@ import { initSettingsModal, openSettingsModal, closeSettingsModal } from './comp
 import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
-import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe } from './features/preferences';
+import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
 import { getAppMode, setAppMode } from './data/local-storage';
@@ -47,12 +47,12 @@ function syncWireframeBtnState(): void {
 
 // Desktop easter eggs (u / r letters)
 document.getElementById('brand-u')?.addEventListener('click', (e) => {
-  if (isMobileQuery.matches) return; // handled by word-level listener on mobile
+  if (!getEasterEggs() || isMobileQuery.matches) return;
   e.stopPropagation();
   randomizeAccentHue();
 });
 document.getElementById('brand-r')?.addEventListener('click', (e) => {
-  if (isMobileQuery.matches) return;
+  if (!getEasterEggs() || isMobileQuery.matches) return;
   e.stopPropagation();
   randomizeAccentHue();
   randomizeBarscale();
@@ -63,11 +63,11 @@ document.getElementById('brand-r')?.addEventListener('click', (e) => {
 
 // Mobile easter eggs (full words "Brute" / "Bookmarks")
 document.getElementById('brand-brute')?.addEventListener('click', () => {
-  if (!isMobileQuery.matches) return;
+  if (!getEasterEggs() || !isMobileQuery.matches) return;
   randomizeAccentHue();
 });
 document.getElementById('brand-bookmarks')?.addEventListener('click', () => {
-  if (!isMobileQuery.matches) return;
+  if (!getEasterEggs() || !isMobileQuery.matches) return;
   randomizeAccentHue();
   randomizeBarscale();
   randomizeWireframe();
