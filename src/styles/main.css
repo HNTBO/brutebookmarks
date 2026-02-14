@@ -33,6 +33,20 @@
     --space-lg: 24px;
     --space-xl: 40px;
     --space-2xl: 64px;
+    --header-cutout: 2px;
+    --header-button-size: 32px;
+    --bar-height: 44px;
+    --header-height: calc((var(--header-button-size) * 3) + (var(--header-cutout) * 2));
+    --size-zone-width: 200px; /* W */
+    --clerk-column-width: calc(var(--header-button-size) + (var(--header-cutout) * 2));
+    --actions-column-width: calc(var(--header-button-size) + var(--header-cutout));
+
+    /*
+     * Scale color — the tinted bg-primary used in the size controller zone
+     * and as the hover state for accent-background buttons (action-btn, category-edit-btn).
+     * Named after the 2D scale controller in the header.
+     */
+    --scale-color: color-mix(in srgb, var(--bg-primary) 80%, var(--accent) 20%);
 
     /* Hard shadows - brutalist style */
     --shadow-sm: 4px 4px 0 rgba(0,0,0,0.8);
@@ -73,6 +87,21 @@
     --scrollbar-track: var(--bg-primary);
     --scrollbar-thumb: color-mix(in srgb, var(--bg-primary) 78%, black 22%);
     --scrollbar-thumb-hover: color-mix(in srgb, var(--bg-primary) 62%, black 38%);
+}
+
+/* Keep header geometry on whole pixels at smaller scales */
+@media (max-width: 1280px) {
+    :root {
+        --header-button-size: 30px;
+        --size-zone-width: 188px;
+    }
+}
+
+@media (max-width: 1040px) {
+    :root {
+        --header-button-size: 28px;
+        --size-zone-width: 172px;
+    }
 }
 
 
@@ -125,7 +154,7 @@ body::before {
     margin-bottom: var(--space-xl);
     background: var(--accent); /* Filled */
     border: none;
-    height: 100px;
+    height: var(--header-height);
 }
 
 .header-title-box {
@@ -133,12 +162,11 @@ body::before {
     display: flex;
     align-items: center;
     padding: 0 var(--space-lg);
-    border-right: 2px solid var(--bg-primary);
 }
 
 .header-title-box h1 {
     font-family: var(--font-display);
-    font-size: 4.5rem; /* Large enough to touch floor/ceiling */
+    font-size: clamp(3rem, 6vw, 4.5rem);
     font-weight: 700; /* Bolder */
     letter-spacing: -0.02em;
     line-height: 1;
@@ -152,6 +180,11 @@ body::before {
     opacity: 0.7;
 }
 
+#brand-u,
+#brand-r {
+    cursor: pointer;
+}
+
 .header-controls {
     display: flex;
     align-items: stretch;
@@ -159,12 +192,11 @@ body::before {
 
 /* 2D Size Controller */
 .size-controller {
-    width: 200px;
+    width: var(--size-zone-width);
     height: 100%;
-    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+    background: var(--scale-color);
     position: relative;
     cursor: crosshair;
-    border-right: 2px solid var(--bg-primary);
     overflow: hidden; /* Clip any overflow */
 }
 
@@ -192,14 +224,21 @@ body::before {
 .action-buttons {
     display: flex;
     flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    width: var(--actions-column-width);
+    height: var(--header-height);
+    background: var(--bg-primary);
+    gap: var(--header-cutout);
+    padding-top: 0;
 }
 
 .action-btn {
-    width: 40px;
-    flex: 1;
-    background: transparent;
+    width: var(--header-button-size);
+    height: var(--header-button-size);
+    flex: none;
+    background: var(--accent);
     border: none;
-    border-bottom: 2px solid var(--bg-primary);
     color: var(--bg-primary); /* Cutout look */
     opacity: 1; /* Fully opaque */
     font-size: 18px;
@@ -209,15 +248,57 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
+    line-height: 1;
+    appearance: none;
 }
 
-.action-btn:last-child {
-    border-bottom: none;
+.clerk-slot {
+    width: var(--clerk-column-width);
+    height: var(--header-height);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: var(--bg-primary);
+    gap: var(--header-cutout);
+}
+
+.clerk-slot-btn {
+    width: var(--header-button-size);
+    height: var(--header-button-size);
+    flex: none;
+    background: var(--accent);
+    border: none;
+    color: var(--bg-primary);
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    appearance: none;
+}
+
+.clerk-slot-btn:hover {
+    background: var(--scale-color);
+    color: var(--accent);
+}
+
+/* Wireframe button active state */
+.clerk-slot-btn.wireframe-active {
+    background: transparent;
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+    color: var(--accent);
 }
 
 .action-btn:hover {
-    background: rgba(0,0,0,0.1);
-    color: var(--bg-primary);
+    background: var(--scale-color);
+    color: var(--accent);
     opacity: 1;
 }
 
@@ -334,7 +415,7 @@ h1 em {
     margin-bottom: var(--space-lg);
     background: var(--accent); /* Filled with accent to create tint under overlay */
     border: none;
-    height: 44px;
+    height: var(--bar-height);
 }
 
 .category-edit-btn {
@@ -344,27 +425,22 @@ h1 em {
     opacity: 0;
     cursor: pointer;
     font-size: 1rem;
-    width: 44px;
+    width: var(--bar-height);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.15s ease, background 0.15s ease;
-}
-
-.category-header:hover .category-edit-btn,
-.tab-group-header:hover .category-edit-btn {
-    opacity: 1;
+    transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
 .category-edit-btn:hover {
-    background: rgba(0,0,0,0.1);
-    color: var(--bg-primary);
+    opacity: 1;
 }
 
 .category-title {
     font-family: var(--font-display);
     font-size: 1.7rem; /* Increased size */
     font-weight: 0; /* Bolder */
+    line-height: 1;
     background: color-mix(in srgb, var(--bg-primary) 96%, transparent); /* Active look — nearly solid */
     color: var(--accent); /* Accent color */
     padding: 0 var(--space-md);
@@ -1144,25 +1220,23 @@ footer {
     background: var(--accent-glow);
 }
 
-/* Category drag handle — hidden by default, visible on header hover */
+/* Category drag handle — hidden by default, visible on own hover */
 .category-drag-handle {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    min-width: 44px;
+    width: var(--bar-height);
+    min-width: var(--bar-height);
     background: var(--accent);
     color: var(--bg-primary);
     font-size: 1rem;
     cursor: grab;
-    border-right: 2px solid var(--bg-primary);
     user-select: none;
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
-.category-header:hover .category-drag-handle,
-.tab-group-header:hover .category-drag-handle {
+.category-drag-handle:hover {
     opacity: 1;
 }
 
@@ -1224,7 +1298,7 @@ footer {
     margin-bottom: 0;
     background: var(--accent);
     border: none;
-    height: 44px;
+    height: var(--bar-height);
 }
 
 .tab-bar {
@@ -1244,6 +1318,7 @@ footer {
     font-family: var(--font-display);
     font-size: 1.7rem;
     font-weight: 0;
+    line-height: 1;
     padding: 0 var(--space-md);
     background: transparent;
     border: none;
@@ -1256,6 +1331,8 @@ footer {
     text-overflow: ellipsis;
     min-width: 0;
     flex-shrink: 1;
+    display: flex;
+    align-items: center;
     transition: all 0.15s ease;
 }
 
@@ -1434,32 +1511,98 @@ footer {
     margin-top: var(--space-xs);
 }
 
+/* Wireframe mode — outlined drag-handle and edit-btn, always visible */
+[data-wireframe] .category-drag-handle {
+    background: var(--bg-primary);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    opacity: 1;
+}
+
+[data-wireframe] .category-edit-btn {
+    background: var(--bg-primary);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    opacity: 1;
+}
+
+/* Wireframe mode — header */
+[data-wireframe] .brute-header {
+    background: var(--bg-primary);
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+}
+
+[data-wireframe] .size-controller {
+    background: transparent;
+}
+
+[data-wireframe] .clerk-slot,
+[data-wireframe] .action-buttons {
+    background: transparent;
+}
+
+
+/* Wireframe mode — header title text */
+[data-wireframe] .header-title-box h1 {
+    color: var(--accent);
+}
+
+[data-wireframe] .header-title-box h1 em {
+    color: var(--bg-primary);
+    -webkit-text-stroke: 2px var(--accent);
+    paint-order: stroke fill;
+    opacity: 1;
+}
+
+/* Wireframe mode — footer buttons */
+[data-wireframe] .footer-contact {
+    background: var(--bg-primary);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+}
+
 /* Utility */
 .hidden {
     display: none;
 }
 
-/* Clerk user button */
-.clerk-user-button {
-    position: fixed;
-    top: var(--space-xl);
-    right: var(--space-xl);
-    z-index: 9999;
+#clerk-user-button {
+    width: var(--header-button-size);
+    height: var(--header-button-size);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border: 2px solid var(--bg-primary);
-    background: var(--accent);
-    overflow: hidden;
+    position: relative;
+    z-index: 2;
 }
 
-.clerk-user-button .cl-userButtonRootBox,
-.clerk-user-button .cl-userButtonTrigger,
-.clerk-user-button .cl-avatarBox {
+#clerk-user-button .cl-userButtonRootBox,
+#clerk-user-button .cl-userButtonTrigger,
+#clerk-user-button .cl-avatarBox {
     width: 100%;
     height: 100%;
+}
+
+#clerk-user-button .cl-userButtonTrigger {
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: var(--accent) !important;
+}
+
+#clerk-user-button .cl-userButtonTrigger:hover {
+    background: var(--scale-color) !important;
+}
+
+/* Custom avatar overlay — shown when user has no profile photo */
+.default-avatar-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 3;
 }
 
 /* Accent color picker */

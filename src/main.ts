@@ -8,8 +8,8 @@ import { initCategoryModal, openAddCategoryModal, openEditCategoryModal } from '
 import { initSettingsModal, openSettingsModal, closeSettingsModal } from './components/modals/settings-modal';
 import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
-import { toggleTheme, syncThemeUI, applyTheme } from './features/theme';
-import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences } from './features/preferences';
+import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
+import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, getWireframe, initBarscaleAndWireframe } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
 import { getAppMode, setAppMode } from './data/local-storage';
@@ -30,6 +30,26 @@ initUploadArea();
 document.getElementById('add-category-btn')!.addEventListener('click', openAddCategoryModal);
 document.getElementById('theme-toggle-btn')!.addEventListener('click', toggleTheme);
 document.getElementById('settings-btn')!.addEventListener('click', openSettingsModal);
+document.getElementById('barscale-btn')!.addEventListener('click', cycleBarscale);
+document.getElementById('wireframe-btn')!.addEventListener('click', () => {
+  toggleWireframe();
+  document.getElementById('wireframe-btn')!.classList.toggle('wireframe-active');
+});
+
+// Easter eggs on brand text
+document.getElementById('brand-u')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  randomizeAccentHue();
+});
+document.getElementById('brand-r')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  randomizeAccentHue();
+  randomizeBarscale();
+  randomizeWireframe();
+  // Sync wireframe button visual state
+  const btn = document.getElementById('wireframe-btn');
+  if (btn) btn.classList.toggle('wireframe-active', document.documentElement.hasAttribute('data-wireframe'));
+});
 
 // Wire icon picker buttons
 document.getElementById('use-favicon-btn')!.addEventListener('click', useFavicon);
@@ -84,6 +104,12 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+  if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+    e.preventDefault();
+    toggleTheme();
+    return;
+  }
+
   if (e.key === 'Escape') {
     document.querySelectorAll('.modal.active').forEach((modal) => {
       modal.classList.remove('active');
@@ -106,6 +132,10 @@ async function init(): Promise<void> {
   // Sync UI controls with restored preferences
   syncThemeUI();
   syncPreferencesUI();
+  initBarscaleAndWireframe();
+  if (getWireframe()) {
+    document.getElementById('wireframe-btn')?.classList.add('wireframe-active');
+  }
 
   // Render categories from localStorage cache
   renderCategories();

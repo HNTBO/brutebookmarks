@@ -20,12 +20,16 @@ export function renderApp(): void {
     </div>
 
     <div class="container">
-      <div id="clerk-user-button" class="clerk-user-button"></div>
       <header class="brute-header">
         <div class="header-title-box">
-          <h1>Brute <em>Bookmarks</em></h1>
+          <h1><span id="brand-brute">Br<span id="brand-u">u</span>te</span> <em id="brand-bookmarks">Bookma<span id="brand-r">r</span>ks</em></h1>
         </div>
         <div class="header-controls">
+          <div class="clerk-slot">
+            <button class="clerk-slot-btn" id="wireframe-btn" title="Toggle Wireframe">&#9633;</button>
+            <button class="clerk-slot-btn" id="barscale-btn" title="Cycle Bar Scale">&#9604;</button>
+            <div id="clerk-user-button" class="clerk-user-button"></div>
+          </div>
           <div class="size-controller" id="size-controller">
             <div class="size-handle" id="size-handle"></div>
           </div>

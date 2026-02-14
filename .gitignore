@@ -34,6 +34,9 @@ dist/
 # Convex generated files
 convex/_generated/
 
+# Scratch / WIP graphics
+_drafts/
+
 # Environment variables
 .env
 .env.local

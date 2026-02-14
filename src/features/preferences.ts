@@ -7,6 +7,13 @@ let currentPageWidth = parseInt(localStorage.getItem('pageWidth') || '100');
 let showCardNames = localStorage.getItem('showCardNames') !== 'false';
 let autofillUrl = localStorage.getItem('autofillUrl') === 'true';
 
+// Barscale & wireframe — localStorage only, no Convex sync
+type BarscaleSize = 'S' | 'M' | 'L';
+const BARSCALE_PX: Record<BarscaleSize, number> = { S: 31, M: 37, L: 44 };
+const BARSCALE_CYCLE: BarscaleSize[] = ['S', 'M', 'L'];
+let currentBarscale: BarscaleSize = (localStorage.getItem('barscale') as BarscaleSize) || 'L';
+let currentWireframe = localStorage.getItem('wireframe') === 'true';
+
 export function getCardSize(): number {
   return currentCardSize;
 }
@@ -113,4 +120,61 @@ export function syncPreferencesUI(): void {
   if (checkbox) checkbox.checked = showCardNames;
   const autofillCheckbox = document.getElementById('autofill-url') as HTMLInputElement | null;
   if (autofillCheckbox) autofillCheckbox.checked = autofillUrl;
+}
+
+// --- Barscale ---
+
+export function getBarscale(): BarscaleSize {
+  return currentBarscale;
+}
+
+function applyBarscaleToDOM(): void {
+  document.documentElement.style.setProperty('--bar-height', `${BARSCALE_PX[currentBarscale]}px`);
+}
+
+export function cycleBarscale(): void {
+  const idx = BARSCALE_CYCLE.indexOf(currentBarscale);
+  currentBarscale = BARSCALE_CYCLE[(idx + 1) % BARSCALE_CYCLE.length];
+  localStorage.setItem('barscale', currentBarscale);
+  applyBarscaleToDOM();
+}
+
+export function randomizeBarscale(): void {
+  const others = BARSCALE_CYCLE.filter((s) => s !== currentBarscale);
+  currentBarscale = others[Math.floor(Math.random() * others.length)];
+  localStorage.setItem('barscale', currentBarscale);
+  applyBarscaleToDOM();
+}
+
+// --- Wireframe ---
+
+export function getWireframe(): boolean {
+  return currentWireframe;
+}
+
+function applyWireframeToDOM(): void {
+  if (currentWireframe) {
+    document.documentElement.setAttribute('data-wireframe', '');
+  } else {
+    document.documentElement.removeAttribute('data-wireframe');
+  }
+}
+
+export function toggleWireframe(): void {
+  currentWireframe = !currentWireframe;
+  localStorage.setItem('wireframe', String(currentWireframe));
+  applyWireframeToDOM();
+}
+
+export function randomizeWireframe(): void {
+  currentWireframe = Math.random() > 0.5;
+  localStorage.setItem('wireframe', String(currentWireframe));
+  applyWireframeToDOM();
+}
+
+// --- Init both ---
+
+export function initBarscaleAndWireframe(): void {
+  applyBarscaleToDOM();
+  applyWireframeToDOM();
 }
