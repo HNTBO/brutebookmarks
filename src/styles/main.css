@@ -1273,9 +1273,14 @@ footer {
         display: none !important;
     }
 
-    /* Hide add-bookmark cards on mobile */
-    .bookmark-card.add-bookmark {
-        display: none;
+    /* Category header controls — shrink for mobile */
+    .category-edit-btn {
+        font-size: 0.65rem;
+        padding-bottom: 1px;
+    }
+
+    .category-drag-handle {
+        font-size: 0.65rem;
     }
 
     /* Footer */
