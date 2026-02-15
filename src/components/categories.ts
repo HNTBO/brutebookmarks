@@ -24,6 +24,7 @@ import {
   handleTabReorderDragOver,
   handleTabReorderDragLeave,
   handleTabReorderDrop,
+  handleTabBarDragOver,
   isDraggingLayoutItem,
   getDragBookmarkState,
 } from '../features/drag-drop';
@@ -220,6 +221,14 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
       handleTabReorderDrop(e, group.categories);
     }) as EventListener);
 
+    // Allow bookmark drops directly on tabs (places bookmark at end of that category)
+    tab.addEventListener('dragover', ((e: DragEvent) => {
+      if (!getDragBookmarkState()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer!.dropEffect = 'move';
+    }) as EventListener);
+
     // Bookmark drag → tab hover-to-switch
     tab.addEventListener('dragenter', ((e: DragEvent) => {
       const dragState = getDragBookmarkState();
@@ -258,6 +267,14 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
       executeCategoryDrop(e, catId, renderCategories);
     }) as EventListener);
   });
+
+  // Prevent layout handler from showing ungroup indicators when dragging within the tab bar
+  const tabBarEl = groupEl.querySelector('.tab-bar');
+  if (tabBarEl) {
+    tabBarEl.addEventListener('dragover', ((e: DragEvent) => {
+      handleTabBarDragOver(e, group.id);
+    }) as EventListener);
+  }
 
   // Clean up hover state when any drag ends (Esc, drop outside, etc.)
   groupEl.addEventListener('dragend', () => clearHoverState(), true);

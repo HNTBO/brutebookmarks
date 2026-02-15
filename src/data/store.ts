@@ -11,6 +11,7 @@ import { pushUndo, isUndoing } from '../features/undo';
 let _categories: Category[] = [];
 let _layoutItems: LayoutItem[] = [];
 let _tabGroups: TabGroup[] = [];
+let _localTabGroups: { id: string; name: string; order: number }[] = [];
 let _renderCallback: (() => void) | null = null;
 let _convexActive = false;
 
@@ -51,6 +52,44 @@ function rerender(): void {
   if (_renderCallback) _renderCallback();
 }
 
+// --- Rebuild layout from local data (mirrors Convex rebuild logic) ---
+function rebuildLocalLayout(): void {
+  const groupMap = new Map<string, TabGroup>();
+  for (const g of _localTabGroups) {
+    groupMap.set(g.id, {
+      id: g.id,
+      name: g.name,
+      order: g.order,
+      categories: [],
+    });
+  }
+
+  const ungrouped: LayoutItem[] = [];
+  for (const cat of _categories) {
+    if (cat.groupId && groupMap.has(cat.groupId)) {
+      groupMap.get(cat.groupId)!.categories.push(cat);
+    } else {
+      ungrouped.push({ type: 'category', category: cat });
+    }
+  }
+
+  for (const group of groupMap.values()) {
+    group.categories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  const groupItems: LayoutItem[] = Array.from(groupMap.values())
+    .filter((g) => g.categories.length > 0)
+    .map((g) => ({ type: 'tabGroup', group: g }));
+
+  _layoutItems = [...ungrouped, ...groupItems].sort((a, b) => {
+    const orderA = a.type === 'category' ? (a.category.order ?? 0) : a.group.order;
+    const orderB = b.type === 'category' ? (b.category.order ?? 0) : b.group.order;
+    return orderA - orderB;
+  });
+
+  _tabGroups = Array.from(groupMap.values()).sort((a, b) => a.order - b.order);
+}
+
 // --- Legacy compat (used by category-modal delete) ---
 export function setCategories(data: Category[]): void {
   _categories = data;
@@ -64,12 +103,21 @@ export async function initializeData(): Promise<void> {
   } else {
     _categories = [];
   }
+  const savedGroups = localStorage.getItem('speedDialTabGroups');
+  if (savedGroups) {
+    _localTabGroups = JSON.parse(savedGroups);
+  } else {
+    _localTabGroups = [];
+  }
+  rebuildLocalLayout();
 }
 
 // --- Legacy save (localStorage fallback when Convex is not active) ---
 export async function saveData(): Promise<void> {
   if (_convexActive) return; // Convex handles persistence
   localStorage.setItem('speedDialData', JSON.stringify(_categories));
+  localStorage.setItem('speedDialTabGroups', JSON.stringify(_localTabGroups));
+  rebuildLocalLayout();
 }
 
 // --- Preferences callback ---
@@ -316,17 +364,26 @@ export function seedLocalDefaults(): void {
     if (Array.isArray(parsed) && parsed.length > 0) return;
   }
 
-  // Flatten DEFAULT_LAYOUT into Category[] (no tab groups in local mode)
-  let order = 1;
+  let catOrder = 1;
   const categories: Category[] = [];
+  const tabGroups: { id: string; name: string; order: number }[] = [];
+
   for (const item of DEFAULT_LAYOUT) {
+    let groupId: string | undefined;
+    if (item.type === 'group') {
+      groupId = 'g' + Date.now() + '-' + item.order;
+      tabGroups.push({ id: groupId, name: item.name, order: item.order });
+    }
+
     for (const cat of item.categories) {
+      const ts = Date.now();
       categories.push({
-        id: 'c' + Date.now() + '-' + order,
+        id: 'c' + ts + '-' + catOrder,
         name: cat.name,
-        order: order++,
+        order: catOrder++,
+        groupId,
         bookmarks: cat.bookmarks.map((b, i) => ({
-          id: 'b' + Date.now() + '-' + i,
+          id: 'b' + ts + '-' + i,
           title: b.title,
           url: b.url,
           iconPath: null,
@@ -337,7 +394,10 @@ export function seedLocalDefaults(): void {
   }
 
   _categories = categories;
+  _localTabGroups = tabGroups;
   localStorage.setItem('speedDialData', JSON.stringify(_categories));
+  localStorage.setItem('speedDialTabGroups', JSON.stringify(_localTabGroups));
+  rebuildLocalLayout();
   rerender();
 }
 
@@ -570,6 +630,11 @@ export async function reorderCategory(id: string, order: number): Promise<void> 
       id: id as Id<'categories'>,
       order,
     });
+  } else {
+    const cat = _categories.find((c) => c.id === id);
+    if (cat) cat.order = order;
+    saveData();
+    rerender();
   }
 }
 
@@ -592,76 +657,126 @@ export async function reorderBookmark(
 // --- Tab Group mutation helpers ---
 
 export async function createTabGroup(name: string, categoryIds: string[]): Promise<void> {
-  if (!_convexActive) return;
-  const client = getConvexClient()!;
-  await client.mutation(api.tabGroups.createWithCategories, {
-    name,
-    categoryIds: categoryIds as Id<'categories'>[],
-  });
+  if (_convexActive) {
+    const client = getConvexClient()!;
+    await client.mutation(api.tabGroups.createWithCategories, {
+      name,
+      categoryIds: categoryIds as Id<'categories'>[],
+    });
+  } else {
+    const groupId = 'g' + Date.now();
+    // Use the first category's order as the group order
+    const firstCat = _categories.find((c) => c.id === categoryIds[0]);
+    const groupOrder = firstCat?.order ?? _localTabGroups.length + 1;
+    _localTabGroups.push({ id: groupId, name, order: groupOrder });
+    for (const catId of categoryIds) {
+      const cat = _categories.find((c) => c.id === catId);
+      if (cat) cat.groupId = groupId;
+    }
+    saveData();
+    rerender();
+  }
 }
 
 export async function deleteTabGroup(id: string): Promise<void> {
-  if (!_convexActive) return;
-  const client = getConvexClient()!;
-  await client.mutation(api.tabGroups.remove, {
-    id: id as Id<'tabGroups'>,
-  });
+  if (_convexActive) {
+    const client = getConvexClient()!;
+    await client.mutation(api.tabGroups.remove, {
+      id: id as Id<'tabGroups'>,
+    });
+  } else {
+    for (const cat of _categories) {
+      if (cat.groupId === id) cat.groupId = undefined;
+    }
+    _localTabGroups = _localTabGroups.filter((g) => g.id !== id);
+    saveData();
+    rerender();
+  }
 }
 
 export async function reorderTabGroup(id: string, order: number): Promise<void> {
-  if (!_convexActive) return;
-  const client = getConvexClient()!;
-  await client.mutation(api.tabGroups.reorder, {
-    id: id as Id<'tabGroups'>,
-    order,
-  });
+  if (_convexActive) {
+    const client = getConvexClient()!;
+    await client.mutation(api.tabGroups.reorder, {
+      id: id as Id<'tabGroups'>,
+      order,
+    });
+  } else {
+    const group = _localTabGroups.find((g) => g.id === id);
+    if (group) group.order = order;
+    saveData();
+    rerender();
+  }
 }
 
 export async function setCategoryGroup(categoryId: string, groupId: string | null, order?: number): Promise<void> {
-  if (!_convexActive) return;
-  const client = getConvexClient()!;
-  const baseArgs = {
-    id: categoryId as Id<'categories'>,
-    groupId: groupId ? (groupId as Id<'tabGroups'>) : undefined,
-  };
+  if (_convexActive) {
+    const client = getConvexClient()!;
+    const baseArgs = {
+      id: categoryId as Id<'categories'>,
+      groupId: groupId ? (groupId as Id<'tabGroups'>) : undefined,
+    };
 
-  try {
-    // New backend supports "order" for positioned ungrouping.
-    if (order !== undefined) {
-      await client.mutation(api.categories.setGroup, { ...baseArgs, order });
-    } else {
-      await client.mutation(api.categories.setGroup, baseArgs);
+    try {
+      // New backend supports "order" for positioned ungrouping.
+      if (order !== undefined) {
+        await client.mutation(api.categories.setGroup, { ...baseArgs, order });
+      } else {
+        await client.mutation(api.categories.setGroup, baseArgs);
+      }
+    } catch (err) {
+      // Backward compatibility: older deployed validator rejects extra "order".
+      if (
+        order !== undefined &&
+        err instanceof Error &&
+        err.message.includes("extra field `order`")
+      ) {
+        await client.mutation(api.categories.setGroup, baseArgs);
+        return;
+      }
+      throw err;
     }
-  } catch (err) {
-    // Backward compatibility: older deployed validator rejects extra "order".
-    if (
-      order !== undefined &&
-      err instanceof Error &&
-      err.message.includes("extra field `order`")
-    ) {
-      await client.mutation(api.categories.setGroup, baseArgs);
-      return;
+  } else {
+    const cat = _categories.find((c) => c.id === categoryId);
+    if (cat) {
+      cat.groupId = groupId ?? undefined;
+      if (order !== undefined) cat.order = order;
     }
-    throw err;
+    saveData();
+    rerender();
   }
 }
 
 export async function mergeTabGroups(sourceId: string, targetId: string): Promise<void> {
-  if (!_convexActive) return;
-  const client = getConvexClient()!;
-  await client.mutation(api.tabGroups.mergeInto, {
-    sourceId: sourceId as Id<'tabGroups'>,
-    targetId: targetId as Id<'tabGroups'>,
-  });
+  if (_convexActive) {
+    const client = getConvexClient()!;
+    await client.mutation(api.tabGroups.mergeInto, {
+      sourceId: sourceId as Id<'tabGroups'>,
+      targetId: targetId as Id<'tabGroups'>,
+    });
+  } else {
+    for (const cat of _categories) {
+      if (cat.groupId === sourceId) cat.groupId = targetId;
+    }
+    _localTabGroups = _localTabGroups.filter((g) => g.id !== sourceId);
+    saveData();
+    rerender();
+  }
 }
 
 export async function renameTabGroup(id: string, name: string): Promise<void> {
-  if (!_convexActive) return;
-  const client = getConvexClient()!;
-  await client.mutation(api.tabGroups.update, {
-    id: id as Id<'tabGroups'>,
-    name,
-  });
+  if (_convexActive) {
+    const client = getConvexClient()!;
+    await client.mutation(api.tabGroups.update, {
+      id: id as Id<'tabGroups'>,
+      name,
+    });
+  } else {
+    const group = _localTabGroups.find((g) => g.id === id);
+    if (group) group.name = name;
+    saveData();
+    rerender();
+  }
 }
 
 export async function eraseAllData(): Promise<void> {

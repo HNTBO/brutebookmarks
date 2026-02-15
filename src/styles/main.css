@@ -1463,6 +1463,14 @@ footer {
     background: var(--accent-glow);
 }
 
+/* Card drop position indicators — vertical accent bar on left or right edge */
+.bookmark-card.card-drop-before {
+    box-shadow: -4px 0 0 0 var(--accent);
+}
+.bookmark-card.card-drop-after {
+    box-shadow: 4px 0 0 0 var(--accent);
+}
+
 .bookmark-card:not(.add-bookmark) {
     cursor: grab;
 }
@@ -1607,6 +1615,20 @@ footer {
     background: var(--accent-glow);
     outline: 2px dashed var(--accent);
     outline-offset: -2px;
+}
+
+.tab.dragging-tab {
+    background: transparent !important;
+    opacity: 0.3;
+}
+
+/* Tab reorder drop indicator — vertical accent line between tabs */
+.tab-drop-indicator {
+    width: 3px;
+    align-self: stretch;
+    background: var(--accent);
+    flex-shrink: 0;
+    pointer-events: none;
 }
 
 /* When hovering an inactive tab, preview-swap: dim the active tab to inactive */
@@ -2012,14 +2034,20 @@ footer {
 
 /* Auth escape button */
 .auth-escape-btn {
-    margin-top: var(--space-md);
+    margin-top: var(--space-lg);
     background: none;
-    border: none;
-    color: var(--text-secondary);
+    border: 1px solid var(--accent);
+    color: var(--accent);
     font-size: 14px;
     cursor: pointer;
     font-family: inherit;
-    text-decoration: underline;
+    padding: 8px 20px;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+.auth-escape-btn:hover {
+    background: var(--accent);
+    color: #fff;
 }
 
 @media (max-width: 480px) {

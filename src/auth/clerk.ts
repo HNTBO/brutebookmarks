@@ -133,6 +133,15 @@ function mountUserButton(): void {
 // Resolvers for sign-in completion (used by triggerSignIn)
 let _signInResolve: ((signedIn: boolean) => void) | null = null;
 
+function dismissSignInOverlay(): void {
+  setAppMode('local');
+  removeSignInOverlay();
+  if (_signInResolve) {
+    _signInResolve(false);
+    _signInResolve = null;
+  }
+}
+
 function showSignInOverlay(options?: { showLocalEscape?: boolean }): void {
   const overlay = document.createElement('div');
   overlay.id = 'auth-overlay';
@@ -146,16 +155,18 @@ function showSignInOverlay(options?: { showLocalEscape?: boolean }): void {
     const escapeBtn = document.createElement('button');
     escapeBtn.textContent = 'Use locally instead';
     escapeBtn.classList.add('auth-escape-btn');
-    escapeBtn.addEventListener('click', () => {
-      setAppMode('local');
-      removeSignInOverlay();
-      if (_signInResolve) {
-        _signInResolve(false);
-        _signInResolve = null;
-      }
-    });
+    escapeBtn.addEventListener('click', dismissSignInOverlay);
     overlay.appendChild(escapeBtn);
   }
+
+  // Escape key dismisses the overlay
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      document.removeEventListener('keydown', onKeyDown);
+      dismissSignInOverlay();
+    }
+  };
+  document.addEventListener('keydown', onKeyDown);
 
   document.body.appendChild(overlay);
 
@@ -190,7 +201,7 @@ export async function triggerSignIn(): Promise<boolean> {
   // Clerk loaded but user not signed in — show overlay and wait
   return new Promise<boolean>((resolve) => {
     _signInResolve = resolve;
-    showSignInOverlay();
+    showSignInOverlay({ showLocalEscape: true });
   });
 }
 
