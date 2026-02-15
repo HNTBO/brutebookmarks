@@ -2,7 +2,7 @@ import { getCategories, getLayoutItems } from '../data/store';
 import type { Category, TabGroup, LayoutItem } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
-import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover } from '../features/preferences';
+import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize } from '../features/preferences';
 import { handleCardMouseMove, handleCardMouseLeave } from './bookmark-card';
 import {
   handleDragStart,
@@ -43,7 +43,7 @@ function getActiveTabId(group: TabGroup): string {
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
   const gap = getCardGap(currentCardSize);
   const nameOnHover = getShowNameOnHover();
-  const btnSize = Math.round(Math.min(28, Math.max(18, currentCardSize * 0.18)));
+  const btnSize = getBtnSize(currentCardSize);
   return `
     <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr)); gap: ${gap}px; --btn-size: ${btnSize}px;">
       ${category.bookmarks

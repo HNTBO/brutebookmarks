@@ -144,8 +144,14 @@ export function getCardGap(size: number): number {
   return Math.round(8 + t * 16);
 }
 
+/** Button size scales with card size (same pattern as .bookmark-icon). */
+export function getBtnSize(cardSize: number): number {
+  return Math.round(Math.min(28, Math.max(18, cardSize * 0.25)));
+}
+
 function applyCardSizeToDOM(): void {
   const mobile = window.matchMedia('(max-width: 768px)').matches;
+  const btnSize = getBtnSize(currentCardSize);
 
   document.querySelectorAll<HTMLElement>('.bookmarks-grid').forEach((grid) => {
     if (mobile) {
@@ -157,6 +163,7 @@ function applyCardSizeToDOM(): void {
       grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
       grid.style.gap = `${gap}px`;
     }
+    grid.style.setProperty('--btn-size', `${btnSize}px`);
   });
 }
 
