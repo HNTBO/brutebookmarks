@@ -4,6 +4,8 @@ import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, t
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
+import { isExtensionInstalled, requestBrowserBookmarks } from '../../utils/extension-bridge';
+import { convertBrowserBookmarks } from '../../utils/browser-bookmark-converter';
 import type { Category } from '../../types';
 import { getAppMode } from '../../data/local-storage';
 import { getFoundingMemberStats } from '../../data/founding-stats';
@@ -79,9 +81,25 @@ function exportData(): void {
   URL.revokeObjectURL(url);
 }
 
-function importData(): void {
+async function importData(): Promise<void> {
   closeSettingsModal();
 
+  const choice = await styledConfirm(
+    'Import bookmarks from a file or directly from your browser?',
+    'Import',
+    'From File',
+    'From Browser',
+  );
+
+  if (choice === null) return;
+  if (choice) {
+    importFromFile();
+  } else {
+    await importFromBrowser();
+  }
+}
+
+function importFromFile(): void {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json,.html,.htm';
@@ -105,41 +123,7 @@ function importData(): void {
             return;
           }
 
-          if (importedData.length === 0) {
-            await styledAlert('No bookmarks found in this file.', 'Import');
-            return;
-          }
-
-          const hasData = getCategories().length > 0;
-
-          if (hasData) {
-            const choice = await styledConfirm(
-              'You have existing bookmarks. Replace them or append?',
-              'Import',
-              'Replace',
-              'Append',
-            );
-            if (choice === null) return;
-            if (choice) await eraseAllData();
-          }
-
-          if (isConvexMode()) {
-            await importBulk(importedData);
-          } else {
-            if (!hasData) {
-              setCategories(importedData);
-            } else {
-              setCategories([...getCategories(), ...importedData]);
-            }
-            saveData();
-            renderCategories();
-          }
-
-          const totalBookmarks = importedData.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
-          await styledAlert(
-            `Imported ${importedData.length} categories with ${totalBookmarks} bookmarks.`,
-            'Import',
-          );
+          await executeImport(importedData);
         } catch {
           await styledAlert('Invalid file format', 'Import');
         }
@@ -148,6 +132,71 @@ function importData(): void {
     }
   };
   input.click();
+}
+
+async function importFromBrowser(): Promise<void> {
+  if (!isExtensionInstalled()) {
+    await styledAlert(
+      'The Brute Bookmarks browser extension is required to import directly from your browser. Install it and reload this page.',
+      'Import',
+    );
+    return;
+  }
+
+  try {
+    const tree = await requestBrowserBookmarks();
+    const importedData = convertBrowserBookmarks(tree);
+
+    if (importedData.length === 0) {
+      await styledAlert('No bookmarks found in your browser.', 'Import');
+      return;
+    }
+
+    await executeImport(importedData);
+  } catch (err) {
+    await styledAlert(
+      err instanceof Error ? err.message : 'Failed to read browser bookmarks.',
+      'Import',
+    );
+  }
+}
+
+async function executeImport(importedData: Category[]): Promise<void> {
+  if (importedData.length === 0) {
+    await styledAlert('No bookmarks found.', 'Import');
+    return;
+  }
+
+  const hasData = getCategories().length > 0;
+
+  if (hasData) {
+    const choice = await styledConfirm(
+      'You have existing bookmarks. Replace them or append?',
+      'Import',
+      'Replace',
+      'Append',
+    );
+    if (choice === null) return;
+    if (choice) await eraseAllData();
+  }
+
+  if (isConvexMode()) {
+    await importBulk(importedData);
+  } else {
+    if (!hasData) {
+      setCategories(importedData);
+    } else {
+      setCategories([...getCategories(), ...importedData]);
+    }
+    saveData();
+    renderCategories();
+  }
+
+  const totalBookmarks = importedData.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
+  await styledAlert(
+    `Imported ${importedData.length} categories with ${totalBookmarks} bookmarks.`,
+    'Import',
+  );
 }
 
 async function fetchAllFavicons(): Promise<void> {

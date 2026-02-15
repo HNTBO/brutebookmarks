@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'Brute Bookmarks',
     description: 'Quick-save any page to Brute Bookmarks with one click.',
-    permissions: ['activeTab', 'storage'],
+    permissions: ['activeTab', 'storage', 'bookmarks'],
     host_permissions: ['https://*.convex.cloud/*'],
     icons: {
       16: '/icon-16.png',

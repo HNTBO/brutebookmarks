@@ -16,6 +16,10 @@ import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-
 import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
+import { initExtensionDetection } from './utils/extension-bridge';
+
+// Detect extension early (before auth) to catch BB_EXT_INSTALLED at document_idle
+initExtensionDetection();
 
 // Render the HTML shell
 renderApp();

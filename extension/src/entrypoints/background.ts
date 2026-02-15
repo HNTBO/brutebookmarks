@@ -21,6 +21,18 @@ export default defineBackground(() => {
         });
         return true;
       }
+
+      if (message.type === 'BB_REQUEST_BOOKMARKS') {
+        browser.bookmarks
+          .getTree()
+          .then((tree) => {
+            sendResponse({ success: true, bookmarks: tree });
+          })
+          .catch((err) => {
+            sendResponse({ success: false, error: String(err) });
+          });
+        return true; // async response
+      }
     },
   );
 });
