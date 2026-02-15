@@ -497,9 +497,10 @@ export function handleLayoutDragOver(e: DragEvent): void {
   const container = document.getElementById('categories-container');
   if (!container) return;
 
-  // Clean up visual feedback
+  // Clean up visual feedback (both layout and tab-reorder indicators are mutually exclusive)
   container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
   container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
+  document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
 
   const zone = detectDropZone(e, container);
   if (!zone) return;
