@@ -1,6 +1,6 @@
 import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
 import { renderCategories } from '../categories';
-import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs } from '../../features/preferences';
+import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
@@ -15,6 +15,7 @@ export function openSettingsModal(): void {
   (document.getElementById('show-card-names') as HTMLInputElement).checked = getShowCardNames();
   (document.getElementById('autofill-url') as HTMLInputElement).checked = getAutofillUrl();
   (document.getElementById('easter-eggs') as HTMLInputElement).checked = getEasterEggs();
+  (document.getElementById('show-name-on-hover') as HTMLInputElement).checked = getShowNameOnHover();
   populateAccountSection();
 }
 
@@ -281,6 +282,11 @@ export function initSettingsModal(): void {
 
   document.getElementById('easter-eggs')!.addEventListener('change', (e) => {
     toggleEasterEggs((e.target as HTMLInputElement).checked);
+  });
+
+  document.getElementById('show-name-on-hover')!.addEventListener('change', (e) => {
+    toggleShowNameOnHover((e.target as HTMLInputElement).checked);
+    renderCategories();
   });
 
   document.getElementById('accent-color-picker')!.addEventListener('input', (e) => {

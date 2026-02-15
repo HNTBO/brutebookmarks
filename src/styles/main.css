@@ -593,18 +593,18 @@ h1 em {
     font-weight: 500;
 }
 
-/* Delete button */
+/* Delete button — scales with icon (container query units) */
 .delete-btn {
     position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 20px;
-    height: 20px;
+    top: clamp(2px, 4cqi, 4px);
+    right: clamp(2px, 4cqi, 4px);
+    width: clamp(14px, 20cqi, 20px);
+    height: clamp(14px, 20cqi, 20px);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 12px;
+    font-size: clamp(8px, 12cqi, 12px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1010,6 +1010,21 @@ h1 em {
     justify-content: center;
 }
 
+/* Settings bookmarks section — grid layout */
+.settings-section:last-child .settings-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+}
+
+.settings-section:last-child .settings-row .btn {
+    width: 100%;
+}
+
+.settings-section:last-child .settings-row .btn-danger {
+    grid-column: 1 / -1;
+}
+
 .settings-row label {
     color: var(--text-primary);
     font-size: 14px;
@@ -1115,13 +1130,16 @@ footer {
     font-family: var(--font-body);
     color: var(--bg-primary);
     text-decoration: none;
-    border: none;
+    border: 1px solid var(--accent);
     background: var(--accent);
     transition: all 0.15s ease;
 }
 
 .footer-contact:hover {
-    opacity: 0.85;
+    background: var(--bg-primary);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    opacity: 1;
 }
 
 /* Mobile toolbar — hidden on desktop */
@@ -1337,22 +1355,6 @@ footer {
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Settings: bookmarks button row → 2-column grid */
-    .settings-section:last-child .settings-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-sm);
-    }
-
-    .settings-section:last-child .settings-row .btn {
-        width: 100%;
-    }
-
-    /* Erase button spans full width on its own row */
-    .settings-section:last-child .settings-row .btn-danger {
-        grid-column: 1 / -1;
-    }
-
     /* Accent color row — don't wrap */
     .accent-color-row {
         flex-shrink: 0;
@@ -1433,18 +1435,18 @@ footer {
     cursor: grabbing;
 }
 
-/* Edit button */
+/* Edit button — scales with icon (container query units) */
 .edit-btn {
     position: absolute;
-    top: 4px;
-    left: 4px;
-    width: 20px;
-    height: 20px;
+    top: clamp(2px, 4cqi, 4px);
+    left: clamp(2px, 4cqi, 4px);
+    width: clamp(14px, 20cqi, 20px);
+    height: clamp(14px, 20cqi, 20px);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 10px;
+    font-size: clamp(7px, 10cqi, 10px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1812,6 +1814,12 @@ footer {
     background: var(--bg-primary);
     border: 1px solid var(--accent);
     color: var(--accent);
+}
+
+[data-wireframe] .footer-contact:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-primary);
 }
 
 /* Utility */

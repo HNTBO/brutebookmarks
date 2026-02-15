@@ -7,6 +7,7 @@ let currentPageWidth = parseInt(localStorage.getItem('pageWidth') || '100');
 let showCardNames = localStorage.getItem('showCardNames') !== 'false';
 let autofillUrl = localStorage.getItem('autofillUrl') === 'true';
 let easterEggs = localStorage.getItem('easterEggs') !== 'false'; // default on
+let showNameOnHover = localStorage.getItem('showNameOnHover') !== 'false'; // default on
 
 // Barscale & wireframe — localStorage only, no Convex sync
 type BarscaleSize = 'S' | 'M' | 'L';
@@ -33,6 +34,15 @@ export function getAutofillUrl(): boolean {
 
 export function getEasterEggs(): boolean {
   return easterEggs;
+}
+
+export function getShowNameOnHover(): boolean {
+  return showNameOnHover;
+}
+
+export function toggleShowNameOnHover(enabled: boolean): void {
+  showNameOnHover = enabled;
+  localStorage.setItem('showNameOnHover', String(showNameOnHover));
 }
 
 export function toggleEasterEggs(enabled: boolean): void {
@@ -139,6 +149,8 @@ export function syncPreferencesUI(): void {
   if (autofillCheckbox) autofillCheckbox.checked = autofillUrl;
   const easterEggsCheckbox = document.getElementById('easter-eggs') as HTMLInputElement | null;
   if (easterEggsCheckbox) easterEggsCheckbox.checked = easterEggs;
+  const hoverCheckbox = document.getElementById('show-name-on-hover') as HTMLInputElement | null;
+  if (hoverCheckbox) hoverCheckbox.checked = showNameOnHover;
 }
 
 // --- Randomize XY (size controller) ---
