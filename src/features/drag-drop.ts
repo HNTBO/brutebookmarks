@@ -695,6 +695,10 @@ export function handleTabReorderDragOver(e: DragEvent): void {
   e.stopPropagation();
   e.dataTransfer!.dropEffect = 'move';
 
+  // Clean up layout indicators — user moved back to origin bar
+  document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+  document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
+
   // Clean up existing indicators in this tab-bar
   const tabBar = targetTab.closest('.tab-bar');
   if (tabBar) {
