@@ -140,12 +140,12 @@ The key insight from the scaling doc: **free users on local-only storage cost yo
 
 | Users | Infrastructure cost | Tips only | Freemium ($1/mo) | Hybrid |
 |-------|--------------------|-----------|-----------------:|-------:|
-| 1,000 | $0/mo | $80/mo | $60/mo | $100/mo |
-| 10,000 | $22/mo | $800/mo | $600/mo | $1,000/mo |
-| 100,000 | $65-83/mo | $8,000/mo | $6,000/mo | $10,000/mo |
-| 1,000,000 | $18,000/mo | $8,000/mo | $60,000/mo | $65,000/mo |
+| 1,000 | $0/mo | $80/mo | $60/mo | $140/mo |
+| 10,000 | $22/mo | $800/mo | $600/mo | $1,400/mo |
+| 100,000 | $65-83/mo | $8,000/mo | $6,000/mo | $14,000/mo |
+| 1,000,000 | $18,000/mo | $80,000/mo | $60,000/mo | $130,000/mo |
 
-Tips alone don't cover costs at 1M users. Freemium at $1/mo does — comfortably. The hybrid model gives you the best of both: goodwill from the free/tipping crowd, sustainability from the paying users.
+Tips alone cover costs at 1M users, but barely and unreliably (one-time, not recurring). Freemium at $1/mo covers it sustainably. The hybrid model gives you the best of both: goodwill from the free/tipping crowd, sustainability from the paying users.
 
 ---
 
