@@ -23,6 +23,7 @@ let _migrationChecked = false;
 
 // --- Preferences sync ---
 let _prefsCallback: ((prefs: UserPreferences) => void) | null = null;
+let _prefsCollector: (() => UserPreferences) | null = null;
 let _prefsSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let _applyingFromConvex = false; // guard against save loops
 
@@ -125,6 +126,11 @@ export function setPreferencesCallback(cb: (prefs: UserPreferences) => void): vo
   _prefsCallback = cb;
 }
 
+/** Store a reference to the preferences collector so we can push initial values to Convex. */
+export function setPreferencesCollector(fn: () => UserPreferences): void {
+  _prefsCollector = fn;
+}
+
 /**
  * Called by theme.ts / preferences.ts after any user-initiated preference change.
  * Debounced — collects current state and saves to Convex after 500ms of inactivity.
@@ -215,7 +221,14 @@ export function activateConvex(): void {
 
   // Subscribe to preferences
   client.onUpdate(api.preferences.get, {}, (result) => {
-    if (!result || !_prefsCallback) return;
+    if (!result) {
+      // No prefs in Convex yet — push current localStorage values as initial state
+      if (_prefsCollector) {
+        flushPreferencesToConvex(_prefsCollector);
+      }
+      return;
+    }
+    if (!_prefsCallback) return;
     const prefs: UserPreferences = {
       theme: (result as any).theme === 'light' ? 'light' : 'dark',
       accentColorDark: (result as any).accentColorDark ?? null,

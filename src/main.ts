@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData, setRenderCallback, setPreferencesCallback, activateConvex } from './data/store';
+import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex } from './data/store';
 import { renderCategories } from './components/categories';
 import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
@@ -10,7 +10,7 @@ import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
 import { undo, redo, setAfterUndoRedoCallback, beginGroup, endGroup } from './features/undo';
-import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
+import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, collectPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
 import { getAppMode, setAppMode } from './data/local-storage';
@@ -202,6 +202,7 @@ async function init(): Promise<void> {
     applyPreferences(prefs, renderCategories);
     syncWireframeBtnState();
   });
+  setPreferencesCollector(collectPreferences);
 
   // Load bookmarks first — don't wait for auth
   await initializeData();
