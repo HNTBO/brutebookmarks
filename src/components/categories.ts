@@ -177,17 +177,30 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
     </div>
   `;
 
+  // Hover-to-switch timer for bookmark drags (one per group)
+  let hoverTimer: number | null = null;
+
+  function clearHoverState(): void {
+    if (hoverTimer !== null) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+    groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-drag-hover'));
+  }
+
+  function switchToTab(catId: string): void {
+    activeTabPerGroup.set(group.id, catId);
+    groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
+    groupEl.querySelector(`[data-tab-category-id="${catId}"]`)?.classList.add('tab-active');
+    groupEl.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('tab-panel-active'));
+    groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
+  }
+
   // Wire tab clicks and drag-out-to-ungroup
   groupEl.querySelectorAll<HTMLElement>('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       const catId = tab.dataset.tabCategoryId!;
-      const gId = tab.dataset.groupId!;
-      activeTabPerGroup.set(gId, catId);
-      // Update active states without full re-render
-      groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
-      tab.classList.add('tab-active');
-      groupEl.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('tab-panel-active'));
-      groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
+      switchToTab(catId);
     });
 
     // Drag tab out of group to ungroup, or reorder within group
@@ -197,6 +210,7 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
     });
     tab.addEventListener('dragend', () => {
       handleTabUngroupDragEnd();
+      clearHoverState();
     });
 
     // Tab reorder within group
@@ -205,7 +219,48 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
     tab.addEventListener('drop', ((e: DragEvent) => {
       handleTabReorderDrop(e, group.categories);
     }) as EventListener);
+
+    // Bookmark drag → tab hover-to-switch
+    tab.addEventListener('dragenter', ((e: DragEvent) => {
+      const dragState = getDragBookmarkState();
+      if (!dragState) return; // Not a bookmark drag — ignore
+      if (tab.classList.contains('tab-active')) return; // Already active
+
+      e.preventDefault();
+      clearHoverState();
+      tab.classList.add('tab-drag-hover');
+
+      const catId = tab.dataset.tabCategoryId!;
+      hoverTimer = window.setTimeout(() => {
+        tab.classList.remove('tab-drag-hover');
+        switchToTab(catId);
+        hoverTimer = null;
+      }, 400);
+    }) as EventListener);
+
+    tab.addEventListener('dragleave', ((e: DragEvent) => {
+      if (!getDragBookmarkState()) return;
+      const related = e.relatedTarget as Node | null;
+      if (related && tab.contains(related)) return; // Child element flicker
+      tab.classList.remove('tab-drag-hover');
+      if (hoverTimer !== null) {
+        clearTimeout(hoverTimer);
+        hoverTimer = null;
+      }
+    }) as EventListener);
+
+    tab.addEventListener('drop', ((e: DragEvent) => {
+      const dragState = getDragBookmarkState();
+      if (!dragState) return; // Not a bookmark drag — let tab reorder handler run
+      clearHoverState();
+      const catId = tab.dataset.tabCategoryId!;
+      switchToTab(catId);
+      executeCategoryDrop(e, catId, renderCategories);
+    }) as EventListener);
   });
+
+  // Clean up hover state when any drag ends (Esc, drop outside, etc.)
+  groupEl.addEventListener('dragend', () => clearHoverState(), true);
 
   // Wire bookmark cards in all panels
   wireBookmarkCards(groupEl);

@@ -55,6 +55,7 @@ export function handleDragStart(e: DragEvent): void {
   };
   target.classList.add('dragging');
   e.dataTransfer!.effectAllowed = 'move';
+  e.dataTransfer!.setData('text/plain', ''); // Required for Firefox
 }
 
 export function handleDragEnd(e: DragEvent): void {

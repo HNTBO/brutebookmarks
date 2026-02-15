@@ -179,6 +179,20 @@ function wireMobileToolbar(): void {
   });
 }
 
+// Wire avatar buttons to trigger sign-in when in local mode
+function wireAvatarSignIn(): void {
+  for (const id of ['clerk-user-button', 'mobile-avatar-btn']) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      if (getAppMode() !== 'local') return;
+      if (document.getElementById('auth-overlay')) return;
+      upgradeToSync();
+    });
+  }
+}
+
 // Initialize app data and render
 async function init(): Promise<void> {
   // Wire callbacks so Convex subscriptions can trigger re-renders
@@ -232,11 +246,13 @@ async function init(): Promise<void> {
 
     if (choice === 'local') {
       seedLocalDefaults();
+      wireAvatarSignIn();
       return;
     }
     // choice === 'sync' — fall through to Clerk init
   } else if (mode === 'local') {
     // Local mode — skip Clerk entirely
+    wireAvatarSignIn();
     return;
   }
 

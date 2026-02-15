@@ -427,6 +427,7 @@ h1 em {
     background: var(--accent); /* Filled with accent to create tint under overlay */
     border: none;
     height: var(--bar-height);
+    user-select: none; /* Prevent Firefox text-selection drag override */
 }
 
 .category-edit-btn {
@@ -1556,6 +1557,7 @@ footer {
     background: var(--accent);
     border: none;
     height: var(--bar-height);
+    user-select: none; /* Prevent Firefox text-selection drag override */
 }
 
 .tab-bar {
@@ -1599,6 +1601,12 @@ footer {
 
 .tab.tab-active {
     background: color-mix(in srgb, var(--bg-primary) 96%, transparent);
+}
+
+.tab.tab-drag-hover {
+    background: var(--accent-glow);
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
 }
 
 /* When hovering an inactive tab, preview-swap: dim the active tab to inactive */
