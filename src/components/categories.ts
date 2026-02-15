@@ -54,7 +54,7 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
              data-category-id="${escapeHtml(category.id)}"
              data-index="${index}"
              data-url="${escapeHtml(bookmark.url)}"
-             ${nameOnHover ? `title="${escapeHtml(bookmark.title)}"` : ''}
+             ${nameOnHover ? `title="${escapeHtml(bookmark.title)}"` : ''}>
           <button class="edit-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">✎</button>
           <button class="delete-btn" data-action="delete-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">×</button>
           <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}">
