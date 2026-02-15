@@ -1,0 +1,3 @@
+[submodule "dev-notes"]
+	path = dev-notes
+	url = https://github.com/HNTBO/brute-bookmarks-dev-notes.git
