@@ -126,7 +126,12 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
         renderCallback();
       }
 
-      const newOrder = computeMidpoint(category.bookmarks, targetIndex);
+      // Compute order from actual neighbors (skip moved bookmark at targetIndex)
+      const prevOrd = targetIndex > 0 ? (category.bookmarks[targetIndex - 1].order ?? targetIndex - 1) : 0;
+      const nextOrd = targetIndex < category.bookmarks.length - 1
+        ? (category.bookmarks[targetIndex + 1].order ?? targetIndex + 1)
+        : prevOrd + 2;
+      const newOrder = (prevOrd + nextOrd) / 2;
       const bkId = draggedBookmark.bookmarkId;
       reorderBookmark(bkId, newOrder);
       if (!isUndoing()) {
@@ -153,7 +158,11 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
         renderCallback();
       }
 
-      const newOrder = computeMidpoint(targetCategory.bookmarks, targetIndex);
+      const prevOrd = targetIndex > 0 ? (targetCategory.bookmarks[targetIndex - 1].order ?? targetIndex - 1) : 0;
+      const nextOrd = targetIndex < targetCategory.bookmarks.length - 1
+        ? (targetCategory.bookmarks[targetIndex + 1].order ?? targetIndex + 1)
+        : prevOrd + 2;
+      const newOrder = (prevOrd + nextOrd) / 2;
       const bkId = draggedBookmark.bookmarkId;
       reorderBookmark(bkId, newOrder, targetCategoryId);
       if (!isUndoing()) {
