@@ -502,47 +502,41 @@ export function handleLayoutDragOver(e: DragEvent): void {
   container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
   document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
 
-  // Extended tab-reorder zone: if cursor is near the origin group's header, show
+  // Extended tab-reorder zone: if cursor is near ANY group's header, show
   // tab reorder indicators instead of layout indicators (easier to hit)
   if (draggedLayoutItem.type === 'category') {
-    const cats = getCategories();
-    const draggedCat = cats.find((c) => c.id === draggedLayoutItem!.id);
-    if (draggedCat?.groupId) {
-      const groupEl = container.querySelector(`[data-group-id="${draggedCat.groupId}"]`);
-      if (groupEl) {
-        const header = groupEl.querySelector('.tab-group-header') as HTMLElement | null;
-        if (header) {
-          const rect = header.getBoundingClientRect();
-          const TOLERANCE = 12;
-          if (e.clientY >= rect.top - TOLERANCE && e.clientY <= rect.bottom + TOLERANCE
-              && e.clientX >= rect.left && e.clientX <= rect.right) {
-            // Find nearest tab by horizontal position
-            const tabs = Array.from(groupEl.querySelectorAll<HTMLElement>('.tab'));
-            let nearestTab: HTMLElement | null = null;
-            let nearestDist = Infinity;
-            for (const tab of tabs) {
-              const tabRect = tab.getBoundingClientRect();
-              const centerX = tabRect.left + tabRect.width / 2;
-              const dist = Math.abs(e.clientX - centerX);
-              if (dist < nearestDist) {
-                nearestDist = dist;
-                nearestTab = tab;
-              }
-            }
-            if (nearestTab && nearestTab.dataset.tabCategoryId !== draggedLayoutItem!.id) {
-              const tabRect = nearestTab.getBoundingClientRect();
-              const isLeftHalf = e.clientX < tabRect.left + tabRect.width / 2;
-              const indicator = document.createElement('div');
-              indicator.className = 'tab-drop-indicator';
-              if (isLeftHalf) {
-                nearestTab.parentNode!.insertBefore(indicator, nearestTab);
-              } else {
-                nearestTab.parentNode!.insertBefore(indicator, nearestTab.nextSibling);
-              }
-            }
-            return;
+    const TOLERANCE = 12;
+    const headers = container.querySelectorAll<HTMLElement>('.tab-group-header');
+    for (const header of headers) {
+      const rect = header.getBoundingClientRect();
+      if (e.clientY >= rect.top - TOLERANCE && e.clientY <= rect.bottom + TOLERANCE
+          && e.clientX >= rect.left && e.clientX <= rect.right) {
+        const groupEl = header.closest('.tab-group')!;
+        // Find nearest tab by horizontal position
+        const tabs = Array.from(groupEl.querySelectorAll<HTMLElement>('.tab'));
+        let nearestTab: HTMLElement | null = null;
+        let nearestDist = Infinity;
+        for (const tab of tabs) {
+          const tabRect = tab.getBoundingClientRect();
+          const centerX = tabRect.left + tabRect.width / 2;
+          const dist = Math.abs(e.clientX - centerX);
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestTab = tab;
           }
         }
+        if (nearestTab && nearestTab.dataset.tabCategoryId !== draggedLayoutItem!.id) {
+          const tabRect = nearestTab.getBoundingClientRect();
+          const isLeftHalf = e.clientX < tabRect.left + tabRect.width / 2;
+          const indicator = document.createElement('div');
+          indicator.className = 'tab-drop-indicator';
+          if (isLeftHalf) {
+            nearestTab.parentNode!.insertBefore(indicator, nearestTab);
+          } else {
+            nearestTab.parentNode!.insertBefore(indicator, nearestTab.nextSibling);
+          }
+        }
+        return;
       }
     }
   }
@@ -731,25 +725,16 @@ export function handleTabReorderDragOver(e: DragEvent): void {
   const targetCategoryId = targetTab.dataset.tabCategoryId;
   if (!targetCategoryId || targetCategoryId === draggedLayoutItem.id) return;
 
-  // Only show reorder indicators for within-group drags
-  const targetGroupId = targetTab.dataset.groupId;
-  const categories = getCategories();
-  const draggedCat = categories.find((c) => c.id === draggedLayoutItem!.id);
-  if (draggedCat?.groupId !== targetGroupId) return; // Let layout handler handle grouping
-
   e.preventDefault();
   e.stopPropagation();
   e.dataTransfer!.dropEffect = 'move';
 
-  // Clean up layout indicators — user moved back to origin bar
+  // Clean up layout indicators — tab bar takes priority
   document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
   document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
 
-  // Clean up existing indicators in this tab-bar
-  const tabBar = targetTab.closest('.tab-bar');
-  if (tabBar) {
-    tabBar.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
-  }
+  // Clean up ALL tab indicators (may have moved from another bar)
+  document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
 
   // Determine left/right half for indicator placement
   const rect = targetTab.getBoundingClientRect();
@@ -775,18 +760,12 @@ export function handleTabReorderDrop(
   if (!draggedLayoutItem || draggedLayoutItem.type !== 'category') return;
   const targetTab = e.currentTarget as HTMLElement;
   const targetCategoryId = targetTab.dataset.tabCategoryId!;
+  const targetGroupId = targetTab.dataset.groupId!;
 
   // Clean up indicators
-  const tabBar = targetTab.closest('.tab-bar');
-  if (tabBar) {
-    tabBar.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
-  }
+  document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
 
   if (targetCategoryId === draggedLayoutItem.id) return;
-
-  // Only reorder if dragged tab is in this group
-  const draggedInGroup = groupCategories.some((c) => c.id === draggedLayoutItem!.id);
-  if (!draggedInGroup) return;
 
   e.preventDefault();
   e.stopPropagation();
@@ -795,11 +774,22 @@ export function handleTabReorderDrop(
   const rect = targetTab.getBoundingClientRect();
   const isLeftHalf = e.clientX < rect.left + rect.width / 2;
 
-  const filtered = groupCategories.filter((c) => c.id !== draggedLayoutItem!.id);
-  const targetIndex = filtered.findIndex((c) => c.id === targetCategoryId);
-  const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
-  const newOrder = computeMidpoint(filtered, insertIndex);
-  reorderCategory(draggedLayoutItem.id, newOrder);
+  const draggedInGroup = groupCategories.some((c) => c.id === draggedLayoutItem!.id);
+
+  if (draggedInGroup) {
+    // Within-group reorder
+    const filtered = groupCategories.filter((c) => c.id !== draggedLayoutItem!.id);
+    const targetIndex = filtered.findIndex((c) => c.id === targetCategoryId);
+    const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
+    const newOrder = computeMidpoint(filtered, insertIndex);
+    reorderCategory(draggedLayoutItem.id, newOrder);
+  } else {
+    // Cross-group move: add tab to this group at the target position
+    const targetIndex = groupCategories.findIndex((c) => c.id === targetCategoryId);
+    const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
+    const newOrder = computeMidpoint(groupCategories, insertIndex);
+    setCategoryGroup(draggedLayoutItem.id, targetGroupId, newOrder);
+  }
 
   draggedLayoutItem = null;
 }
