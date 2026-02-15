@@ -57,7 +57,6 @@ document.getElementById('brand-r')?.addEventListener('click', (e) => {
   randomizeAccentHue();
   randomizeBarscale();
   randomizeWireframe();
-  randomizeXY();
   syncWireframeBtnState();
 });
 
