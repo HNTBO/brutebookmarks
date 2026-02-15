@@ -133,6 +133,11 @@ async function init(): Promise<void> {
     run();
   });
 
+  // Wire reconnect button — opens BB in background tab to refresh token
+  document.getElementById('reconnect-btn')!.addEventListener('click', () => {
+    reconnect();
+  });
+
   // Wire save-another button
   document.getElementById('save-another-btn')!.addEventListener('click', () => {
     // Force show the category picker
@@ -167,6 +172,53 @@ async function showCategoryPicker(): Promise<void> {
   showView('categories');
 }
 
+function showErrorWithReconnect(message: string): void {
+  document.getElementById('error-text')!.textContent = message;
+  document.getElementById('reconnect-btn')!.style.display = '';
+  document.getElementById('retry-btn')!.style.display = 'none';
+  showView('error');
+}
+
+async function reconnect(): Promise<void> {
+  const reconnectBtn = document.getElementById('reconnect-btn')!;
+  reconnectBtn.textContent = 'Reconnecting…';
+  reconnectBtn.style.pointerEvents = 'none';
+  reconnectBtn.style.opacity = '0.6';
+
+  const url = await getAppUrl();
+  const tab = await browser.tabs.create({ url, active: false });
+
+  // Listen for fresh token in storage
+  const timeout = setTimeout(() => {
+    cleanup();
+    reconnectBtn.textContent = 'Reconnect';
+    reconnectBtn.style.pointerEvents = '';
+    reconnectBtn.style.opacity = '';
+    document.getElementById('error-text')!.textContent = 'Reconnect timed out. Is the app open and signed in?';
+  }, 15_000);
+
+  function cleanup() {
+    browser.storage.onChanged.removeListener(onTokenChanged);
+    clearTimeout(timeout);
+    if (tab.id) browser.tabs.remove(tab.id).catch(() => {});
+  }
+
+  function onTokenChanged(changes: Record<string, browser.Storage.StorageChange>) {
+    if (changes.bb_auth_token?.newValue) {
+      cleanup();
+      // Token refreshed — swap to Retry and auto-retry
+      reconnectBtn.style.display = 'none';
+      reconnectBtn.textContent = 'Reconnect';
+      reconnectBtn.style.pointerEvents = '';
+      reconnectBtn.style.opacity = '';
+      document.getElementById('retry-btn')!.style.display = '';
+      run();
+    }
+  }
+
+  browser.storage.onChanged.addListener(onTokenChanged);
+}
+
 async function run(): Promise<void> {
   showView('loading');
 
@@ -183,6 +235,8 @@ async function run(): Promise<void> {
   _currentTab = await getCurrentTab();
   if (!_currentTab) {
     document.getElementById('error-text')!.textContent = 'Cannot save this page.';
+    document.getElementById('reconnect-btn')!.style.display = 'none';
+    document.getElementById('retry-btn')!.style.display = 'none';
     showView('error');
     return;
   }
@@ -196,6 +250,8 @@ async function run(): Promise<void> {
     if (categories.length === 0) {
       document.getElementById('error-text')!.textContent =
         'No categories yet. Create one in the app first.';
+      document.getElementById('reconnect-btn')!.style.display = 'none';
+      document.getElementById('retry-btn')!.style.display = '';
       showView('error');
       return;
     }
@@ -219,8 +275,7 @@ async function run(): Promise<void> {
     await showCategoryPicker();
   } catch (err) {
     console.error('[Popup] Error:', err);
-    document.getElementById('error-text')!.textContent = 'Connection failed. Try again.';
-    showView('error');
+    showErrorWithReconnect('Connection failed.');
   }
 }
 

@@ -9,14 +9,14 @@
   --text-secondary: #888;
   --text-muted: #555;
 
-  --accent: #fe9603;
+  --accent: #ff5206;
   --accent-dim: color-mix(in srgb, var(--accent), black 20%);
   --accent-glow: color-mix(in srgb, var(--accent), transparent 85%);
 
   --danger: #ff3b30;
 
   --border: #2a2a2a;
-  --border-strong: #947c33;
+  --border-strong: #ff5206;
 
   --font-display: 'Outfit', Georgia, serif;
   --font-body: 'Outfit', -apple-system, sans-serif;
@@ -314,6 +314,10 @@ body {
   color: var(--danger);
   margin-bottom: var(--space-lg);
   text-align: center;
+}
+
+#reconnect-btn + #retry-btn {
+  margin-top: var(--space-sm);
 }
 
 /* Spinner */
