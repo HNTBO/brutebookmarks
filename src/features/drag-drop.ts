@@ -502,6 +502,51 @@ export function handleLayoutDragOver(e: DragEvent): void {
   container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
   document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
 
+  // Extended tab-reorder zone: if cursor is near the origin group's header, show
+  // tab reorder indicators instead of layout indicators (easier to hit)
+  if (draggedLayoutItem.type === 'category') {
+    const cats = getCategories();
+    const draggedCat = cats.find((c) => c.id === draggedLayoutItem!.id);
+    if (draggedCat?.groupId) {
+      const groupEl = container.querySelector(`[data-group-id="${draggedCat.groupId}"]`);
+      if (groupEl) {
+        const header = groupEl.querySelector('.tab-group-header') as HTMLElement | null;
+        if (header) {
+          const rect = header.getBoundingClientRect();
+          const TOLERANCE = 12;
+          if (e.clientY >= rect.top - TOLERANCE && e.clientY <= rect.bottom + TOLERANCE
+              && e.clientX >= rect.left && e.clientX <= rect.right) {
+            // Find nearest tab by horizontal position
+            const tabs = Array.from(groupEl.querySelectorAll<HTMLElement>('.tab'));
+            let nearestTab: HTMLElement | null = null;
+            let nearestDist = Infinity;
+            for (const tab of tabs) {
+              const tabRect = tab.getBoundingClientRect();
+              const centerX = tabRect.left + tabRect.width / 2;
+              const dist = Math.abs(e.clientX - centerX);
+              if (dist < nearestDist) {
+                nearestDist = dist;
+                nearestTab = tab;
+              }
+            }
+            if (nearestTab && nearestTab.dataset.tabCategoryId !== draggedLayoutItem!.id) {
+              const tabRect = nearestTab.getBoundingClientRect();
+              const isLeftHalf = e.clientX < tabRect.left + tabRect.width / 2;
+              const indicator = document.createElement('div');
+              indicator.className = 'tab-drop-indicator';
+              if (isLeftHalf) {
+                nearestTab.parentNode!.insertBefore(indicator, nearestTab);
+              } else {
+                nearestTab.parentNode!.insertBefore(indicator, nearestTab.nextSibling);
+              }
+            }
+            return;
+          }
+        }
+      }
+    }
+  }
+
   const zone = detectDropZone(e, container);
   if (!zone) return;
 
