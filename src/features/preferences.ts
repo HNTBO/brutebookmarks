@@ -3,8 +3,8 @@ import { savePreferencesToConvex } from '../data/store';
 import { getCurrentTheme, getAccentColorDark, getAccentColorLight } from './theme';
 import { pushUndo, isUndoing } from './undo';
 
-let currentCardSize = parseInt(localStorage.getItem('cardSize') || '90');
-let currentPageWidth = parseInt(localStorage.getItem('pageWidth') || '100');
+let currentCardSize = Math.max(60, Math.min(120, parseInt(localStorage.getItem('cardSize') || '90') || 90));
+let currentPageWidth = Math.max(50, Math.min(100, parseInt(localStorage.getItem('pageWidth') || '100') || 100));
 let showCardNames = localStorage.getItem('showCardNames') !== 'false';
 let autofillUrl = localStorage.getItem('autofillUrl') === 'true';
 let easterEggs = localStorage.getItem('easterEggs') !== 'false'; // default on

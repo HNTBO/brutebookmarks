@@ -132,8 +132,11 @@ function mountUserButton(): void {
 
 // Resolvers for sign-in completion (used by triggerSignIn)
 let _signInResolve: ((signedIn: boolean) => void) | null = null;
+let _escapeKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
 function dismissSignInOverlay(): void {
+  // Only act if the overlay is actually showing
+  if (!document.getElementById('auth-overlay')) return;
   setAppMode('local');
   removeSignInOverlay();
   if (_signInResolve) {
@@ -159,14 +162,11 @@ function showSignInOverlay(options?: { showLocalEscape?: boolean }): void {
     overlay.appendChild(escapeBtn);
   }
 
-  // Escape key dismisses the overlay
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      document.removeEventListener('keydown', onKeyDown);
-      dismissSignInOverlay();
-    }
+  // Escape key dismisses the overlay (cleaned up in removeSignInOverlay)
+  _escapeKeyHandler = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') dismissSignInOverlay();
   };
-  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keydown', _escapeKeyHandler);
 
   document.body.appendChild(overlay);
 
@@ -179,8 +179,11 @@ function showSignInOverlay(options?: { showLocalEscape?: boolean }): void {
 
 function removeSignInOverlay(): void {
   const overlay = document.getElementById('auth-overlay');
-  if (overlay) {
-    overlay.remove();
+  if (overlay) overlay.remove();
+  // Clean up Escape key listener so it doesn't leak after sign-in
+  if (_escapeKeyHandler) {
+    document.removeEventListener('keydown', _escapeKeyHandler);
+    _escapeKeyHandler = null;
   }
 }
 

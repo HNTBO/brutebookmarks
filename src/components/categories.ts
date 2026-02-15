@@ -24,7 +24,6 @@ import {
   handleTabReorderDragOver,
   handleTabReorderDragLeave,
   handleTabReorderDrop,
-  handleTabBarDragOver,
   isDraggingLayoutItem,
   getDragBookmarkState,
 } from '../features/drag-drop';
@@ -267,14 +266,6 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
       executeCategoryDrop(e, catId, renderCategories);
     }) as EventListener);
   });
-
-  // Prevent layout handler from showing ungroup indicators when dragging within the tab bar
-  const tabBarEl = groupEl.querySelector('.tab-bar');
-  if (tabBarEl) {
-    tabBarEl.addEventListener('dragover', ((e: DragEvent) => {
-      handleTabBarDragOver(e, group.id);
-    }) as EventListener);
-  }
 
   // Clean up hover state when any drag ends (Esc, drop outside, etc.)
   groupEl.addEventListener('dragend', () => clearHoverState(), true);

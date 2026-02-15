@@ -682,6 +682,12 @@ export function handleTabReorderDragOver(e: DragEvent): void {
   const targetCategoryId = targetTab.dataset.tabCategoryId;
   if (!targetCategoryId || targetCategoryId === draggedLayoutItem.id) return;
 
+  // Only show reorder indicators for within-group drags
+  const targetGroupId = targetTab.dataset.groupId;
+  const categories = getCategories();
+  const draggedCat = categories.find((c) => c.id === draggedLayoutItem!.id);
+  if (draggedCat?.groupId !== targetGroupId) return; // Let layout handler handle grouping
+
   e.preventDefault();
   e.stopPropagation();
   e.dataTransfer!.dropEffect = 'move';
@@ -707,18 +713,6 @@ export function handleTabReorderDragOver(e: DragEvent): void {
 
 export function handleTabReorderDragLeave(_e: DragEvent): void {
   // Indicators persist until another tab is hovered or drag ends — prevents flicker
-}
-
-/** Prevent layout handler from showing ungroup indicators when dragging within the tab bar */
-export function handleTabBarDragOver(e: DragEvent, groupId: string): void {
-  if (!draggedLayoutItem || draggedLayoutItem.type !== 'category') return;
-  const categories = getCategories();
-  const draggedCat = categories.find((c) => c.id === draggedLayoutItem!.id);
-  if (draggedCat?.groupId !== groupId) return;
-  // Within-group drag — absorb the event so layout handler doesn't show conflicting indicators
-  e.preventDefault();
-  e.stopPropagation();
-  e.dataTransfer!.dropEffect = 'move';
 }
 
 export function handleTabReorderDrop(
