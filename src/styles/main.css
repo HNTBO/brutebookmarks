@@ -593,15 +593,13 @@ h1 em {
     font-weight: 500;
 }
 
-/* Edit button — scales with card like .bookmark-icon (% + min/max) */
+/* Edit button — size driven by --btn-size custom prop (set in JS from card size) */
 .edit-btn {
     position: absolute;
-    top: 4%;
-    left: 4%;
-    width: 14%;
-    aspect-ratio: 1;
-    min-width: 18px;
-    max-width: 26px;
+    top: 4px;
+    left: 4px;
+    width: var(--btn-size, 20px);
+    height: var(--btn-size, 20px);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-muted);
@@ -627,15 +625,13 @@ h1 em {
     color: var(--bg-primary);
 }
 
-/* Delete button — scales with card like .bookmark-icon (% + min/max) */
+/* Delete button — size driven by --btn-size custom prop (set in JS from card size) */
 .delete-btn {
     position: absolute;
-    top: 4%;
-    right: 4%;
-    width: 14%;
-    aspect-ratio: 1;
-    min-width: 18px;
-    max-width: 26px;
+    top: 4px;
+    right: 4px;
+    width: var(--btn-size, 20px);
+    height: var(--btn-size, 20px);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-muted);

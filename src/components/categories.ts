@@ -43,8 +43,9 @@ function getActiveTabId(group: TabGroup): string {
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
   const gap = getCardGap(currentCardSize);
   const nameOnHover = getShowNameOnHover();
+  const btnSize = Math.round(Math.min(28, Math.max(18, currentCardSize * 0.18)));
   return `
-    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr)); gap: ${gap}px;">
+    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr)); gap: ${gap}px; --btn-size: ${btnSize}px;">
       ${category.bookmarks
         .map(
           (bookmark, index) => `
