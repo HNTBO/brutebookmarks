@@ -593,18 +593,50 @@ h1 em {
     font-weight: 500;
 }
 
-/* Delete button — scales with icon (container query units) */
-.delete-btn {
+/* Edit button */
+.edit-btn {
     position: absolute;
-    top: clamp(2px, 4cqi, 4px);
-    right: clamp(2px, 4cqi, 4px);
-    width: clamp(14px, 20cqi, 20px);
-    height: clamp(14px, 20cqi, 20px);
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-muted);
     cursor: pointer;
-    font-size: clamp(8px, 12cqi, 12px);
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.bookmark-card .edit-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.edit-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-primary);
+}
+
+/* Delete button */
+.delete-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1436,38 +1468,6 @@ footer {
 
 .bookmark-card:not(.add-bookmark):active {
     cursor: grabbing;
-}
-
-/* Edit button — scales with icon (container query units) */
-.edit-btn {
-    position: absolute;
-    top: clamp(2px, 4cqi, 4px);
-    left: clamp(2px, 4cqi, 4px);
-    width: clamp(14px, 20cqi, 20px);
-    height: clamp(14px, 20cqi, 20px);
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: clamp(7px, 10cqi, 10px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s ease, background 0.2s ease;
-    z-index: 10;
-    pointer-events: none;
-}
-
-.bookmark-card .edit-btn.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.edit-btn:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--bg-primary);
 }
 
 /* Category drop zone styles */

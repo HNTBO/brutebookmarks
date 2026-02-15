@@ -4,10 +4,8 @@ export function handleCardMouseMove(e: MouseEvent): void {
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
 
-  // Scale proximity radius with card size (smaller cards → smaller zone)
-  const proximityRadius = Math.min(45, rect.width * 0.4);
-  // Button center offset scales with card size (matches CSS clamp)
-  const btnOffset = Math.min(14, rect.width * 0.12);
+  const proximityRadius = 45;
+  const btnOffset = 14; // 4px offset + half of 20px button
 
   const editBtn = card.querySelector<HTMLElement>('.edit-btn');
   const deleteBtn = card.querySelector<HTMLElement>('.delete-btn');
