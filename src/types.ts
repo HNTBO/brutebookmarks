@@ -29,6 +29,8 @@ export interface UserPreferences {
   theme: 'dark' | 'light';
   accentColorDark: string | null;
   accentColorLight: string | null;
+  wireframeDark: boolean;
+  wireframeLight: boolean;
   cardSize: number;
   pageWidth: number;
   showCardNames: boolean;

@@ -28,7 +28,10 @@ initUploadArea();
 
 // Wire header action buttons
 document.getElementById('add-category-btn')!.addEventListener('click', openAddCategoryModal);
-document.getElementById('theme-toggle-btn')!.addEventListener('click', toggleTheme);
+document.getElementById('theme-toggle-btn')!.addEventListener('click', () => {
+  toggleTheme();
+  syncWireframeBtnState();
+});
 document.getElementById('settings-btn')!.addEventListener('click', openSettingsModal);
 document.getElementById('barscale-btn')!.addEventListener('click', cycleBarscale);
 document.getElementById('wireframe-btn')!.addEventListener('click', () => {
@@ -129,6 +132,7 @@ document.addEventListener('keydown', (e) => {
   if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'd') {
     e.preventDefault();
     toggleTheme();
+    syncWireframeBtnState();
     return;
   }
 
@@ -142,7 +146,10 @@ document.addEventListener('keydown', (e) => {
 // Wire mobile toolbar buttons
 function wireMobileToolbar(): void {
   document.getElementById('mobile-add-btn')?.addEventListener('click', openAddCategoryModal);
-  document.getElementById('mobile-theme-btn')?.addEventListener('click', toggleTheme);
+  document.getElementById('mobile-theme-btn')?.addEventListener('click', () => {
+    toggleTheme();
+    syncWireframeBtnState();
+  });
   document.getElementById('mobile-settings-btn')?.addEventListener('click', openSettingsModal);
   document.getElementById('mobile-wireframe-btn')?.addEventListener('click', () => {
     toggleWireframe();
@@ -157,6 +164,7 @@ async function init(): Promise<void> {
   setPreferencesCallback((prefs) => {
     applyTheme(prefs.theme, prefs.accentColorDark, prefs.accentColorLight);
     applyPreferences(prefs, renderCategories);
+    syncWireframeBtnState();
   });
 
   // Load bookmarks first — don't wait for auth

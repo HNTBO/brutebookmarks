@@ -300,6 +300,26 @@ export function initSettingsModal(): void {
   document.getElementById('import-data-btn')!.addEventListener('click', importData);
   document.getElementById('erase-data-btn')!.addEventListener('click', eraseData);
 
+  // Help modal
+  document.getElementById('help-btn')!.addEventListener('click', () => {
+    document.getElementById('help-modal')!.classList.add('active');
+  });
+  document.getElementById('help-modal-close')!.addEventListener('click', () => {
+    document.getElementById('help-modal')!.classList.remove('active');
+  });
+  // Backdrop close for help modal
+  const helpModal = document.getElementById('help-modal')!;
+  let helpMouseDownOnBackdrop = false;
+  helpModal.addEventListener('mousedown', (e) => {
+    helpMouseDownOnBackdrop = e.target === helpModal;
+  });
+  helpModal.addEventListener('mouseup', (e) => {
+    if (helpMouseDownOnBackdrop && e.target === helpModal) {
+      helpModal.classList.remove('active');
+    }
+    helpMouseDownOnBackdrop = false;
+  });
+
   // Backdrop close for settings
   let mouseDownOnBackdrop = false;
   const modal = document.getElementById('settings-modal')!;

@@ -9,6 +9,14 @@ import { getAutofillUrl } from '../../features/preferences';
 let editingBookmarkId: string | null = null;
 let titleFetchGeneration = 0;
 
+function populateCategorySelect(selectedCategoryId: string): void {
+  const select = document.getElementById('bookmark-category-select') as HTMLSelectElement;
+  const categories = getCategories();
+  select.innerHTML = categories
+    .map((cat) => `<option value="${cat.id}" ${cat.id === selectedCategoryId ? 'selected' : ''}>${cat.name}</option>`)
+    .join('');
+}
+
 async function fetchAndSetTitle(url: string): Promise<void> {
   const titleInput = document.getElementById('bookmark-title') as HTMLInputElement;
   // Never overwrite user-entered title
@@ -66,6 +74,7 @@ export async function openAddBookmarkModal(categoryId: string): Promise<void> {
   document.getElementById('icon-search-container')!.classList.add('hidden');
   document.getElementById('icon-results')!.innerHTML = '';
   resetIconPicker();
+  populateCategorySelect(categoryId);
   document.getElementById('bookmark-modal')!.classList.add('active');
 
   if (getAutofillUrl()) {
@@ -108,6 +117,7 @@ export function openEditBookmarkModal(categoryId: string, bookmarkId: string): v
 
   document.getElementById('icon-search-container')!.classList.add('hidden');
   document.getElementById('icon-results')!.innerHTML = '';
+  populateCategorySelect(categoryId);
   document.getElementById('bookmark-modal')!.classList.add('active');
 }
 
@@ -119,13 +129,15 @@ async function saveBookmark(event: Event): Promise<void> {
   event.preventDefault();
   const title = (document.getElementById('bookmark-title') as HTMLInputElement).value;
   const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
-  const categoryId = (document.getElementById('bookmark-category-id') as HTMLInputElement).value;
+  const originalCategoryId = (document.getElementById('bookmark-category-id') as HTMLInputElement).value;
+  const selectedCategoryId = (document.getElementById('bookmark-category-select') as HTMLSelectElement).value;
   const iconPath = (document.getElementById('bookmark-icon-path') as HTMLInputElement).value || null;
 
   if (editingBookmarkId) {
-    await updateBookmark(editingBookmarkId, title, url, iconPath);
+    const movedCategory = selectedCategoryId !== originalCategoryId ? selectedCategoryId : undefined;
+    await updateBookmark(editingBookmarkId, title, url, iconPath, movedCategory);
   } else {
-    await createBookmark(categoryId, title, url, iconPath);
+    await createBookmark(selectedCategoryId, title, url, iconPath);
   }
   closeBookmarkModal();
 }

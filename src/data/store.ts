@@ -93,10 +93,12 @@ export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
         theme: prefs.theme,
         accentColorDark: prefs.accentColorDark ?? undefined,
         accentColorLight: prefs.accentColorLight ?? undefined,
+        wireframeDark: prefs.wireframeDark,
+        wireframeLight: prefs.wireframeLight,
         cardSize: prefs.cardSize,
         pageWidth: prefs.pageWidth,
         showCardNames: prefs.showCardNames,
-      autofillUrl: prefs.autofillUrl ?? undefined,
+        autofillUrl: prefs.autofillUrl ?? undefined,
       });
     } catch (err) {
       console.error('[Store] Failed to save preferences:', err);
@@ -142,6 +144,8 @@ export function activateConvex(): void {
       theme: (result as any).theme === 'light' ? 'light' : 'dark',
       accentColorDark: (result as any).accentColorDark ?? null,
       accentColorLight: (result as any).accentColorLight ?? null,
+      wireframeDark: (result as any).wireframeDark ?? false,
+      wireframeLight: (result as any).wireframeLight ?? false,
       cardSize: (result as any).cardSize ?? 90,
       pageWidth: (result as any).pageWidth ?? 100,
       showCardNames: (result as any).showCardNames ?? true,
@@ -406,6 +410,7 @@ export async function updateBookmark(
   title: string,
   url: string,
   iconPath: string | null,
+  categoryId?: string,
 ): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
@@ -414,15 +419,28 @@ export async function updateBookmark(
       title,
       url,
       iconPath: iconPath ?? undefined,
+      categoryId: categoryId ? (categoryId as Id<'categories'>) : undefined,
     });
   } else {
+    let sourceCat: Category | undefined;
+    let bookmark: import('../types').Bookmark | undefined;
     for (const cat of _categories) {
       const bk = cat.bookmarks.find((b) => b.id === id);
       if (bk) {
-        bk.title = title;
-        bk.url = url;
-        bk.iconPath = iconPath;
+        sourceCat = cat;
+        bookmark = bk;
         break;
+      }
+    }
+    if (bookmark) {
+      bookmark.title = title;
+      bookmark.url = url;
+      bookmark.iconPath = iconPath;
+      // Move to different category if requested
+      if (categoryId && sourceCat && categoryId !== sourceCat.id) {
+        sourceCat.bookmarks = sourceCat.bookmarks.filter((b) => b.id !== id);
+        const targetCat = _categories.find((c) => c.id === categoryId);
+        if (targetCat) targetCat.bookmarks.push(bookmark);
       }
     }
     saveData();

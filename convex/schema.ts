@@ -37,6 +37,8 @@ export default defineSchema({
     theme: v.string(),
     accentColorDark: v.optional(v.string()),
     accentColorLight: v.optional(v.string()),
+    wireframeDark: v.optional(v.boolean()),
+    wireframeLight: v.optional(v.boolean()),
     cardSize: v.float64(),
     pageWidth: v.float64(),
     showCardNames: v.boolean(),

@@ -14,7 +14,21 @@ type BarscaleSize = 'S' | 'M' | 'L';
 const BARSCALE_PX: Record<BarscaleSize, number> = { S: 31, M: 37, L: 44 };
 const BARSCALE_CYCLE: BarscaleSize[] = ['S', 'M', 'L'];
 let currentBarscale: BarscaleSize = (localStorage.getItem('barscale') as BarscaleSize) || 'L';
-let currentWireframe = localStorage.getItem('wireframe') === 'true';
+// Wireframe per theme — migrate legacy single key on first load
+let wireframeDark = localStorage.getItem('wireframe_dark') === 'true'
+  || (localStorage.getItem('wireframe_dark') === null && localStorage.getItem('wireframe') === 'true');
+let wireframeLight = localStorage.getItem('wireframe_light') === 'true';
+// Clean up legacy key
+if (localStorage.getItem('wireframe') !== null) {
+  localStorage.setItem('wireframe_dark', String(wireframeDark));
+  localStorage.setItem('wireframe_light', String(wireframeLight));
+  localStorage.removeItem('wireframe');
+}
+
+function getCurrentWireframe(): boolean {
+  const theme = getCurrentTheme();
+  return theme === 'dark' ? wireframeDark : wireframeLight;
+}
 
 export function getCardSize(): number {
   return currentCardSize;
@@ -56,6 +70,8 @@ export function collectPreferences(): UserPreferences {
     theme: getCurrentTheme() as 'dark' | 'light',
     accentColorDark: getAccentColorDark(),
     accentColorLight: getAccentColorLight(),
+    wireframeDark,
+    wireframeLight,
     cardSize: currentCardSize,
     pageWidth: currentPageWidth,
     showCardNames,
@@ -99,19 +115,25 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   const cardChanged = currentCardSize !== prefs.cardSize;
   const widthChanged = currentPageWidth !== prefs.pageWidth;
   const namesChanged = showCardNames !== prefs.showCardNames;
+  const wireframeChanged = wireframeDark !== prefs.wireframeDark || wireframeLight !== prefs.wireframeLight;
 
   currentCardSize = prefs.cardSize;
   currentPageWidth = prefs.pageWidth;
   showCardNames = prefs.showCardNames;
   autofillUrl = prefs.autofillUrl;
+  wireframeDark = prefs.wireframeDark;
+  wireframeLight = prefs.wireframeLight;
 
   localStorage.setItem('cardSize', String(currentCardSize));
   localStorage.setItem('pageWidth', String(currentPageWidth));
   localStorage.setItem('showCardNames', String(showCardNames));
   localStorage.setItem('autofillUrl', String(autofillUrl));
+  localStorage.setItem('wireframe_dark', String(wireframeDark));
+  localStorage.setItem('wireframe_light', String(wireframeLight));
 
   if (cardChanged) applyCardSizeToDOM();
   if (widthChanged) applyPageWidthToDOM();
+  if (wireframeChanged) applyWireframeToDOM();
   if (namesChanged) renderCallback();
 
   syncPreferencesUI();
@@ -196,26 +218,48 @@ export function randomizeBarscale(): void {
 // --- Wireframe ---
 
 export function getWireframe(): boolean {
-  return currentWireframe;
+  return getCurrentWireframe();
 }
 
 function applyWireframeToDOM(): void {
-  if (currentWireframe) {
+  if (getCurrentWireframe()) {
     document.documentElement.setAttribute('data-wireframe', '');
   } else {
     document.documentElement.removeAttribute('data-wireframe');
   }
 }
 
+function saveWireframeState(): void {
+  localStorage.setItem('wireframe_dark', String(wireframeDark));
+  localStorage.setItem('wireframe_light', String(wireframeLight));
+  syncToConvex();
+}
+
 export function toggleWireframe(): void {
-  currentWireframe = !currentWireframe;
-  localStorage.setItem('wireframe', String(currentWireframe));
+  const theme = getCurrentTheme();
+  if (theme === 'dark') {
+    wireframeDark = !wireframeDark;
+  } else {
+    wireframeLight = !wireframeLight;
+  }
+  saveWireframeState();
   applyWireframeToDOM();
 }
 
 export function randomizeWireframe(): void {
-  currentWireframe = Math.random() > 0.5;
-  localStorage.setItem('wireframe', String(currentWireframe));
+  const theme = getCurrentTheme();
+  const val = Math.random() > 0.5;
+  if (theme === 'dark') {
+    wireframeDark = val;
+  } else {
+    wireframeLight = val;
+  }
+  saveWireframeState();
+  applyWireframeToDOM();
+}
+
+/** Called after theme toggle — re-apply the wireframe state for the new theme. */
+export function applyWireframeForCurrentTheme(): void {
   applyWireframeToDOM();
 }
 

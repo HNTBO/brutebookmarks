@@ -1,5 +1,5 @@
 import { savePreferencesToConvex, isApplyingFromConvex } from '../data/store';
-import { collectPreferences } from './preferences';
+import { collectPreferences, applyWireframeForCurrentTheme } from './preferences';
 
 let currentTheme = localStorage.getItem('theme') || 'dark';
 
@@ -23,6 +23,8 @@ export function toggleTheme(): void {
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
   applyThemeToDOM();
   localStorage.setItem('theme', currentTheme);
+  // Re-apply wireframe for the new theme (each theme has its own wireframe state)
+  applyWireframeForCurrentTheme();
   syncToConvex();
 }
 

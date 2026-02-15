@@ -78,6 +78,10 @@ export function renderApp(): void {
               <label>URL</label>
               <input type="url" id="bookmark-url" required placeholder="https://example.com">
             </div>
+            <div class="form-group-inline">
+              <label>Category</label>
+              <select id="bookmark-category-select"></select>
+            </div>
 
             <div class="icon-section">
               <h3>Icon</h3>
@@ -205,6 +209,12 @@ export function renderApp(): void {
             </div>
           </div>
           <div class="settings-section">
+            <h3>Info</h3>
+            <div class="settings-row">
+              <button class="btn" id="help-btn">Feature Overview</button>
+            </div>
+          </div>
+          <div class="settings-section">
             <h3>Bookmarks</h3>
             <div class="settings-row">
               <button class="btn" id="smart-name-btn">Smart Name</button>
@@ -213,6 +223,65 @@ export function renderApp(): void {
               <button class="btn" id="export-data-btn">Export</button>
               <button class="btn btn-danger" id="erase-data-btn">Erase</button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Feature Overview</h2>
+          <button class="modal-close" id="help-modal-close">×</button>
+        </div>
+        <div class="modal-body help-body">
+          <div class="help-section">
+            <h3>Bookmarks</h3>
+            <ul>
+              <li><strong>Add</strong> — Click the + card at the end of any category</li>
+              <li><strong>Edit</strong> — Hover near the top-left corner of a card (pen icon)</li>
+              <li><strong>Delete</strong> — Hover near the top-right corner (× icon)</li>
+              <li><strong>Open</strong> — Click a card to open in a new tab</li>
+              <li><strong>Reorder</strong> — Drag and drop cards within or between categories</li>
+              <li><strong>Move</strong> — Use the Category dropdown in the edit modal</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Categories</h3>
+            <ul>
+              <li><strong>Add</strong> — Click the + button in the header</li>
+              <li><strong>Edit/Delete</strong> — Click the pen icon on the category bar</li>
+              <li><strong>Reorder</strong> — Drag the ⠿ handle on the category bar</li>
+              <li><strong>Tab Groups</strong> — Drag a category onto another to group them as tabs</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Appearance</h3>
+            <ul>
+              <li><strong>Card Size & Page Width</strong> — Drag inside the 2D controller zone in the header</li>
+              <li><strong>Theme</strong> — ☀/☾ button toggles light/dark mode</li>
+              <li><strong>Accent Color</strong> — Color picker in Settings</li>
+              <li><strong>Wireframe Mode</strong> — Outlined UI style (cube icon in header)</li>
+              <li><strong>Bar Scale</strong> — Cycle category bar height (triangle icon in header)</li>
+              <li><strong>Card Names</strong> — Toggle in Settings</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Data</h3>
+            <ul>
+              <li><strong>Import</strong> — JSON backups or browser HTML exports</li>
+              <li><strong>Export</strong> — Download as JSON</li>
+              <li><strong>Smart Name</strong> — Auto-shorten bookmark titles</li>
+              <li><strong>Fetch Favicons</strong> — Refresh all bookmark icons</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h3>Keyboard Shortcuts</h3>
+            <ul>
+              <li><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> — Toggle theme</li>
+              <li><kbd>Esc</kbd> — Close any open modal</li>
+            </ul>
           </div>
         </div>
       </div>

@@ -69,18 +69,38 @@ export const update = mutation({
     title: v.string(),
     url: v.string(),
     iconPath: v.optional(v.string()),
+    categoryId: v.optional(v.id('categories')),
   },
-  handler: async (ctx, { id, title, url, iconPath }) => {
+  handler: async (ctx, { id, title, url, iconPath, categoryId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
+    const userId = identity.subject;
 
     validateUrl(url);
 
     const bookmark = await ctx.db.get(id);
-    if (!bookmark || bookmark.userId !== identity.subject) {
+    if (!bookmark || bookmark.userId !== userId) {
       throw new Error('Bookmark not found');
     }
-    await ctx.db.patch(id, { title, url, iconPath: iconPath ?? undefined });
+
+    const patch: Record<string, unknown> = { title, url, iconPath: iconPath ?? undefined };
+
+    if (categoryId !== undefined && categoryId !== bookmark.categoryId) {
+      const targetCategory = await ctx.db.get(categoryId);
+      if (!targetCategory || targetCategory.userId !== userId) {
+        throw new Error('Target category not found');
+      }
+      // Place at end of target category
+      const siblings = await ctx.db
+        .query('bookmarks')
+        .withIndex('by_category_order', (q) => q.eq('categoryId', categoryId))
+        .collect();
+      const maxOrder = siblings.reduce((max, b) => Math.max(max, b.order), 0);
+      patch.categoryId = categoryId;
+      patch.order = maxOrder + 1;
+    }
+
+    await ctx.db.patch(id, patch);
   },
 });
 

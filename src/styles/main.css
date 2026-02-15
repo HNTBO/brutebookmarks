@@ -764,7 +764,8 @@ h1 em {
     min-width: 80px;
 }
 
-.form-group-inline input {
+.form-group-inline input,
+.form-group-inline select {
     flex: 1;
     padding: var(--space-sm) var(--space-md);
     font-family: var(--font-body);
@@ -773,9 +774,11 @@ h1 em {
     border: none;
     color: var(--text-primary);
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
-.form-group-inline input:focus {
+.form-group-inline input:focus,
+.form-group-inline select:focus {
     outline: none;
     box-shadow: inset 0 0 0 2px var(--accent);
 }
@@ -1914,6 +1917,53 @@ footer {
 .accent-color-row .btn {
     height: 42px;
     min-width: 80px;
+}
+
+/* Help modal */
+.help-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.help-section {
+    margin-bottom: var(--space-lg);
+}
+
+.help-section h3 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid var(--border);
+}
+
+.help-section ul {
+    list-style: none;
+    padding: 0;
+}
+
+.help-section li {
+    font-size: 13px;
+    color: var(--text-primary);
+    padding: var(--space-xs) 0;
+    line-height: 1.4;
+}
+
+.help-section li strong {
+    color: var(--accent);
+}
+
+.help-section kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
 }
 
 /* Confirm modal input group spacing */
