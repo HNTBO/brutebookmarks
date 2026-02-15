@@ -17,6 +17,9 @@ import { pushUndo, isUndoing } from './undo';
 let draggedElement: HTMLElement | null = null;
 let draggedBookmark: { categoryId: string; bookmarkId: string; index: number } | null = null;
 
+// Grid-level drop target state — set by handleGridDragOver, read by handleGridDrop
+let _gridDropState: { categoryId: string; bookmarkId: string; before: boolean } | null = null;
+
 // Undo helpers for local mode
 function restoreLocalOrder(categoryId: string, ids: string[], renderCallback: () => void): void {
   const cat = getCategories().find((c) => c.id === categoryId);
@@ -62,9 +65,11 @@ export function handleDragEnd(e: DragEvent): void {
   (e.currentTarget as HTMLElement).classList.remove('dragging');
   draggedElement = null;
   draggedBookmark = null;
+  _gridDropState = null;
   document.querySelectorAll('.bookmark-card').forEach((card) => {
-    card.classList.remove('drag-over', 'card-drop-before', 'card-drop-after');
+    card.classList.remove('drag-over');
   });
+  document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
   document.querySelectorAll('.category').forEach((cat) => {
     cat.classList.remove('drop-target');
   });
@@ -75,29 +80,7 @@ export function handleDragOver(e: DragEvent): void {
   if (!draggedBookmark) return;
   e.preventDefault();
   e.dataTransfer!.dropEffect = 'move';
-
-  const target = e.currentTarget as HTMLElement;
-  const targetBookmarkId = target.dataset.bookmarkId;
-  if (!targetBookmarkId || targetBookmarkId === draggedBookmark.bookmarkId) return;
-
-  // Detect left/right half for indicator placement
-  const rect = target.getBoundingClientRect();
-  const isLeftHalf = e.clientX < rect.left + rect.width / 2;
-
-  // Clean up indicators on all cards in this grid
-  const grid = target.closest('.bookmarks-grid');
-  if (grid) {
-    grid.querySelectorAll('.card-drop-before, .card-drop-after').forEach((el) => {
-      el.classList.remove('card-drop-before', 'card-drop-after');
-    });
-  }
-
-  target.classList.add(isLeftHalf ? 'card-drop-before' : 'card-drop-after');
-}
-
-export function handleDragLeave(e: DragEvent): void {
-  const target = e.currentTarget as HTMLElement;
-  target.classList.remove('drag-over', 'card-drop-before', 'card-drop-after');
+  // Indicator logic handled by grid-level handleGridDragOver
 }
 
 function computeMidpoint(
@@ -112,33 +95,14 @@ function computeMidpoint(
   return (prev + next) / 2;
 }
 
-export function handleDrop(e: DragEvent, renderCallback: () => void): void {
-  if (!draggedBookmark) return; // Not a bookmark drag — let event bubble for layout handling
-
-  e.stopPropagation();
-  e.preventDefault();
-
-  const targetElement = e.currentTarget as HTMLElement;
-  const targetCategoryId = targetElement.dataset.categoryId!;
-  const targetBookmarkId = targetElement.dataset.bookmarkId!;
-
-  // Read indicator class BEFORE cleaning up — guarantees drop matches what the user saw
-  const dropBefore = targetElement.classList.contains('card-drop-before')
-    || (!targetElement.classList.contains('card-drop-after') && e.clientX < targetElement.getBoundingClientRect().left + targetElement.getBoundingClientRect().width / 2);
-
-  // Claim the drag — prevents category-level handler from processing the same drop
-  const claimed = { ...draggedBookmark };
-  draggedBookmark = null;
-
-  // Clean up indicators
-  document.querySelectorAll('.card-drop-before, .card-drop-after').forEach((el) => {
-    el.classList.remove('card-drop-before', 'card-drop-after');
-  });
-
-  if (claimed.bookmarkId === targetBookmarkId) {
-    return;
-  }
-
+/** Core bookmark drop logic — shared by per-card and grid-level handlers. */
+function performBookmarkDrop(
+  claimed: { categoryId: string; bookmarkId: string; index: number },
+  targetCategoryId: string,
+  targetBookmarkId: string,
+  dropBefore: boolean,
+  renderCallback: () => void,
+): void {
   const categories = getCategories();
 
   if (isConvexMode()) {
@@ -263,8 +227,173 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
       }
     }
   }
+}
 
-  targetElement.classList.remove('drag-over');
+export function handleDrop(e: DragEvent, renderCallback: () => void): void {
+  if (!draggedBookmark) return; // Not a bookmark drag — let event bubble for layout handling
+  if (!_gridDropState) return; // No indicator — nothing to drop on
+
+  e.stopPropagation();
+  e.preventDefault();
+
+  const { categoryId: targetCategoryId, bookmarkId: targetBookmarkId, before: dropBefore } = _gridDropState;
+
+  // Claim the drag — prevents category-level handler from processing the same drop
+  const claimed = { ...draggedBookmark };
+  draggedBookmark = null;
+  _gridDropState = null;
+
+  // Clean up indicator
+  document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
+
+  if (claimed.bookmarkId === targetBookmarkId) return;
+
+  performBookmarkDrop(claimed, targetCategoryId, targetBookmarkId, dropBefore, renderCallback);
+}
+
+// --- Grid-level bookmark drag handlers (covers cards + gap dead zones) ---
+
+export function handleGridDragOver(e: DragEvent): void {
+  if (draggedLayoutItem) return; // Layout drag — let event bubble
+  if (!draggedBookmark) return;
+  e.preventDefault();
+  e.dataTransfer!.dropEffect = 'move';
+
+  const grid = e.currentTarget as HTMLElement;
+
+  // Clean previous indicator
+  grid.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
+  _gridDropState = null;
+
+  // Get all non-dragged bookmark cards (exclude add-bookmark and the dragged card)
+  const cards = Array.from(grid.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)'))
+    .filter((c) => c.dataset.bookmarkId !== draggedBookmark!.bookmarkId);
+  if (cards.length === 0) return;
+
+  // Group cards by row (cards with similar top position)
+  const rows: { top: number; bottom: number; cards: HTMLElement[] }[] = [];
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
+    const row = rows.find((r) => Math.abs(r.top - rect.top) < rect.height / 2);
+    if (row) {
+      row.cards.push(card);
+      row.bottom = Math.max(row.bottom, rect.bottom);
+    } else {
+      rows.push({ top: rect.top, bottom: rect.bottom, cards: [card] });
+    }
+  }
+  rows.sort((a, b) => a.top - b.top);
+
+  // Find the row the cursor is on (or nearest)
+  let targetRow = rows[0];
+  let minRowDist = Infinity;
+  for (const row of rows) {
+    if (e.clientY >= row.top && e.clientY <= row.bottom) {
+      targetRow = row;
+      minRowDist = 0;
+      break;
+    }
+    const dist = e.clientY < row.top ? row.top - e.clientY : e.clientY - row.bottom;
+    if (dist < minRowDist) {
+      minRowDist = dist;
+      targetRow = row;
+    }
+  }
+
+  // Sort cards left-to-right in the target row
+  targetRow.cards.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+
+  // Find nearest card by horizontal distance to center
+  let nearestCard: HTMLElement = targetRow.cards[0];
+  let nearestDist = Infinity;
+  for (const card of targetRow.cards) {
+    const rect = card.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const dist = Math.abs(e.clientX - centerX);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearestCard = card;
+    }
+  }
+
+  const cardRect = nearestCard.getBoundingClientRect();
+  const before = e.clientX < cardRect.left + cardRect.width / 2;
+  const idx = targetRow.cards.indexOf(nearestCard);
+
+  // Suppress indicator at origin spot — dropping here would be a no-op
+  if (draggedBookmark.categoryId === nearestCard.dataset.categoryId) {
+    const cat = getCategories().find((c) => c.id === draggedBookmark!.categoryId);
+    if (cat) {
+      const dragIdx = cat.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+      const targetIdx = cat.bookmarks.findIndex((b) => b.id === nearestCard.dataset.bookmarkId);
+      if ((before && targetIdx === dragIdx + 1) || (!before && targetIdx === dragIdx - 1)) {
+        return;
+      }
+    }
+  }
+
+  // Position a floating indicator at the gap center between adjacent cards
+  const gridRect = grid.getBoundingClientRect();
+  const indicator = document.createElement('div');
+  indicator.className = 'card-drop-indicator';
+
+  let indicatorX: number;
+  if (before) {
+    if (idx > 0) {
+      const prevRect = targetRow.cards[idx - 1].getBoundingClientRect();
+      indicatorX = (prevRect.right + cardRect.left) / 2;
+    } else {
+      indicatorX = cardRect.left; // First card — flush to left edge
+    }
+  } else {
+    if (idx < targetRow.cards.length - 1) {
+      const nextRect = targetRow.cards[idx + 1].getBoundingClientRect();
+      indicatorX = (cardRect.right + nextRect.left) / 2;
+    } else {
+      indicatorX = cardRect.right; // Last card — flush to right edge
+    }
+  }
+
+  indicator.style.left = `${indicatorX - gridRect.left - 2}px`;
+  indicator.style.top = `${cardRect.top - gridRect.top}px`;
+  indicator.style.height = `${cardRect.height}px`;
+
+  grid.appendChild(indicator);
+
+  _gridDropState = {
+    categoryId: nearestCard.dataset.categoryId!,
+    bookmarkId: nearestCard.dataset.bookmarkId!,
+    before,
+  };
+}
+
+export function handleGridDrop(e: DragEvent, renderCallback: () => void): void {
+  if (!draggedBookmark || !_gridDropState) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const { categoryId: targetCategoryId, bookmarkId: targetBookmarkId, before: dropBefore } = _gridDropState;
+
+  const claimed = { ...draggedBookmark };
+  draggedBookmark = null;
+  _gridDropState = null;
+
+  // Clean up indicator
+  document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
+
+  if (claimed.bookmarkId === targetBookmarkId) return;
+
+  performBookmarkDrop(claimed, targetCategoryId, targetBookmarkId, dropBefore, renderCallback);
+}
+
+export function handleGridDragLeave(e: DragEvent): void {
+  const grid = e.currentTarget as HTMLElement;
+  const relatedTarget = e.relatedTarget as Node | null;
+  // Only clear if cursor actually left the grid (not just moved to a child)
+  if (relatedTarget && grid.contains(relatedTarget)) return;
+  grid.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
+  _gridDropState = null;
 }
 
 export function handleCategoryDragOver(e: DragEvent): void {

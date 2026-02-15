@@ -8,8 +8,10 @@ import {
   handleDragStart,
   handleDragEnd,
   handleDragOver,
-  handleDragLeave,
   handleDrop,
+  handleGridDragOver,
+  handleGridDrop,
+  handleGridDragLeave,
   handleCategoryDragOver,
   handleCategoryDragLeave,
   handleCategoryDrop,
@@ -90,7 +92,6 @@ function wireBookmarkCards(el: HTMLElement): void {
     card.addEventListener('dragend', handleDragEnd as EventListener);
     card.addEventListener('dragover', handleDragOver as EventListener);
     card.addEventListener('drop', ((e: DragEvent) => handleDrop(e, renderCategories)) as EventListener);
-    card.addEventListener('dragleave', handleDragLeave as EventListener);
     card.addEventListener('mousemove', handleCardMouseMove as EventListener);
     card.addEventListener('mouseleave', handleCardMouseLeave as EventListener);
 
@@ -100,6 +101,14 @@ function wireBookmarkCards(el: HTMLElement): void {
       const url = card.dataset.url;
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     });
+  });
+
+  // Grid-level drag handlers for continuous drop zones (covers gaps between cards)
+  const grids = el.querySelectorAll<HTMLElement>('.bookmarks-grid');
+  grids.forEach((grid) => {
+    grid.addEventListener('dragover', handleGridDragOver as EventListener);
+    grid.addEventListener('drop', ((e: DragEvent) => handleGridDrop(e, renderCategories)) as EventListener);
+    grid.addEventListener('dragleave', handleGridDragLeave as EventListener);
   });
 }
 

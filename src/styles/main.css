@@ -468,6 +468,7 @@ h1 em {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: var(--space-md);
+    position: relative;
 }
 
 /* Bookmark Card - Hard edges, stark */
@@ -1178,6 +1179,12 @@ footer {
     opacity: 1;
 }
 
+.kofi-logo {
+    height: 1.1em;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
 /* Mobile toolbar — hidden on desktop */
 .mobile-toolbar {
     display: none;
@@ -1463,12 +1470,14 @@ footer {
     background: var(--accent-glow);
 }
 
-/* Card drop position indicators — vertical accent bar on left or right edge */
-.bookmark-card.card-drop-before {
-    box-shadow: -4px 0 0 0 var(--accent);
-}
-.bookmark-card.card-drop-after {
-    box-shadow: 4px 0 0 0 var(--accent);
+/* Card drop indicator — floating vertical bar centered in the grid gap */
+.card-drop-indicator {
+    position: absolute;
+    width: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
 }
 
 .bookmark-card:not(.add-bookmark) {
@@ -1619,7 +1628,8 @@ footer {
 
 .tab.dragging-tab {
     background: transparent !important;
-    opacity: 0.3;
+    color: transparent;
+    opacity: 0.15;
 }
 
 /* Tab reorder drop indicator — vertical accent line between tabs */
@@ -1629,6 +1639,12 @@ footer {
     background: var(--accent);
     flex-shrink: 0;
     pointer-events: none;
+}
+
+/* When indicator is at leftmost position (next to drag handle), use bg-primary
+   so it doesn't visually merge with the accent-colored handle in plain mode */
+html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
+    background: var(--bg-primary);
 }
 
 /* When hovering an inactive tab, preview-swap: dim the active tab to inactive */
@@ -1854,6 +1870,7 @@ footer {
     border-color: var(--accent);
     color: var(--bg-primary);
 }
+
 
 /* Utility */
 .hidden {

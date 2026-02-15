@@ -1,3 +1,5 @@
+import kofiLogo from './assets/kofi_logo.webp';
+
 export function renderApp(): void {
   const app = document.querySelector<HTMLDivElement>('#app')!;
   app.innerHTML = `
@@ -46,7 +48,7 @@ export function renderApp(): void {
       </div>
 
       <footer>
-        <a href="https://buymeacoffee.com/brutebookmarks" target="_blank" rel="noopener noreferrer" class="footer-contact">Buy Me a Coffee</a>
+        <a href="https://ko-fi.com/hntbo" target="_blank" rel="noopener noreferrer" class="footer-contact">Buy me a <img src="${kofiLogo}" alt="Ko-fi" class="kofi-logo"></a>
         <a href="mailto:contact@brutebookmarks.com" class="footer-contact">contact@brutebookmarks.com</a>
         <span class="footer-text">Icons via <a href="https://commons.wikimedia.org" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> · Emoji by <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener noreferrer">Twemoji</a> (CC-BY 4.0)</span>
       </footer>
