@@ -1,24 +1,25 @@
 export function handleCardMouseMove(e: MouseEvent): void {
   const card = e.currentTarget as HTMLElement;
   const rect = card.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
 
-  const proximityRadius = 45;
-  const btnOffset = 14; // 4px offset + half of 20px button
+  // Proximity radius scales with card size (matches CSS % button sizing)
+  const proximityRadius = Math.max(25, rect.width * 0.35);
 
   const editBtn = card.querySelector<HTMLElement>('.edit-btn');
   const deleteBtn = card.querySelector<HTMLElement>('.delete-btn');
 
-  const editDistance = Math.sqrt(Math.pow(mouseX - btnOffset, 2) + Math.pow(mouseY - btnOffset, 2));
-  const deleteDistance = Math.sqrt(Math.pow(mouseX - (rect.width - btnOffset), 2) + Math.pow(mouseY - btnOffset, 2));
-
   if (editBtn) {
-    editBtn.classList.toggle('visible', editDistance <= proximityRadius);
+    const br = editBtn.getBoundingClientRect();
+    const dx = e.clientX - (br.left + br.width / 2);
+    const dy = e.clientY - (br.top + br.height / 2);
+    editBtn.classList.toggle('visible', Math.sqrt(dx * dx + dy * dy) <= proximityRadius);
   }
 
   if (deleteBtn) {
-    deleteBtn.classList.toggle('visible', deleteDistance <= proximityRadius);
+    const br = deleteBtn.getBoundingClientRect();
+    const dx = e.clientX - (br.left + br.width / 2);
+    const dy = e.clientY - (br.top + br.height / 2);
+    deleteBtn.classList.toggle('visible', Math.sqrt(dx * dx + dy * dy) <= proximityRadius);
   }
 }
 
