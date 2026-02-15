@@ -7,8 +7,10 @@ import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark
 import type { Category } from '../../types';
 import { getAppMode } from '../../data/local-storage';
 import { getFoundingMemberStats } from '../../data/founding-stats';
+import { pushUndo } from '../../features/undo';
 
 let settingsBusy = false;
+let accentPickerOldColor: string | null = null;
 
 export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
@@ -290,7 +292,30 @@ export function initSettingsModal(): void {
   });
 
   document.getElementById('accent-color-picker')!.addEventListener('input', (e) => {
+    if (accentPickerOldColor === null) {
+      accentPickerOldColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    }
     updateAccentColor((e.target as HTMLInputElement).value);
+  });
+
+  document.getElementById('accent-color-picker')!.addEventListener('change', (e) => {
+    const newColor = (e.target as HTMLInputElement).value;
+    if (accentPickerOldColor !== null && accentPickerOldColor !== newColor) {
+      const oldColor = accentPickerOldColor;
+      pushUndo({
+        undo: () => {
+          updateAccentColor(oldColor);
+          const p = document.getElementById('accent-color-picker') as HTMLInputElement | null;
+          if (p) p.value = oldColor;
+        },
+        redo: () => {
+          updateAccentColor(newColor);
+          const p = document.getElementById('accent-color-picker') as HTMLInputElement | null;
+          if (p) p.value = newColor;
+        },
+      });
+    }
+    accentPickerOldColor = null;
   });
 
   document.getElementById('reset-accent-btn')!.addEventListener('click', resetAccentColor);

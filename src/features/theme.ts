@@ -1,5 +1,6 @@
 import { savePreferencesToConvex, isApplyingFromConvex } from '../data/store';
 import { collectPreferences, applyWireframeForCurrentTheme } from './preferences';
+import { pushUndo, isUndoing } from './undo';
 
 let currentTheme = localStorage.getItem('theme') || 'dark';
 
@@ -19,13 +20,29 @@ function syncToConvex(): void {
   savePreferencesToConvex(collectPreferences);
 }
 
+function setThemeDirectly(theme: string): void {
+  currentTheme = theme;
+  applyThemeToDOM();
+  localStorage.setItem('theme', currentTheme);
+  applyWireframeForCurrentTheme();
+  syncToConvex();
+}
+
 export function toggleTheme(): void {
+  const oldTheme = currentTheme;
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
   applyThemeToDOM();
   localStorage.setItem('theme', currentTheme);
   // Re-apply wireframe for the new theme (each theme has its own wireframe state)
   applyWireframeForCurrentTheme();
   syncToConvex();
+  if (!isUndoing()) {
+    const newTheme = currentTheme;
+    pushUndo({
+      undo: () => setThemeDirectly(oldTheme),
+      redo: () => setThemeDirectly(newTheme),
+    });
+  }
 }
 
 /** Apply theme from Convex subscription — updates state + DOM + localStorage, no save back. */
@@ -179,12 +196,26 @@ export function randomizeAccentHue(): void {
   const rgb = parseColorToRgb(currentAccent);
   if (!rgb) return;
 
+  const oldColor = currentAccent;
   const { s, l } = rgbToHsl(rgb.r, rgb.g, rgb.b);
   const nextHue = Math.floor(Math.random() * 360);
-  updateAccentColor(hslToHex(nextHue, s, l));
+  const newColor = hslToHex(nextHue, s, l);
+  updateAccentColor(newColor);
+  if (!isUndoing()) {
+    pushUndo({
+      undo: () => { updateAccentColor(oldColor); syncPickerToAccent(oldColor); },
+      redo: () => { updateAccentColor(newColor); syncPickerToAccent(newColor); },
+    });
+  }
+}
+
+function syncPickerToAccent(color: string): void {
+  const picker = document.getElementById('accent-color-picker') as HTMLInputElement | null;
+  if (picker) picker.value = color;
 }
 
 export function resetAccentColor(): void {
+  const oldColor = localStorage.getItem(`accentColor_${currentTheme}`);
   localStorage.removeItem(`accentColor_${currentTheme}`);
   document.documentElement.style.removeProperty('--accent');
 
@@ -194,6 +225,12 @@ export function resetAccentColor(): void {
     if (picker) picker.value = defaultColor;
   }, 10);
   syncToConvex();
+  if (!isUndoing() && oldColor) {
+    pushUndo({
+      undo: () => { updateAccentColor(oldColor); syncPickerToAccent(oldColor); },
+      redo: () => resetAccentColor(),
+    });
+  }
 }
 
 export function syncThemeUI(): void {

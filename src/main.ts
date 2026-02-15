@@ -9,6 +9,7 @@ import { initSettingsModal, openSettingsModal, closeSettingsModal } from './comp
 import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
+import { undo, redo, setAfterUndoRedoCallback, beginGroup, endGroup } from './features/undo';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
@@ -57,9 +58,11 @@ document.getElementById('brand-u')?.addEventListener('click', (e) => {
 document.getElementById('brand-r')?.addEventListener('click', (e) => {
   if (!getEasterEggs() || isMobileQuery.matches) return;
   e.stopPropagation();
+  beginGroup();
   randomizeAccentHue();
   randomizeBarscale();
   randomizeWireframe();
+  endGroup();
   syncWireframeBtnState();
 });
 
@@ -70,9 +73,11 @@ document.getElementById('brand-brute')?.addEventListener('click', () => {
 });
 document.getElementById('brand-bookmarks')?.addEventListener('click', () => {
   if (!getEasterEggs() || !isMobileQuery.matches) return;
+  beginGroup();
   randomizeAccentHue();
   randomizeBarscale();
   randomizeWireframe();
+  endGroup();
   syncWireframeBtnState();
 });
 
@@ -129,6 +134,23 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+  // Undo/Redo — skip when typing in form inputs
+  const tag = (e.target as HTMLElement).tagName;
+  if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if ((e.key === 'z' && e.shiftKey) || (e.key === 'y' && !e.shiftKey)) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+    }
+  }
+
   if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'd') {
     e.preventDefault();
     toggleTheme();
@@ -169,6 +191,12 @@ async function init(): Promise<void> {
 
   // Load bookmarks first — don't wait for auth
   await initializeData();
+
+  // Register post-undo/redo UI sync
+  setAfterUndoRedoCallback(() => {
+    syncWireframeBtnState();
+    (window as any).__refreshSizeHandle?.();
+  });
 
   // Sync UI controls with restored preferences
   syncThemeUI();

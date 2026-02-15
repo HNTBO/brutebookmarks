@@ -1,10 +1,11 @@
-import type { Category, TabGroup, LayoutItem, UserPreferences } from '../types';
+import type { Bookmark, Category, TabGroup, LayoutItem, UserPreferences } from '../types';
 import { getConvexClient } from './convex-client';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { DEFAULT_LAYOUT } from './defaults';
 import { styledConfirm, styledAlert } from '../components/modals/confirm-modal';
 import { getAppMode } from './local-storage';
+import { pushUndo, isUndoing } from '../features/undo';
 
 // --- State ---
 let _categories: Category[] = [];
@@ -342,18 +343,33 @@ export function seedLocalDefaults(): void {
 
 // --- Mutation helpers ---
 
-export async function createCategory(name: string): Promise<void> {
+export async function createCategory(name: string): Promise<string> {
+  let newId: string;
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.categories.create, { name });
+    newId = await client.mutation(api.categories.create, { name });
   } else {
-    _categories.push({ id: 'c' + Date.now(), name, bookmarks: [] });
+    newId = 'c' + Date.now();
+    _categories.push({ id: newId, name, bookmarks: [] });
     saveData();
     rerender();
   }
+  if (!isUndoing()) {
+    const ref = { currentId: newId };
+    pushUndo({
+      undo: () => deleteCategory(ref.currentId),
+      redo: async () => { ref.currentId = await createCategory(name); },
+    });
+  }
+  return newId;
 }
 
 export async function updateCategory(id: string, name: string): Promise<void> {
+  let oldName: string | undefined;
+  if (!isUndoing()) {
+    const cat = _categories.find((c) => c.id === id);
+    if (cat) oldName = cat.name;
+  }
   if (_convexActive) {
     const client = getConvexClient()!;
     await client.mutation(api.categories.update, {
@@ -366,9 +382,22 @@ export async function updateCategory(id: string, name: string): Promise<void> {
     saveData();
     rerender();
   }
+  if (!isUndoing() && oldName !== undefined) {
+    pushUndo({
+      undo: () => updateCategory(id, oldName!),
+      redo: () => updateCategory(id, name),
+    });
+  }
 }
 
 export async function deleteCategory(id: string): Promise<void> {
+  let capturedData: { name: string; bookmarks: Bookmark[] } | undefined;
+  if (!isUndoing()) {
+    const cat = _categories.find((c) => c.id === id);
+    if (cat) {
+      capturedData = { name: cat.name, bookmarks: cat.bookmarks.map((b) => ({ ...b })) };
+    }
+  }
   if (_convexActive) {
     const client = getConvexClient()!;
     await client.mutation(api.categories.remove, {
@@ -379,6 +408,19 @@ export async function deleteCategory(id: string): Promise<void> {
     saveData();
     rerender();
   }
+  if (!isUndoing() && capturedData) {
+    const data = capturedData;
+    const ref = { currentId: id };
+    pushUndo({
+      undo: async () => {
+        ref.currentId = await createCategory(data.name);
+        for (const bk of data.bookmarks) {
+          await createBookmark(ref.currentId, bk.title, bk.url, bk.iconPath);
+        }
+      },
+      redo: () => deleteCategory(ref.currentId),
+    });
+  }
 }
 
 export async function createBookmark(
@@ -386,23 +428,33 @@ export async function createBookmark(
   title: string,
   url: string,
   iconPath: string | null,
-): Promise<void> {
+): Promise<string> {
+  let newId: string;
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.bookmarks.create, {
+    newId = await client.mutation(api.bookmarks.create, {
       categoryId: categoryId as Id<'categories'>,
       title,
       url,
       iconPath: iconPath ?? undefined,
     });
   } else {
+    newId = 'b' + Date.now();
     const cat = _categories.find((c) => c.id === categoryId);
     if (cat) {
-      cat.bookmarks.push({ id: 'b' + Date.now(), title, url, iconPath });
+      cat.bookmarks.push({ id: newId, title, url, iconPath });
     }
     saveData();
     rerender();
   }
+  if (!isUndoing()) {
+    const ref = { currentId: newId };
+    pushUndo({
+      undo: () => deleteBookmarkById(ref.currentId),
+      redo: async () => { ref.currentId = await createBookmark(categoryId, title, url, iconPath); },
+    });
+  }
+  return newId;
 }
 
 export async function updateBookmark(
@@ -412,6 +464,22 @@ export async function updateBookmark(
   iconPath: string | null,
   categoryId?: string,
 ): Promise<void> {
+  let oldTitle: string | undefined;
+  let oldUrl: string | undefined;
+  let oldIconPath: string | null = null;
+  let oldCategoryId: string | undefined;
+  if (!isUndoing()) {
+    for (const cat of _categories) {
+      const bk = cat.bookmarks.find((b) => b.id === id);
+      if (bk) {
+        oldTitle = bk.title;
+        oldUrl = bk.url;
+        oldIconPath = bk.iconPath;
+        oldCategoryId = cat.id;
+        break;
+      }
+    }
+  }
   if (_convexActive) {
     const client = getConvexClient()!;
     await client.mutation(api.bookmarks.update, {
@@ -423,7 +491,7 @@ export async function updateBookmark(
     });
   } else {
     let sourceCat: Category | undefined;
-    let bookmark: import('../types').Bookmark | undefined;
+    let bookmark: Bookmark | undefined;
     for (const cat of _categories) {
       const bk = cat.bookmarks.find((b) => b.id === id);
       if (bk) {
@@ -446,9 +514,28 @@ export async function updateBookmark(
     saveData();
     rerender();
   }
+  if (!isUndoing() && oldTitle !== undefined) {
+    const ot = oldTitle, ou = oldUrl!, oi = oldIconPath, oc = oldCategoryId;
+    pushUndo({
+      undo: () => updateBookmark(id, ot, ou, oi, oc),
+      redo: () => updateBookmark(id, title, url, iconPath, categoryId),
+    });
+  }
 }
 
 export async function deleteBookmarkById(id: string): Promise<void> {
+  let capturedCatId: string | undefined;
+  let capturedBk: Bookmark | undefined;
+  if (!isUndoing()) {
+    for (const cat of _categories) {
+      const bk = cat.bookmarks.find((b) => b.id === id);
+      if (bk) {
+        capturedCatId = cat.id;
+        capturedBk = { ...bk };
+        break;
+      }
+    }
+  }
   if (_convexActive) {
     const client = getConvexClient()!;
     await client.mutation(api.bookmarks.remove, {
@@ -464,6 +551,15 @@ export async function deleteBookmarkById(id: string): Promise<void> {
     }
     saveData();
     rerender();
+  }
+  if (!isUndoing() && capturedBk && capturedCatId) {
+    const bk = capturedBk;
+    const catId = capturedCatId;
+    const ref = { currentId: id };
+    pushUndo({
+      undo: async () => { ref.currentId = await createBookmark(catId, bk.title, bk.url, bk.iconPath); },
+      redo: () => deleteBookmarkById(ref.currentId),
+    });
   }
 }
 

@@ -1,6 +1,7 @@
 import type { UserPreferences } from '../types';
 import { savePreferencesToConvex } from '../data/store';
 import { getCurrentTheme, getAccentColorDark, getAccentColorLight } from './theme';
+import { pushUndo, isUndoing } from './undo';
 
 let currentCardSize = parseInt(localStorage.getItem('cardSize') || '90');
 let currentPageWidth = parseInt(localStorage.getItem('pageWidth') || '100');
@@ -98,10 +99,17 @@ export function updatePageWidth(width: number): void {
 }
 
 export function toggleCardNames(show: boolean, renderCallback: () => void): void {
+  const old = showCardNames;
   showCardNames = show;
   localStorage.setItem('showCardNames', String(showCardNames));
   renderCallback();
   syncToConvex();
+  if (!isUndoing()) {
+    pushUndo({
+      undo: () => toggleCardNames(old, renderCallback),
+      redo: () => toggleCardNames(show, renderCallback),
+    });
+  }
 }
 
 export function toggleAutofillUrl(enabled: boolean): void {
@@ -208,18 +216,40 @@ function applyBarscaleToDOM(): void {
   document.documentElement.style.setProperty('--bar-height', `${BARSCALE_PX[currentBarscale]}px`);
 }
 
-export function cycleBarscale(): void {
-  const idx = BARSCALE_CYCLE.indexOf(currentBarscale);
-  currentBarscale = BARSCALE_CYCLE[(idx + 1) % BARSCALE_CYCLE.length];
+function setBarscaleDirectly(size: BarscaleSize): void {
+  currentBarscale = size;
   localStorage.setItem('barscale', currentBarscale);
   applyBarscaleToDOM();
 }
 
+export function cycleBarscale(): void {
+  const old = currentBarscale;
+  const idx = BARSCALE_CYCLE.indexOf(currentBarscale);
+  currentBarscale = BARSCALE_CYCLE[(idx + 1) % BARSCALE_CYCLE.length];
+  localStorage.setItem('barscale', currentBarscale);
+  applyBarscaleToDOM();
+  if (!isUndoing()) {
+    const newVal = currentBarscale;
+    pushUndo({
+      undo: () => setBarscaleDirectly(old),
+      redo: () => setBarscaleDirectly(newVal),
+    });
+  }
+}
+
 export function randomizeBarscale(): void {
+  const old = currentBarscale;
   const others = BARSCALE_CYCLE.filter((s) => s !== currentBarscale);
   currentBarscale = others[Math.floor(Math.random() * others.length)];
   localStorage.setItem('barscale', currentBarscale);
   applyBarscaleToDOM();
+  if (!isUndoing()) {
+    const newVal = currentBarscale;
+    pushUndo({
+      undo: () => setBarscaleDirectly(old),
+      redo: () => setBarscaleDirectly(newVal),
+    });
+  }
 }
 
 // --- Wireframe ---
@@ -242,8 +272,16 @@ function saveWireframeState(): void {
   syncToConvex();
 }
 
+function setWireframeState(theme: string, val: boolean): void {
+  if (theme === 'dark') wireframeDark = val;
+  else wireframeLight = val;
+  saveWireframeState();
+  applyWireframeToDOM();
+}
+
 export function toggleWireframe(): void {
   const theme = getCurrentTheme();
+  const oldVal = theme === 'dark' ? wireframeDark : wireframeLight;
   if (theme === 'dark') {
     wireframeDark = !wireframeDark;
   } else {
@@ -251,10 +289,18 @@ export function toggleWireframe(): void {
   }
   saveWireframeState();
   applyWireframeToDOM();
+  if (!isUndoing()) {
+    const newVal = !oldVal;
+    pushUndo({
+      undo: () => setWireframeState(theme, oldVal),
+      redo: () => setWireframeState(theme, newVal),
+    });
+  }
 }
 
 export function randomizeWireframe(): void {
   const theme = getCurrentTheme();
+  const oldVal = theme === 'dark' ? wireframeDark : wireframeLight;
   const val = Math.random() > 0.5;
   if (theme === 'dark') {
     wireframeDark = val;
@@ -263,6 +309,12 @@ export function randomizeWireframe(): void {
   }
   saveWireframeState();
   applyWireframeToDOM();
+  if (!isUndoing()) {
+    pushUndo({
+      undo: () => setWireframeState(theme, oldVal),
+      redo: () => setWireframeState(theme, val),
+    });
+  }
 }
 
 /** Called after theme toggle — re-apply the wireframe state for the new theme. */

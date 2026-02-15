@@ -12,9 +12,35 @@ import {
   mergeTabGroups,
 } from '../data/store';
 import type { LayoutItem } from '../types';
+import { pushUndo, isUndoing } from './undo';
 
 let draggedElement: HTMLElement | null = null;
 let draggedBookmark: { categoryId: string; bookmarkId: string; index: number } | null = null;
+
+// Undo helpers for local mode
+function restoreLocalOrder(categoryId: string, ids: string[], renderCallback: () => void): void {
+  const cat = getCategories().find((c) => c.id === categoryId);
+  if (!cat) return;
+  const bkMap = new Map(cat.bookmarks.map((b) => [b.id, b]));
+  cat.bookmarks = ids.map((id) => bkMap.get(id)).filter(Boolean) as typeof cat.bookmarks;
+  saveData();
+  renderCallback();
+}
+
+function moveBookmarkLocal(
+  bkId: string, fromCatId: string, toCatId: string, insertIdx: number, renderCallback: () => void,
+): void {
+  const cats = getCategories();
+  const from = cats.find((c) => c.id === fromCatId);
+  const to = cats.find((c) => c.id === toCatId);
+  if (!from || !to) return;
+  const i = from.bookmarks.findIndex((b) => b.id === bkId);
+  if (i === -1) return;
+  const [m] = from.bookmarks.splice(i, 1);
+  to.bookmarks.splice(Math.min(insertIdx, to.bookmarks.length), 0, m);
+  saveData();
+  renderCallback();
+}
 
 // --- Category / layout item drag state ---
 let draggedLayoutItem: { type: 'category' | 'tabGroup'; id: string } | null = null;
@@ -92,6 +118,7 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
 
       // Local optimistic splice for instant feedback
       const sourceIndex = category.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+      const oldOrder = sourceIndex !== -1 ? (category.bookmarks[sourceIndex].order ?? 0) : 0;
       if (sourceIndex !== -1) {
         const [moved] = category.bookmarks.splice(sourceIndex, 1);
         const insertAt = sourceIndex < targetIndex ? targetIndex : targetIndex;
@@ -100,7 +127,14 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
       }
 
       const newOrder = computeMidpoint(category.bookmarks, targetIndex);
-      reorderBookmark(draggedBookmark.bookmarkId, newOrder);
+      const bkId = draggedBookmark.bookmarkId;
+      reorderBookmark(bkId, newOrder);
+      if (!isUndoing()) {
+        pushUndo({
+          undo: () => reorderBookmark(bkId, oldOrder),
+          redo: () => reorderBookmark(bkId, newOrder),
+        });
+      }
     } else {
       const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
       const targetCategory = categories.find((c) => c.id === targetCategoryId);
@@ -111,6 +145,8 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
 
       // Local optimistic splice
       const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+      const oldOrder = sourceIndex !== -1 ? (sourceCategory.bookmarks[sourceIndex].order ?? 0) : 0;
+      const sourceCatId = draggedBookmark!.categoryId;
       if (sourceIndex !== -1) {
         const [moved] = sourceCategory.bookmarks.splice(sourceIndex, 1);
         targetCategory.bookmarks.splice(targetIndex, 0, moved);
@@ -118,7 +154,14 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
       }
 
       const newOrder = computeMidpoint(targetCategory.bookmarks, targetIndex);
-      reorderBookmark(draggedBookmark.bookmarkId, newOrder, targetCategoryId);
+      const bkId = draggedBookmark.bookmarkId;
+      reorderBookmark(bkId, newOrder, targetCategoryId);
+      if (!isUndoing()) {
+        pushUndo({
+          undo: () => reorderBookmark(bkId, oldOrder, sourceCatId),
+          redo: () => reorderBookmark(bkId, newOrder, targetCategoryId),
+        });
+      }
     }
   } else {
     // Legacy splice-based reorder
@@ -130,8 +173,17 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
       const targetIndex = category.bookmarks.findIndex((b) => b.id === targetBookmarkId);
 
       if (sourceIndex !== -1 && targetIndex !== -1) {
+        const beforeIds = category.bookmarks.map((b) => b.id);
         const [movedBookmark] = category.bookmarks.splice(sourceIndex, 1);
         category.bookmarks.splice(targetIndex, 0, movedBookmark);
+        if (!isUndoing()) {
+          const afterIds = category.bookmarks.map((b) => b.id);
+          const catId = targetCategoryId;
+          pushUndo({
+            undo: () => restoreLocalOrder(catId, beforeIds, renderCallback),
+            redo: () => restoreLocalOrder(catId, afterIds, renderCallback),
+          });
+        }
         saveData();
         renderCallback();
       }
@@ -145,8 +197,19 @@ export function handleDrop(e: DragEvent, renderCallback: () => void): void {
       const targetIndex = targetCategory.bookmarks.findIndex((b) => b.id === targetBookmarkId);
 
       if (sourceIndex !== -1 && targetIndex !== -1) {
+        const bkId = draggedBookmark!.bookmarkId;
+        const srcCatId = draggedBookmark!.categoryId;
+        const origIdx = sourceIndex;
         const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
         targetCategory.bookmarks.splice(targetIndex, 0, movedBookmark);
+        if (!isUndoing()) {
+          const tgtCatId = targetCategoryId;
+          const tgtIdx = targetIndex;
+          pushUndo({
+            undo: () => moveBookmarkLocal(bkId, tgtCatId, srcCatId, origIdx, renderCallback),
+            redo: () => moveBookmarkLocal(bkId, srcCatId, tgtCatId, tgtIdx, renderCallback),
+          });
+        }
         saveData();
         renderCallback();
       }
@@ -200,8 +263,13 @@ export function executeCategoryDrop(e: DragEvent, targetCategoryId: string, rend
     const targetCategory = categories.find((c) => c.id === targetCategoryId);
     if (!sourceCategory || !targetCategory) return;
 
-    // Local optimistic splice
+    // Capture before state
     const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
+    const oldOrder = sourceIndex !== -1 ? (sourceCategory.bookmarks[sourceIndex].order ?? 0) : 0;
+    const sourceCatId = draggedBookmark!.categoryId;
+    const bkId = draggedBookmark.bookmarkId;
+
+    // Local optimistic splice
     if (sourceIndex !== -1) {
       const [moved] = sourceCategory.bookmarks.splice(sourceIndex, 1);
       targetCategory.bookmarks.push(moved);
@@ -212,7 +280,14 @@ export function executeCategoryDrop(e: DragEvent, targetCategoryId: string, rend
     const lastOrder = targetCategory.bookmarks.length > 0
       ? Math.max(...targetCategory.bookmarks.map((b) => b.order ?? 0))
       : 0;
-    reorderBookmark(draggedBookmark.bookmarkId, lastOrder + 1, targetCategoryId);
+    const newOrder = lastOrder + 1;
+    reorderBookmark(bkId, newOrder, targetCategoryId);
+    if (!isUndoing()) {
+      pushUndo({
+        undo: () => reorderBookmark(bkId, oldOrder, sourceCatId),
+        redo: () => reorderBookmark(bkId, newOrder, targetCategoryId),
+      });
+    }
   } else {
     const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
     const targetCategory = categories.find((c) => c.id === targetCategoryId);
@@ -222,8 +297,18 @@ export function executeCategoryDrop(e: DragEvent, targetCategoryId: string, rend
     const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
 
     if (sourceIndex !== -1) {
+      const bkId = draggedBookmark!.bookmarkId;
+      const srcCatId = draggedBookmark!.categoryId;
+      const origIdx = sourceIndex;
       const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
       targetCategory.bookmarks.push(movedBookmark);
+      if (!isUndoing()) {
+        const tgtCatId = targetCategoryId;
+        pushUndo({
+          undo: () => moveBookmarkLocal(bkId, tgtCatId, srcCatId, origIdx, renderCallback),
+          redo: () => moveBookmarkLocal(bkId, srcCatId, tgtCatId, targetCategory.bookmarks.length - 1, renderCallback),
+        });
+      }
       saveData();
       renderCallback();
     }
@@ -500,10 +585,19 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
     : prev + 2;
   const newOrder = (prev + next) / 2;
 
+  const oldOrder = orderList[sourceIndex];
   if (draggedLayoutItem.type === 'category') {
     reorderCategory(draggedLayoutItem.id, newOrder);
   } else {
     reorderTabGroup(draggedLayoutItem.id, newOrder);
+  }
+  if (!isUndoing()) {
+    const itemId = draggedLayoutItem.id;
+    const itemType = draggedLayoutItem.type;
+    pushUndo({
+      undo: () => { if (itemType === 'category') reorderCategory(itemId, oldOrder); else reorderTabGroup(itemId, oldOrder); },
+      redo: () => { if (itemType === 'category') reorderCategory(itemId, newOrder); else reorderTabGroup(itemId, newOrder); },
+    });
   }
 
   // No renderCallback() here — Convex subscription will re-render with the correct new order.

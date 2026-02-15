@@ -1,9 +1,12 @@
 import { getCardSize, getPageWidth, updateCardSize, updatePageWidth } from '../features/preferences';
+import { pushUndo, isUndoing } from '../features/undo';
 
 export function initSizeController(): void {
   const controller = document.getElementById('size-controller')!;
   const handle = document.getElementById('size-handle')!;
   let isDragging = false;
+  let dragStartCardSize: number | undefined;
+  let dragStartPageWidth: number | undefined;
 
   function updateHandlePosition(): void {
     const rect = controller.getBoundingClientRect();
@@ -23,6 +26,8 @@ export function initSizeController(): void {
   function startDrag(e: MouseEvent | TouchEvent): void {
     isDragging = true;
     handle.classList.add('dragging');
+    dragStartCardSize = getCardSize();
+    dragStartPageWidth = getPageWidth();
     e.preventDefault();
   }
 
@@ -52,8 +57,22 @@ export function initSizeController(): void {
   }
 
   function stopDrag(): void {
+    if (isDragging && dragStartCardSize !== undefined && dragStartPageWidth !== undefined) {
+      const endCS = getCardSize();
+      const endPW = getPageWidth();
+      if (endCS !== dragStartCardSize || endPW !== dragStartPageWidth) {
+        const oldCS = dragStartCardSize;
+        const oldPW = dragStartPageWidth;
+        pushUndo({
+          undo: () => { updateCardSize(oldCS); updatePageWidth(oldPW); updateHandlePosition(); },
+          redo: () => { updateCardSize(endCS); updatePageWidth(endPW); updateHandlePosition(); },
+        });
+      }
+    }
     isDragging = false;
     handle.classList.remove('dragging');
+    dragStartCardSize = undefined;
+    dragStartPageWidth = undefined;
   }
 
   handle.addEventListener('mousedown', startDrag);
@@ -66,6 +85,8 @@ export function initSizeController(): void {
 
   controller.addEventListener('click', (e) => {
     if (e.target === handle) return;
+    const oldCS = getCardSize();
+    const oldPW = getPageWidth();
     const rect = controller.getBoundingClientRect();
     const handleRadius = 8;
     const innerWidth = rect.width - handleRadius * 2;
@@ -83,6 +104,12 @@ export function initSizeController(): void {
     updateCardSize(newCardSize);
     updatePageWidth(newPageWidth);
     updateHandlePosition();
+    if (!isUndoing() && (newCardSize !== oldCS || newPageWidth !== oldPW)) {
+      pushUndo({
+        undo: () => { updateCardSize(oldCS); updatePageWidth(oldPW); updateHandlePosition(); },
+        redo: () => { updateCardSize(newCardSize); updatePageWidth(newPageWidth); updateHandlePosition(); },
+      });
+    }
   });
 
   setTimeout(updateHandlePosition, 0);
