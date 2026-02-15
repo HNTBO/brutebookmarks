@@ -155,6 +155,33 @@ export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
   }, 500);
 }
 
+/**
+ * Flush any pending debounced preference save immediately.
+ * Called on mouseup / click in the size controller to ensure
+ * card size and page width are persisted before a potential refresh.
+ */
+export function flushPreferencesToConvex(getPrefs: () => UserPreferences): void {
+  if (!_convexActive || _applyingFromConvex) return;
+  if (_prefsSaveTimer) {
+    clearTimeout(_prefsSaveTimer);
+    _prefsSaveTimer = null;
+  }
+  const client = getConvexClient();
+  if (!client) return;
+  const prefs = getPrefs();
+  client.mutation(api.preferences.set, {
+    theme: prefs.theme,
+    accentColorDark: prefs.accentColorDark ?? undefined,
+    accentColorLight: prefs.accentColorLight ?? undefined,
+    wireframeDark: prefs.wireframeDark,
+    wireframeLight: prefs.wireframeLight,
+    cardSize: prefs.cardSize,
+    pageWidth: prefs.pageWidth,
+    showCardNames: prefs.showCardNames,
+    autofillUrl: prefs.autofillUrl ?? undefined,
+  }).catch((err) => console.error('[Store] Failed to flush preferences:', err));
+}
+
 /** True when applying preferences from a Convex subscription (prevents save loops). */
 export function isApplyingFromConvex(): boolean {
   return _applyingFromConvex;

@@ -350,10 +350,11 @@ export function renderCategories(): void {
     }
   });
 
-  // Container-level layout drag handlers — attach only once
+  // Document-level layout drag handlers — extend drop zone beyond the container
+  // (allows dropping when cursor is above the container, e.g. in header area)
   if (!containerListenersAttached) {
-    container.addEventListener('dragover', handleLayoutDragOver as EventListener);
-    container.addEventListener('drop', ((e: DragEvent) => handleLayoutDrop(e, renderCategories)) as EventListener);
+    document.addEventListener('dragover', handleLayoutDragOver as EventListener);
+    document.addEventListener('drop', ((e: DragEvent) => handleLayoutDrop(e, renderCategories)) as EventListener);
     containerListenersAttached = true;
   }
 

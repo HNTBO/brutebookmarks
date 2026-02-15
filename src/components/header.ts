@@ -1,4 +1,4 @@
-import { getCardSize, getPageWidth, updateCardSize, updatePageWidth } from '../features/preferences';
+import { getCardSize, getPageWidth, updateCardSize, updatePageWidth, flushSyncToConvex } from '../features/preferences';
 import { pushUndo, isUndoing } from '../features/undo';
 
 export function initSizeController(): void {
@@ -73,6 +73,7 @@ export function initSizeController(): void {
     handle.classList.remove('dragging');
     dragStartCardSize = undefined;
     dragStartPageWidth = undefined;
+    flushSyncToConvex();
   }
 
   handle.addEventListener('mousedown', startDrag);
@@ -104,6 +105,7 @@ export function initSizeController(): void {
     updateCardSize(newCardSize);
     updatePageWidth(newPageWidth);
     updateHandlePosition();
+    flushSyncToConvex();
     if (!isUndoing() && (newCardSize !== oldCS || newPageWidth !== oldPW)) {
       pushUndo({
         undo: () => { updateCardSize(oldCS); updatePageWidth(oldPW); updateHandlePosition(); },

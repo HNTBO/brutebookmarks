@@ -494,7 +494,9 @@ export function handleLayoutDragOver(e: DragEvent): void {
   e.preventDefault();
   e.dataTransfer!.dropEffect = 'move';
 
-  const container = e.currentTarget as HTMLElement;
+  const container = document.getElementById('categories-container');
+  if (!container) return;
+
   // Clean up visual feedback
   container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
   container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
@@ -544,7 +546,8 @@ export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void
   if (!draggedLayoutItem) return;
   e.preventDefault();
 
-  const container = e.currentTarget as HTMLElement;
+  const container = document.getElementById('categories-container');
+  if (!container) { draggedLayoutItem = null; return; }
   container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
   container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
 

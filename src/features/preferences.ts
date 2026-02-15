@@ -1,5 +1,5 @@
 import type { UserPreferences } from '../types';
-import { savePreferencesToConvex } from '../data/store';
+import { savePreferencesToConvex, flushPreferencesToConvex } from '../data/store';
 import { getCurrentTheme, getAccentColorDark, getAccentColorLight } from './theme';
 import { pushUndo, isUndoing } from './undo';
 
@@ -82,6 +82,11 @@ export function collectPreferences(): UserPreferences {
 
 function syncToConvex(): void {
   savePreferencesToConvex(collectPreferences);
+}
+
+/** Flush any pending debounced preference save immediately. */
+export function flushSyncToConvex(): void {
+  flushPreferencesToConvex(collectPreferences);
 }
 
 export function updateCardSize(size: number): void {
