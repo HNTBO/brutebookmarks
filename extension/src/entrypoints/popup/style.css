@@ -334,6 +334,103 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* Wireframe mode */
+[data-wireframe] .popup-header {
+  background: transparent;
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+[data-wireframe] .header-title {
+  background: var(--bg-primary);
+  color: var(--accent);
+}
+
+[data-wireframe] .header-title span {
+  opacity: 1;
+  margin-left: 0;
+  color: var(--bg-primary);
+  -webkit-text-stroke: 2px var(--accent);
+  paint-order: stroke fill;
+}
+
+[data-wireframe] .header-btn {
+  background: var(--bg-primary);
+  border-left: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+[data-wireframe] .header-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+[data-wireframe] .category-item {
+  background: transparent;
+  border-bottom: 1px solid var(--accent);
+}
+
+[data-wireframe] .category-name {
+  background: var(--bg-primary);
+  border-right: 1px solid var(--accent);
+}
+
+[data-wireframe] .category-item:hover .category-name {
+  background: color-mix(in srgb, var(--accent), transparent 90%);
+}
+
+[data-wireframe] .category-count {
+  color: var(--accent);
+}
+
+[data-wireframe] .btn {
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+[data-wireframe] .btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+[data-wireframe] .btn-primary {
+  background: var(--bg-primary);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+[data-wireframe] .btn-primary:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+[data-wireframe] .page-info {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--accent);
+}
+
+[data-wireframe] .already-saved-category {
+  background: var(--bg-primary);
+  border-left: 2px solid var(--accent);
+}
+
+[data-wireframe] .tip {
+  background: var(--bg-primary);
+  border-left: 2px solid var(--accent);
+}
+
+[data-wireframe] .success-check {
+  -webkit-text-stroke: 2px var(--accent);
+  color: var(--bg-primary);
+}
+
+[data-wireframe] .spinner {
+  border-color: var(--accent);
+  border-top-color: transparent;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

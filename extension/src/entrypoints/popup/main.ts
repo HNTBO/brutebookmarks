@@ -2,6 +2,59 @@ import { getClient, setAuthToken } from '../../lib/api';
 import { getStoredToken, isConnected, getAppUrl } from '../../lib/auth';
 import type { Category, Bookmark, PopupView } from '../../lib/types';
 
+// --- Theme sync ---
+
+const THEME_CACHE_KEY = 'bb_cached_theme';
+
+interface CachedTheme {
+  theme: 'dark' | 'light';
+  accentColor: string | null;
+  wireframe: boolean;
+}
+
+async function applyCachedTheme(): Promise<void> {
+  const result = await browser.storage.local.get(THEME_CACHE_KEY);
+  const cached = result[THEME_CACHE_KEY] as CachedTheme | undefined;
+  if (cached) applyTheme(cached);
+}
+
+function applyTheme(t: CachedTheme): void {
+  if (t.theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  if (t.accentColor) {
+    document.documentElement.style.setProperty('--accent', t.accentColor);
+    document.documentElement.style.setProperty('--accent-dim', `color-mix(in srgb, ${t.accentColor}, black 20%)`);
+    document.documentElement.style.setProperty('--accent-glow', `color-mix(in srgb, ${t.accentColor}, transparent 85%)`);
+    document.documentElement.style.setProperty('--border-strong', t.accentColor);
+  }
+  if (t.wireframe) {
+    document.documentElement.setAttribute('data-wireframe', '');
+  } else {
+    document.documentElement.removeAttribute('data-wireframe');
+  }
+}
+
+async function fetchAndCacheTheme(): Promise<void> {
+  try {
+    const client = getClient();
+    const prefs = await client.query('preferences:get' as any, {}) as any;
+    if (!prefs) return;
+
+    const theme = (prefs.theme ?? 'dark') as 'dark' | 'light';
+    const accentColor = theme === 'dark' ? prefs.accentColorDark : prefs.accentColorLight;
+    const wireframe = theme === 'dark' ? !!prefs.wireframeDark : !!prefs.wireframeLight;
+    const cached: CachedTheme = { theme, accentColor: accentColor ?? null, wireframe };
+
+    await browser.storage.local.set({ [THEME_CACHE_KEY]: cached });
+    applyTheme(cached);
+  } catch {
+    // Non-critical — keep using cached or defaults
+  }
+}
+
 // --- DOM helpers ---
 
 function show(id: string): void {
@@ -114,6 +167,9 @@ function showSuccess(): void {
 // --- Main flow ---
 
 async function init(): Promise<void> {
+  // Apply cached theme immediately (before any network calls)
+  await applyCachedTheme();
+
   // Wire open-app button
   document.getElementById('open-app-btn')!.addEventListener('click', async () => {
     const url = await getAppUrl();
@@ -242,10 +298,13 @@ async function run(): Promise<void> {
   }
 
   try {
-    // Fetch data in parallel
+    // Fetch data in parallel (theme is non-blocking)
     const [categories, bookmarks] = await Promise.all([fetchCategories(), fetchBookmarks()]);
     _cachedCategories = categories;
     _cachedBookmarks = bookmarks;
+
+    // Refresh theme in background (don't block the UI)
+    fetchAndCacheTheme();
 
     if (categories.length === 0) {
       document.getElementById('error-text')!.textContent =
