@@ -10,7 +10,7 @@ import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
 import { undo, redo, setAfterUndoRedoCallback, beginGroup, endGroup } from './features/undo';
-import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, collectPreferences, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
+import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, collectPreferences, flushSyncToConvex, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
 import { getAppMode, setAppMode } from './data/local-storage';
@@ -164,6 +164,12 @@ document.addEventListener('keydown', (e) => {
     });
   }
 });
+
+// Flush preferences to Convex when leaving the page (prevents lost saves on refresh)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushSyncToConvex();
+});
+window.addEventListener('beforeunload', () => flushSyncToConvex());
 
 // Wire mobile toolbar buttons
 function wireMobileToolbar(): void {
