@@ -123,11 +123,7 @@ export function renderApp(): void {
                 <div id="emoji-results" class="icon-results"></div>
               </div>
 
-              <!-- Custom Upload -->
-              <div class="upload-area hidden" id="upload-area">
-                <p>Drop an image here or click to upload</p>
-                <input type="file" id="custom-icon-input" accept="image/*">
-              </div>
+              <input type="file" id="custom-icon-input" accept="image/*" style="display:none">
             </div>
 
             <input type="hidden" id="bookmark-category-id">

@@ -869,10 +869,16 @@ h1 em {
     flex-wrap: wrap;
 }
 
+/* Icon option buttons: default looks like the generic .btn hover (muted),
+   active gets the original .btn default (accent border) */
+.icon-options .btn {
+    background: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
 .icon-options .btn.active {
-    border-color: var(--accent);
-    background: var(--accent-glow);
-    box-shadow: inset 0 0 0 1px var(--accent);
+    background: var(--bg-secondary);
+    border-color: var(--border-strong);
 }
 
 .icon-search-box {
@@ -935,34 +941,19 @@ h1 em {
     cursor: pointer;
 }
 
-.upload-area {
-    border: 1px dashed var(--border-strong);
-    padding: var(--space-lg);
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: var(--space-md);
-}
-
-.upload-area:hover {
-    border-color: var(--accent);
+.icon-preview.upload-mode:hover {
     background: var(--accent-glow);
 }
 
-.upload-area.dragover {
-    border-color: var(--accent);
+.icon-preview.upload-mode.dragover {
     background: var(--accent-glow);
-    box-shadow: inset 0 0 20px var(--accent-glow);
 }
 
-.upload-area p {
+.upload-prompt {
     color: var(--text-secondary);
     font-size: 13px;
 }
 
-.upload-area input[type="file"] {
-    display: none;
-}
 
 .modal-actions {
     display: flex;

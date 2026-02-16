@@ -35,15 +35,20 @@ export function setActiveIconButton(type: IconSourceType): void {
   if (type && BUTTON_ID_BY_TYPE[type]) {
     document.getElementById(BUTTON_ID_BY_TYPE[type])?.classList.add('active');
   }
-  // Toggle upload area visibility
-  const uploadArea = document.getElementById('upload-area');
-  if (uploadArea) {
-    uploadArea.classList.toggle('hidden', type !== 'custom');
-  }
-  // Toggle upload-mode dashed border on preview
+  // Toggle upload-mode on preview (dashed border, click/drop target)
   const iconPreview = document.getElementById('icon-preview');
   if (iconPreview) {
     iconPreview.classList.toggle('upload-mode', type === 'custom');
+    // Show/hide the upload prompt message
+    const existing = iconPreview.querySelector('.upload-prompt');
+    if (type === 'custom' && !existing) {
+      const msg = document.createElement('p');
+      msg.className = 'upload-prompt';
+      msg.textContent = 'Drop an image here or click to upload';
+      iconPreview.appendChild(msg);
+    } else if (type !== 'custom' && existing) {
+      existing.remove();
+    }
   }
 }
 
@@ -339,29 +344,8 @@ function resizeImageToDataUri(file: File, size: number): Promise<string> {
 }
 
 export function initUploadArea(): void {
-  const uploadArea = document.getElementById('upload-area')!;
   const customInput = document.getElementById('custom-icon-input') as HTMLInputElement;
   const iconPreview = document.getElementById('icon-preview')!;
-
-  uploadArea.addEventListener('click', () => customInput.click());
-
-  uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadArea.classList.add('dragover');
-  });
-
-  uploadArea.addEventListener('dragleave', () => {
-    uploadArea.classList.remove('dragover');
-  });
-
-  uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-    const file = e.dataTransfer?.files[0];
-    if (file && file.type.startsWith('image/')) {
-      uploadCustomIcon(file);
-    }
-  });
 
   // Preview area acts as upload trigger when in upload mode
   iconPreview.addEventListener('click', () => {
