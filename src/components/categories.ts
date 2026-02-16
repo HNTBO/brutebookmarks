@@ -3,7 +3,7 @@ import type { Category, TabGroup, LayoutItem } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize } from '../features/preferences';
-import { handleCardMouseMove, handleCardMouseLeave } from './bookmark-card';
+import { handleCardMouseMove, handleCardMouseLeave, initLongPress, consumeLongPressGuard } from './bookmark-card';
 import {
   handleDragStart,
   handleDragEnd,
@@ -94,8 +94,10 @@ function wireBookmarkCards(el: HTMLElement): void {
     card.addEventListener('drop', ((e: DragEvent) => handleDrop(e, renderCategories)) as EventListener);
     card.addEventListener('mousemove', handleCardMouseMove as EventListener);
     card.addEventListener('mouseleave', handleCardMouseLeave as EventListener);
+    initLongPress(card);
 
     card.addEventListener('click', (e) => {
+      if (consumeLongPressGuard()) return;
       const target = e.target as HTMLElement;
       if (target.closest('[data-action]')) return;
       const url = card.dataset.url;

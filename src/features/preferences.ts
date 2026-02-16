@@ -9,6 +9,7 @@ let showCardNames = localStorage.getItem('showCardNames') !== 'false';
 let autofillUrl = localStorage.getItem('autofillUrl') === 'true';
 let easterEggs = localStorage.getItem('easterEggs') !== 'false'; // default on
 let showNameOnHover = localStorage.getItem('showNameOnHover') !== 'false'; // default on
+let mobileColumns: 3 | 4 | 5 = (parseInt(localStorage.getItem('mobileColumns') || '5') || 5) as 3 | 4 | 5;
 
 // Barscale & wireframe — localStorage only, no Convex sync
 type BarscaleSize = 'S' | 'M' | 'L';
@@ -53,6 +54,16 @@ export function getEasterEggs(): boolean {
 
 export function getShowNameOnHover(): boolean {
   return showNameOnHover;
+}
+
+export function getMobileColumns(): number {
+  return mobileColumns;
+}
+
+export function setMobileColumns(cols: 3 | 4 | 5): void {
+  mobileColumns = cols;
+  localStorage.setItem('mobileColumns', String(cols));
+  applyCardSizeToDOM();
 }
 
 export function toggleShowNameOnHover(enabled: boolean): void {
@@ -168,9 +179,8 @@ function applyCardSizeToDOM(): void {
 
   document.querySelectorAll<HTMLElement>('.bookmarks-grid').forEach((grid) => {
     if (mobile) {
-      // Let CSS handle the 5-column mobile layout
-      grid.style.gridTemplateColumns = '';
-      grid.style.gap = '';
+      grid.style.gridTemplateColumns = `repeat(${mobileColumns}, 1fr)`;
+      grid.style.gap = `${getCardGap(60)}px`;
     } else {
       const gap = getCardGap(currentCardSize);
       grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;

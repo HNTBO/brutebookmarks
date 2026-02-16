@@ -1,6 +1,6 @@
 import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
 import { renderCategories } from '../categories';
-import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover } from '../../features/preferences';
+import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
@@ -20,6 +20,7 @@ export function openSettingsModal(): void {
   (document.getElementById('autofill-url') as HTMLInputElement).checked = getAutofillUrl();
   (document.getElementById('easter-eggs') as HTMLInputElement).checked = getEasterEggs();
   (document.getElementById('show-name-on-hover') as HTMLInputElement).checked = getShowNameOnHover();
+  syncColumnPicker();
   populateAccountSection();
 }
 
@@ -320,6 +321,13 @@ async function eraseData(): Promise<void> {
   }
 }
 
+function syncColumnPicker(): void {
+  const cols = getMobileColumns();
+  document.querySelectorAll('.column-picker-btn').forEach((btn) => {
+    btn.classList.toggle('active', (btn as HTMLElement).dataset.columns === String(cols));
+  });
+}
+
 export function initSettingsModal(): void {
   document.getElementById('settings-modal-close')!.addEventListener('click', closeSettingsModal);
 
@@ -338,6 +346,16 @@ export function initSettingsModal(): void {
   document.getElementById('show-name-on-hover')!.addEventListener('change', (e) => {
     toggleShowNameOnHover((e.target as HTMLInputElement).checked);
     renderCategories();
+  });
+
+  // Column picker
+  document.querySelectorAll('.column-picker-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const cols = parseInt((btn as HTMLElement).dataset.columns!) as 3 | 4 | 5;
+      setMobileColumns(cols);
+      syncColumnPicker();
+      renderCategories();
+    });
   });
 
   document.getElementById('accent-color-picker')!.addEventListener('input', (e) => {

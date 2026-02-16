@@ -194,9 +194,17 @@ export function renderApp(): void {
               <label for="autofill-url">Autofill URL from Clipboard</label>
               <input type="checkbox" id="autofill-url">
             </div>
-            <div class="settings-row">
+            <div class="settings-row mobile-only">
               <label for="easter-eggs">Easter Eggs</label>
               <input type="checkbox" id="easter-eggs" checked>
+            </div>
+            <div class="settings-row mobile-only" id="column-picker-row">
+              <label>Columns</label>
+              <div class="column-picker">
+                <button class="column-picker-btn" data-columns="3">3</button>
+                <button class="column-picker-btn" data-columns="4">4</button>
+                <button class="column-picker-btn active" data-columns="5">5</button>
+              </div>
             </div>
             <div class="settings-row">
               <label for="accent-color-picker">Accent Color</label>
