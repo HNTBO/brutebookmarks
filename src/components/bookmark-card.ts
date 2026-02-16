@@ -134,6 +134,133 @@ export function initLongPress(card: HTMLElement): void {
   });
 }
 
+export function initUndoRedoLongPress(card: HTMLElement): void {
+  let timer: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let activated = false;
+
+  card.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    activated = false;
+
+    timer = window.setTimeout(() => {
+      activated = true;
+      card.classList.add('long-press-active');
+      try { navigator.vibrate?.(50); } catch { /* ignored */ }
+    }, 500);
+  });
+
+  card.addEventListener('pointermove', (e: PointerEvent) => {
+    if (timer === null) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.sqrt(dx * dx + dy * dy) > 10) {
+      clearTimeout(timer);
+      timer = null;
+      if (activated) {
+        card.classList.remove('long-press-active');
+        activated = false;
+      }
+    }
+  });
+
+  card.addEventListener('pointerup', (e: PointerEvent) => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (!activated) return;
+    activated = false;
+    card.classList.remove('long-press-active');
+
+    longPressClickGuard = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { longPressClickGuard = false; });
+    });
+
+    dismissContextMenu();
+    showUndoRedoMenu(e.clientX, e.clientY);
+  });
+
+  card.addEventListener('pointercancel', () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (activated) {
+      card.classList.remove('long-press-active');
+      activated = false;
+    }
+  });
+
+  card.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+  });
+
+  // Capture-phase click guard to prevent add-bookmark modal after long-press
+  card.addEventListener('click', (e) => {
+    if (longPressClickGuard) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
+}
+
+function showUndoRedoMenu(x: number, y: number): void {
+  const menu = document.createElement('div');
+  menu.className = 'long-press-menu';
+
+  menu.innerHTML = `
+    <button class="long-press-menu-btn" data-action="undo">↩ Undo</button>
+    <button class="long-press-menu-btn" data-action="redo">↪ Redo</button>
+  `;
+
+  document.body.appendChild(menu);
+  const menuRect = menu.getBoundingClientRect();
+  let left = x - menuRect.width / 2;
+  let top = y - menuRect.height - 8;
+
+  if (top < 8) top = y + 8;
+  left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  activeContextMenu = menu;
+
+  menu.querySelector('[data-action="undo"]')!.addEventListener('click', async () => {
+    dismissContextMenu();
+    const { undo } = await import('../features/undo');
+    await undo();
+  });
+
+  menu.querySelector('[data-action="redo"]')!.addEventListener('click', async () => {
+    dismissContextMenu();
+    const { redo } = await import('../features/undo');
+    await redo();
+  });
+
+  const dismissHandler = (e: Event) => {
+    if (!menu.contains(e.target as Node)) {
+      dismissContextMenu();
+      document.removeEventListener('pointerdown', dismissHandler, true);
+      document.removeEventListener('scroll', scrollDismiss, true);
+    }
+  };
+  const scrollDismiss = () => {
+    dismissContextMenu();
+    document.removeEventListener('pointerdown', dismissHandler, true);
+    document.removeEventListener('scroll', scrollDismiss, true);
+  };
+
+  setTimeout(() => {
+    document.addEventListener('pointerdown', dismissHandler, true);
+    document.addEventListener('scroll', scrollDismiss, true);
+  }, 0);
+}
+
 function showContextMenu(x: number, y: number, categoryId: string, bookmarkId: string): void {
   const menu = document.createElement('div');
   menu.className = 'long-press-menu';

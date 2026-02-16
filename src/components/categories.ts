@@ -3,7 +3,7 @@ import type { Category, TabGroup, LayoutItem } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
-import { handleCardMouseMove, handleCardMouseLeave, initLongPress, consumeLongPressGuard } from './bookmark-card';
+import { handleCardMouseMove, handleCardMouseLeave, initLongPress, initUndoRedoLongPress, consumeLongPressGuard } from './bookmark-card';
 import {
   handleDragStart,
   handleDragEnd,
@@ -165,6 +165,13 @@ function wireBookmarkCards(el: HTMLElement): void {
     });
   });
 
+  // Long-press undo/redo on add-bookmark cards (mobile)
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    el.querySelectorAll<HTMLElement>('.bookmark-card.add-bookmark').forEach((card) => {
+      initUndoRedoLongPress(card);
+    });
+  }
+
   // Grid-level drag handlers for continuous drop zones (covers gaps between cards)
   const grids = el.querySelectorAll<HTMLElement>('.bookmarks-grid');
   grids.forEach((grid) => {
@@ -216,6 +223,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
 
   groupEl.innerHTML = `
     <div class="tab-group-header">
+      <div class="category-drag-handle" title="Drag to reorder">⠿</div>
       <div class="tab-bar tab-bar-mobile">
         ${rotated
           .map(
@@ -249,6 +257,8 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
 
   function switchToTab(catId: string): void {
     activeTabPerGroup.set(group.id, catId);
+    // Haptic tick on tab switch (Android; no-op on iOS / desktop)
+    try { navigator.vibrate?.(10); } catch { /* ignored */ }
     // Re-render tab bar with new rotation
     const bar = groupEl.querySelector('.tab-bar-mobile')!;
     const newRotated = rotateToActive(group.categories, catId);
