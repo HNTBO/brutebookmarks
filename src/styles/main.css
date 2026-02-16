@@ -1972,8 +1972,8 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     color: var(--accent);
 }
 
-/* Hide mobile-only elements on desktop (hover-capable devices) */
-@media (hover: hover) {
+/* Hide mobile-only elements on desktop */
+@media (min-width: 769px) {
     .mobile-only {
         display: none !important;
     }
