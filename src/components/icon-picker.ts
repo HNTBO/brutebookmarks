@@ -39,13 +39,15 @@ export function setActiveIconButton(type: IconSourceType): void {
   const iconPreview = document.getElementById('icon-preview');
   if (iconPreview) {
     iconPreview.classList.toggle('upload-mode', type === 'custom');
-    // Show/hide the upload prompt message
-    const existing = iconPreview.querySelector('.upload-prompt');
+    // Show/hide the solid upload overlay
+    const existing = iconPreview.querySelector('.upload-overlay');
     if (type === 'custom' && !existing) {
+      const overlay = document.createElement('div');
+      overlay.className = 'upload-overlay';
       const msg = document.createElement('p');
-      msg.className = 'upload-prompt';
       msg.textContent = 'Drop an image here or click to upload';
-      iconPreview.appendChild(msg);
+      overlay.appendChild(msg);
+      iconPreview.appendChild(overlay);
     } else if (type !== 'custom' && existing) {
       existing.remove();
     }

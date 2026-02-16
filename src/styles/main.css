@@ -936,22 +936,35 @@ h1 em {
 }
 
 .icon-preview.upload-mode {
+    position: relative;
     border-style: dashed;
     border-color: var(--accent);
     cursor: pointer;
 }
 
-.icon-preview.upload-mode:hover {
-    background: var(--accent-glow);
+/* Solid overlay that covers icon + label, shows upload prompt */
+.upload-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    transition: background 0.15s ease;
 }
 
-.icon-preview.upload-mode.dragover {
-    background: var(--accent-glow);
-}
-
-.upload-prompt {
+.upload-overlay p {
     color: var(--text-secondary);
     font-size: 13px;
+}
+
+.icon-preview.upload-mode:hover .upload-overlay {
+    background: color-mix(in srgb, var(--accent) 15%, var(--bg-secondary));
+}
+
+.icon-preview.upload-mode.dragover .upload-overlay {
+    background: color-mix(in srgb, var(--accent) 15%, var(--bg-secondary));
 }
 
 
