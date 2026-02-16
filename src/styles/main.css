@@ -940,6 +940,12 @@ h1 em {
     border-style: dashed;
     border-color: var(--accent);
     cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.icon-preview.upload-mode:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Solid overlay — hidden by default, covers icon + label on hover only */
