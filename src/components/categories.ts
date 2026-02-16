@@ -2,7 +2,7 @@ import { getCategories, getLayoutItems } from '../data/store';
 import type { Category, TabGroup, LayoutItem } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
-import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize } from '../features/preferences';
+import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
 import { handleCardMouseMove, handleCardMouseLeave, initLongPress, consumeLongPressGuard } from './bookmark-card';
 import {
   handleDragStart,
@@ -43,11 +43,13 @@ function getActiveTabId(group: TabGroup): string {
 }
 
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
-  const gap = getCardGap(currentCardSize);
+  const mobile = window.matchMedia('(max-width: 768px)').matches;
+  const gap = mobile ? getCardGap(60) : getCardGap(currentCardSize);
+  const cols = mobile ? `repeat(${getMobileColumns()}, 1fr)` : `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
   const nameOnHover = getShowNameOnHover();
   const btnSize = getBtnSize(currentCardSize);
   return `
-    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: repeat(auto-fill, minmax(${currentCardSize}px, 1fr)); gap: ${gap}px; --btn-size: ${btnSize}px;">
+    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: ${cols}; gap: ${gap}px; --btn-size: ${btnSize}px;">
       ${category.bookmarks
         .map(
           (bookmark, index) => `
