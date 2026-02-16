@@ -7,7 +7,7 @@ import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteB
 import { initCategoryModal, openAddCategoryModal, openEditCategoryModal } from './components/modals/category-modal';
 import { initSettingsModal, openSettingsModal, closeSettingsModal } from './components/modals/settings-modal';
 import { initConfirmModal } from './components/modals/confirm-modal';
-import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis } from './components/icon-picker';
+import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis, setActiveIconButton } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
 import { undo, redo, setAfterUndoRedoCallback, beginGroup, endGroup } from './features/undo';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, collectPreferences, flushSyncToConvex, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
@@ -90,7 +90,11 @@ document.getElementById('use-favicon-btn')!.addEventListener('click', useFavicon
 document.getElementById('search-wikimedia-btn')!.addEventListener('click', toggleIconSearch);
 document.getElementById('use-emoji-btn')!.addEventListener('click', toggleEmojiSearch);
 document.getElementById('upload-custom-btn')!.addEventListener('click', () => {
-  (document.getElementById('custom-icon-input') as HTMLInputElement).click();
+  // Hide other search panels
+  document.getElementById('icon-search-container')!.classList.add('hidden');
+  document.getElementById('emoji-search-container')!.classList.add('hidden');
+  // Show upload area and set active button
+  setActiveIconButton('custom');
 });
 document.getElementById('icon-search-btn')!.addEventListener('click', searchIcons);
 document.getElementById('emoji-search-query')!.addEventListener('input', searchEmojis);

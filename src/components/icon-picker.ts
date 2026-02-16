@@ -1,6 +1,4 @@
 import { styledAlert } from './modals/confirm-modal';
-import { getConvexClient } from '../data/convex-client';
-import { api } from '../../convex/_generated/api';
 import { EMOJI_DATA } from '../data/emoji-data';
 import { escapeHtml } from '../utils/escape-html';
 
@@ -9,6 +7,55 @@ let selectedIconPath: string | null = null;
 let emojiSearchTimeout: ReturnType<typeof setTimeout>;
 
 const TWEMOJI_BASE = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/';
+
+export type IconSourceType = 'favicon' | 'wikimedia' | 'emoji' | 'custom' | null;
+
+const BUTTON_ID_BY_TYPE: Record<string, string> = {
+  favicon: 'use-favicon-btn',
+  wikimedia: 'search-wikimedia-btn',
+  emoji: 'use-emoji-btn',
+  custom: 'upload-custom-btn',
+};
+
+export function detectIconType(iconPath: string | null | undefined): IconSourceType {
+  if (!iconPath) return null;
+  if (iconPath.includes('google.com/s2/favicons')) return 'favicon';
+  if (iconPath.includes('upload.wikimedia.org') || iconPath.includes('commons.wikimedia.org')) return 'wikimedia';
+  if (iconPath.includes('twemoji') || iconPath.includes('cdn.jsdelivr.net/gh/twitter/twemoji')) return 'emoji';
+  if (iconPath.startsWith('data:')) return 'custom';
+  return null;
+}
+
+export function setActiveIconButton(type: IconSourceType): void {
+  // Clear all active states
+  Object.values(BUTTON_ID_BY_TYPE).forEach((id) => {
+    document.getElementById(id)?.classList.remove('active');
+  });
+  // Set the matching one
+  if (type && BUTTON_ID_BY_TYPE[type]) {
+    document.getElementById(BUTTON_ID_BY_TYPE[type])?.classList.add('active');
+  }
+  // Toggle upload area visibility
+  const uploadArea = document.getElementById('upload-area');
+  if (uploadArea) {
+    uploadArea.classList.toggle('hidden', type !== 'custom');
+  }
+  // Toggle upload-mode dashed border on preview
+  const iconPreview = document.getElementById('icon-preview');
+  if (iconPreview) {
+    iconPreview.classList.toggle('upload-mode', type === 'custom');
+  }
+}
+
+export function iconTypeLabel(type: IconSourceType): string {
+  switch (type) {
+    case 'favicon': return 'Favicon';
+    case 'wikimedia': return 'Wikimedia';
+    case 'emoji': return 'Emoji';
+    case 'custom': return 'Custom upload';
+    default: return 'Suggested favicon';
+  }
+}
 
 export function getSelectedIconPath(): string | null {
   return selectedIconPath;
@@ -49,6 +96,7 @@ export async function useFavicon(): Promise<void> {
     (document.getElementById('preview-icon') as HTMLImageElement).src = faviconUrl;
     document.getElementById('icon-source')!.textContent = 'Favicon';
     (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = faviconUrl;
+    setActiveIconButton('favicon');
   } catch {
     styledAlert('Invalid URL');
   }
@@ -60,6 +108,7 @@ export function toggleIconSearch(): void {
 
   emojiContainer.classList.add('hidden');
   container.classList.toggle('hidden');
+  setActiveIconButton('wikimedia');
 
   if (!container.classList.contains('hidden')) {
     const title = (document.getElementById('bookmark-title') as HTMLInputElement).value;
@@ -92,22 +141,50 @@ export async function searchIcons(): Promise<void> {
   resultsEl.innerHTML = '';
 
   try {
-    const client = getConvexClient();
-    if (!client) {
-      loadingEl.classList.add('hidden');
-      resultsEl.innerHTML =
-        '<p class="icon-status-message icon-status-error">Not connected</p>';
-      return;
-    }
+    const searchTerm = `${query.trim()} logo`;
+    const url =
+      `https://commons.wikimedia.org/w/api.php?action=query` +
+      `&generator=search&gsrsearch=${encodeURIComponent(searchTerm)}` +
+      `&gsrnamespace=6&prop=imageinfo&iiprop=url&iiurlwidth=128` +
+      `&format=json&gsrlimit=20&origin=*`;
 
-    const data = await client.action(api.icons.searchWikimedia, { query });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
 
     loadingEl.classList.add('hidden');
 
-    if (data.icons && data.icons.length > 0) {
-      resultsEl.innerHTML = data.icons
+    if (!response.ok) {
+      resultsEl.innerHTML =
+        '<p class="icon-status-message icon-status-error">Search failed</p>';
+      return;
+    }
+
+    const data = await response.json();
+    const pages = data?.query?.pages;
+
+    if (!pages) {
+      resultsEl.innerHTML =
+        '<p class="icon-status-message">No icons found</p>';
+      return;
+    }
+
+    const icons: { thumbUrl: string; title: string }[] = [];
+    for (const page of Object.values(pages) as any[]) {
+      const info = page.imageinfo?.[0];
+      if (!info?.thumburl) continue;
+      icons.push({
+        thumbUrl: info.thumburl,
+        title: (page.title || '').replace(/^File:/, '').replace(/\.[^.]+$/, ''),
+      });
+    }
+
+    if (icons.length > 0) {
+      resultsEl.innerHTML = icons
         .map(
-          (icon: { thumbUrl: string; title: string }, index: number) => `
+          (icon, index) => `
         <div class="icon-result" data-icon-index="${index}" data-icon-url="${escapeHtml(icon.thumbUrl)}" data-icon-title="${escapeHtml(icon.title)}">
           <img src="${escapeHtml(icon.thumbUrl)}" alt="${escapeHtml(icon.title)}">
         </div>
@@ -151,6 +228,7 @@ export function toggleEmojiSearch(): void {
 
   iconContainer.classList.add('hidden');
   container.classList.toggle('hidden');
+  setActiveIconButton('emoji');
 }
 
 export function searchEmojis(): void {
@@ -218,6 +296,7 @@ export async function uploadCustomIcon(file: File): Promise<void> {
     (document.getElementById('preview-icon') as HTMLImageElement).src = dataUri;
     document.getElementById('icon-source')!.textContent = `Custom: ${file.name}`;
     (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = dataUri;
+    setActiveIconButton('custom');
   } catch (error) {
     console.error('Error processing icon:', error);
     styledAlert('Failed to process image');
@@ -262,6 +341,7 @@ function resizeImageToDataUri(file: File, size: number): Promise<string> {
 export function initUploadArea(): void {
   const uploadArea = document.getElementById('upload-area')!;
   const customInput = document.getElementById('custom-icon-input') as HTMLInputElement;
+  const iconPreview = document.getElementById('icon-preview')!;
 
   uploadArea.addEventListener('click', () => customInput.click());
 
@@ -277,6 +357,34 @@ export function initUploadArea(): void {
   uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.classList.remove('dragover');
+    const file = e.dataTransfer?.files[0];
+    if (file && file.type.startsWith('image/')) {
+      uploadCustomIcon(file);
+    }
+  });
+
+  // Preview area acts as upload trigger when in upload mode
+  iconPreview.addEventListener('click', () => {
+    if (iconPreview.classList.contains('upload-mode')) {
+      customInput.click();
+    }
+  });
+
+  iconPreview.addEventListener('dragover', (e) => {
+    if (iconPreview.classList.contains('upload-mode')) {
+      e.preventDefault();
+      iconPreview.classList.add('dragover');
+    }
+  });
+
+  iconPreview.addEventListener('dragleave', () => {
+    iconPreview.classList.remove('dragover');
+  });
+
+  iconPreview.addEventListener('drop', (e) => {
+    if (!iconPreview.classList.contains('upload-mode')) return;
+    e.preventDefault();
+    iconPreview.classList.remove('dragover');
     const file = e.dataTransfer?.files[0];
     if (file && file.type.startsWith('image/')) {
       uploadCustomIcon(file);

@@ -2,7 +2,7 @@ import { getCategories, createBookmark, updateBookmark, deleteBookmarkById, isCo
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { getIconUrl } from '../../utils/icons';
-import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange } from '../icon-picker';
+import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
 import { styledConfirm } from './confirm-modal';
 import { getAutofillUrl } from '../../features/preferences';
 
@@ -72,8 +72,10 @@ export async function openAddBookmarkModal(categoryId: string): Promise<void> {
   (document.getElementById('preview-icon') as HTMLImageElement).src = '';
   document.getElementById('icon-source')!.textContent = 'No icon selected';
   document.getElementById('icon-search-container')!.classList.add('hidden');
+  document.getElementById('emoji-search-container')!.classList.add('hidden');
   document.getElementById('icon-results')!.innerHTML = '';
   resetIconPicker();
+  setActiveIconButton(null);
   populateCategorySelect(categoryId);
   document.getElementById('bookmark-modal')!.classList.add('active');
 
@@ -106,16 +108,20 @@ export function openEditBookmarkModal(categoryId: string, bookmarkId: string): v
   (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = bookmark.iconPath || '';
 
   if (bookmark.iconPath) {
+    const type = detectIconType(bookmark.iconPath);
     (document.getElementById('preview-icon') as HTMLImageElement).src = bookmark.iconPath;
-    document.getElementById('icon-source')!.textContent = 'Current icon';
+    document.getElementById('icon-source')!.textContent = iconTypeLabel(type);
     setSelectedIconPath(bookmark.iconPath);
+    setActiveIconButton(type);
   } else {
     (document.getElementById('preview-icon') as HTMLImageElement).src = getIconUrl(bookmark);
-    document.getElementById('icon-source')!.textContent = 'Current favicon';
+    document.getElementById('icon-source')!.textContent = 'Suggested favicon';
     setSelectedIconPath(null);
+    setActiveIconButton(null);
   }
 
   document.getElementById('icon-search-container')!.classList.add('hidden');
+  document.getElementById('emoji-search-container')!.classList.add('hidden');
   document.getElementById('icon-results')!.innerHTML = '';
   populateCategorySelect(categoryId);
   document.getElementById('bookmark-modal')!.classList.add('active');

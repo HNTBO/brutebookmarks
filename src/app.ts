@@ -86,7 +86,7 @@ export function renderApp(): void {
             </div>
 
             <div class="icon-section">
-              <h3>Icon</h3>
+              <h3>Current icon</h3>
 
               <div class="icon-preview" id="icon-preview">
                 <img class="icon-preview-img" id="preview-icon" src="" alt="Icon preview">
@@ -124,7 +124,7 @@ export function renderApp(): void {
               </div>
 
               <!-- Custom Upload -->
-              <div class="upload-area" id="upload-area">
+              <div class="upload-area hidden" id="upload-area">
                 <p>Drop an image here or click to upload</p>
                 <input type="file" id="custom-icon-input" accept="image/*">
               </div>
