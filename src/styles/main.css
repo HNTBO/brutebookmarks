@@ -674,6 +674,12 @@ h1 em {
 
 .modal.active {
     display: flex;
+    overscroll-behavior: contain;
+}
+
+/* Prevent body scroll when any modal is open */
+body:has(.modal.active) {
+    overflow: hidden;
 }
 
 .modal-content {
