@@ -1459,6 +1459,33 @@ footer {
         border: 1px solid var(--accent);
         color: var(--accent);
     }
+
+    /* Mobile tab group — infinite carousel */
+    .tab-group-mobile .category-drag-handle {
+        display: none;
+    }
+
+    .tab-bar-mobile {
+        overflow: hidden;
+        -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
+        mask-image: linear-gradient(to right, black 70%, transparent 100%);
+    }
+
+    .tab-bar-mobile .tab:first-child {
+        flex-shrink: 0;
+    }
+
+    .tab-bar-mobile .tab:not(.tab-active) {
+        opacity: 0.5;
+    }
+
+    .tab-group-mobile .tab {
+        cursor: pointer;
+    }
+
+    .tab-group-mobile .tab-content {
+        touch-action: pan-y;
+    }
 }
 
 /* Long-press active state (mobile context menu trigger) */

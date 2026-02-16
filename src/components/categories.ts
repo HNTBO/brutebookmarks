@@ -42,6 +42,64 @@ function getActiveTabId(group: TabGroup): string {
   return group.categories[0]?.id ?? '';
 }
 
+function rotateToActive(categories: Category[], activeId: string): Category[] {
+  const idx = categories.findIndex((c) => c.id === activeId);
+  if (idx <= 0) return [...categories];
+  return [...categories.slice(idx), ...categories.slice(0, idx)];
+}
+
+function wireTabClicks(
+  groupEl: HTMLElement,
+  switchFn: (catId: string) => void
+): void {
+  groupEl.querySelectorAll<HTMLElement>('.tab-bar-mobile .tab').forEach((tab) => {
+    tab.addEventListener('click', () => switchFn(tab.dataset.tabCategoryId!));
+  });
+}
+
+function initTabSwipe(
+  contentEl: HTMLElement,
+  categories: Category[],
+  getActive: () => string,
+  switchFn: (catId: string) => void
+): void {
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  contentEl.addEventListener('pointerdown', (e: PointerEvent) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    tracking = true;
+  });
+
+  contentEl.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!tracking) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    // Vertical scroll intent — cancel swipe tracking
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 15) {
+      tracking = false;
+      return;
+    }
+    // Horizontal swipe threshold
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      tracking = false;
+      const activeId = getActive();
+      const idx = categories.findIndex((c) => c.id === activeId);
+      if (idx === -1) return;
+      const len = categories.length;
+      const nextIdx = dx < 0
+        ? (idx + 1) % len   // swipe left → next
+        : (idx - 1 + len) % len; // swipe right → prev
+      switchFn(categories[nextIdx].id);
+    }
+  });
+
+  contentEl.addEventListener('pointerup', () => { tracking = false; });
+  contentEl.addEventListener('pointercancel', () => { tracking = false; });
+}
+
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
   const mobile = window.matchMedia('(max-width: 768px)').matches;
   const gap = mobile ? getCardGap(60) : getCardGap(currentCardSize);
@@ -146,6 +204,82 @@ function renderSingleCategory(category: Category, currentCardSize: number, showC
   header.addEventListener('dragend', handleCategoryHeaderDragEnd as EventListener);
 
   return categoryEl;
+}
+
+function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCardNames: boolean): HTMLElement {
+  const groupEl = document.createElement('div');
+  groupEl.className = 'tab-group tab-group-mobile';
+  groupEl.dataset.groupId = group.id;
+
+  const activeTabId = getActiveTabId(group);
+  const rotated = rotateToActive(group.categories, activeTabId);
+
+  groupEl.innerHTML = `
+    <div class="tab-group-header">
+      <div class="tab-bar tab-bar-mobile">
+        ${rotated
+          .map(
+            (cat) => `
+          <div class="tab ${cat.id === activeTabId ? 'tab-active' : ''}"
+               role="button"
+               tabindex="0"
+               data-tab-category-id="${escapeHtml(cat.id)}"
+               data-group-id="${escapeHtml(group.id)}">
+            ${escapeHtml(cat.name)}
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+      <button class="category-edit-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit group">✎</button>
+    </div>
+    <div class="tab-content">
+      ${group.categories
+        .map(
+          (cat) => `
+        <div class="tab-panel ${cat.id === activeTabId ? 'tab-panel-active' : ''}"
+             data-tab-panel-id="${escapeHtml(cat.id)}">
+          ${renderBookmarksGrid(cat, currentCardSize, showCardNames)}
+        </div>
+      `,
+        )
+        .join('')}
+    </div>
+  `;
+
+  function switchToTab(catId: string): void {
+    activeTabPerGroup.set(group.id, catId);
+    // Re-render tab bar with new rotation
+    const bar = groupEl.querySelector('.tab-bar-mobile')!;
+    const newRotated = rotateToActive(group.categories, catId);
+    bar.innerHTML = newRotated
+      .map(
+        (cat) => `
+      <div class="tab ${cat.id === catId ? 'tab-active' : ''}"
+           role="button"
+           tabindex="0"
+           data-tab-category-id="${escapeHtml(cat.id)}"
+           data-group-id="${escapeHtml(group.id)}">
+        ${escapeHtml(cat.name)}
+      </div>
+    `,
+      )
+      .join('');
+    // Toggle panels
+    groupEl.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('tab-panel-active'));
+    groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
+    // Re-wire tab clicks
+    wireTabClicks(groupEl, switchToTab);
+  }
+
+  wireTabClicks(groupEl, switchToTab);
+
+  const contentEl = groupEl.querySelector('.tab-content') as HTMLElement;
+  initTabSwipe(contentEl, group.categories, () => getActiveTabId(group), switchToTab);
+
+  wireBookmarkCards(groupEl);
+
+  return groupEl;
 }
 
 function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames: boolean): HTMLElement {
@@ -354,10 +488,7 @@ export function renderCategories(): void {
     if (item.type === 'category') {
       container.appendChild(renderSingleCategory(item.category, currentCardSize, showCardNames));
     } else if (isMobile) {
-      // Auto-ungroup tabs on mobile — render each as standalone category
-      item.group.categories.forEach((cat) => {
-        container.appendChild(renderSingleCategory(cat, currentCardSize, showCardNames));
-      });
+      container.appendChild(renderMobileTabGroup(item.group, currentCardSize, showCardNames));
     } else {
       container.appendChild(renderTabGroup(item.group, currentCardSize, showCardNames));
     }
