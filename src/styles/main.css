@@ -942,16 +942,18 @@ h1 em {
     cursor: pointer;
 }
 
-/* Solid overlay that covers icon + label, shows upload prompt */
+/* Solid overlay — hidden by default, covers icon + label on hover only */
 .upload-overlay {
     position: absolute;
     inset: 0;
-    background: var(--bg-secondary);
+    background: color-mix(in srgb, var(--accent) 15%, var(--bg-secondary));
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1;
-    transition: background 0.15s ease;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
 }
 
 .upload-overlay p {
@@ -959,12 +961,9 @@ h1 em {
     font-size: 13px;
 }
 
-.icon-preview.upload-mode:hover .upload-overlay {
-    background: color-mix(in srgb, var(--accent) 15%, var(--bg-secondary));
-}
-
+.icon-preview.upload-mode:hover .upload-overlay,
 .icon-preview.upload-mode.dragover .upload-overlay {
-    background: color-mix(in srgb, var(--accent) 15%, var(--bg-secondary));
+    opacity: 1;
 }
 
 
