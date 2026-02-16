@@ -194,7 +194,7 @@ export function renderApp(): void {
               <label for="autofill-url">Autofill URL from Clipboard</label>
               <input type="checkbox" id="autofill-url">
             </div>
-            <div class="settings-row">
+            <div class="settings-row mobile-only">
               <label for="easter-eggs">Easter Eggs</label>
               <input type="checkbox" id="easter-eggs" checked>
             </div>
