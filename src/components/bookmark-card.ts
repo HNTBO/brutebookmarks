@@ -154,8 +154,11 @@ export function initLongPress(card: HTMLElement): void {
     }
     savedEvent = null;
 
-    // Release capture if we still hold it (timer period ended without drag)
-    try { card.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
+    // Release touch capture if we still hold it (timer period ended without drag).
+    // Only for touch — on desktop, DragController owns the capture.
+    if (e.pointerType !== 'mouse') {
+      try { card.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
+    }
 
     if (dragStarted) return; // DragController handles pointerup
 
