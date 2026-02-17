@@ -2,6 +2,7 @@ import './styles/main.css';
 import { renderApp } from './app';
 import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex } from './data/store';
 import { renderCategories } from './components/categories';
+import { dragController } from './features/drag-drop';
 import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
 import { initCategoryModal, openAddCategoryModal, openEditCategoryModal } from './components/modals/category-modal';
@@ -210,7 +211,9 @@ function wireAvatarSignIn(): void {
 // Initialize app data and render
 async function init(): Promise<void> {
   // Wire callbacks so Convex subscriptions can trigger re-renders
-  setRenderCallback(renderCategories);
+  // Route subscription re-renders through DragController so DOM isn't
+  // destroyed mid-drag (would release pointer capture and break the drag).
+  setRenderCallback(() => dragController.requestRender(renderCategories));
   setPreferencesCallback((prefs) => {
     applyTheme(prefs.theme, prefs.accentColorDark, prefs.accentColorLight);
     applyPreferences(prefs, renderCategories);

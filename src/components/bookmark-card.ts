@@ -85,15 +85,15 @@ export function initLongPress(card: HTMLElement): void {
     dragStarted = false;
     savedEvent = e;
 
+    // Capture pointer immediately for ALL pointer types so pointermove
+    // events always reach this card (prevents events going to adjacent
+    // cards, grid gaps, or child elements during the pre-drag phase).
+    try { card.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+
     if (e.pointerType === 'mouse') {
       // Desktop: no long-press timer — drag starts on move
       timer = null;
     } else {
-      // Touch: capture pointer immediately so the browser can't fire
-      // pointercancel (claiming the touch for scroll) during the hold.
-      // Released if the user scrolls (movement > 10px before timer fires).
-      try { card.setPointerCapture(e.pointerId); } catch { /* ignored */ }
-
       // Touch: start 500ms timer for long-press activation
       timer = window.setTimeout(() => {
         timer = null;
@@ -154,13 +154,10 @@ export function initLongPress(card: HTMLElement): void {
     }
     savedEvent = null;
 
-    // Release touch capture if we still hold it (timer period ended without drag).
-    // Only for touch — on desktop, DragController owns the capture.
-    if (e.pointerType !== 'mouse') {
-      try { card.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
-    }
+    if (dragStarted) return; // DragController owns capture and handles pointerup
 
-    if (dragStarted) return; // DragController handles pointerup
+    // No drag started — release our pre-drag pointer capture
+    try { card.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
 
     if (!activated) return;
     activated = false;

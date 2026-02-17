@@ -92,6 +92,7 @@ class DragController {
   private proxy: HTMLElement | null = null;
   private pointerId: number | null = null;
   private renderCallback: (() => void) | null = null;
+  private pendingRenderFn: (() => void) | null = null;
 
   // Pointer tracking
   private startX = 0;
@@ -135,6 +136,19 @@ class DragController {
 
   /** True while a drag is in progress. */
   get active(): boolean { return this.isDragging; }
+
+  /**
+   * Gate external re-renders (Convex subscriptions) through the drag
+   * controller. If a drag is active, the render is deferred until after
+   * the drag completes so the source element isn't destroyed mid-drag.
+   */
+  requestRender(renderFn: () => void): void {
+    if (this.isDragging) {
+      this.pendingRenderFn = renderFn;
+      return;
+    }
+    renderFn();
+  }
 
   /** The current drag data (if dragging). */
   get data(): DragData | null { return this.dragData; }
@@ -355,6 +369,13 @@ class DragController {
     this.sourceEl = null;
     this.pointerId = null;
     this.gridDropState = null;
+
+    // Flush any render that was deferred during drag
+    if (this.pendingRenderFn) {
+      const fn = this.pendingRenderFn;
+      this.pendingRenderFn = null;
+      fn();
+    }
   }
 
   // -------------------------------------------------------------------
