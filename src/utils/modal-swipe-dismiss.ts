@@ -1,13 +1,16 @@
 /**
  * Wire swipe-down-to-dismiss on a mobile modal.
- * The drag zone is the swipe handle + modal header.
  *
- * Key insight: .modal-content has overflow-y: auto, making it a scroll
- * container. The compositor claims vertical touches for scroll and fires
- * pointercancel before JavaScript can respond. To avoid this, we listen
- * on the header/handle directly (which have touch-action: none on
- * themselves and all children) and set pointer capture on those elements
- * — never on the scrollable content container.
+ * Uses touch events directly (not pointer events) for two reasons:
+ * 1. We can check scrollTop on touchstart and conditionally claim the
+ *    gesture — allowing normal scroll when content is scrolled down,
+ *    but intercepting for dismiss when at the top.
+ * 2. Non-passive touchmove with preventDefault gives us reliable control
+ *    over the compositor, avoiding pointercancel on the scrollable
+ *    .modal-content container.
+ *
+ * Drag zone: the ENTIRE modal content when scrolled to top.
+ * Header/handle always trigger dismiss regardless of scroll position.
  *
  * Also pushes a history entry so Android back gesture closes the modal.
  *
@@ -27,109 +30,100 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): voi
 
   const header = content.querySelector('.modal-header') as HTMLElement | null;
 
-  // Collect all drag zone elements (handle + header)
-  const dragZones: HTMLElement[] = [handle];
-  if (header) dragZones.push(header);
-
   let startY = 0;
   let currentY = 0;
   let tracking = false;
-  let captureEl: HTMLElement | null = null;
-  let capturePointerId: number | null = null;
+  let decided = false;   // have we decided dismiss vs scroll for this gesture?
+  let dismissing = false; // did we commit to a dismiss gesture?
 
-  function onPointerDown(e: PointerEvent): void {
-    if (!e.isPrimary || e.button !== 0) return;
-    startY = e.clientY;
-    currentY = e.clientY;
-    tracking = true;
-    captureEl = e.currentTarget as HTMLElement;
-    capturePointerId = e.pointerId;
-    content!.style.transition = 'none';
-    // Capture on the drag zone element (not the scrollable content)
-    try { captureEl.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+  function isInHeaderZone(target: EventTarget | null): boolean {
+    if (!target || !(target instanceof Node)) return false;
+    if (handle.contains(target) || target === handle) return true;
+    if (header && (header.contains(target) || target === header)) return true;
+    return false;
   }
 
-  function onPointerMove(e: PointerEvent): void {
-    if (!tracking || !e.isPrimary) return;
-    currentY = e.clientY;
+  content.addEventListener('touchstart', (e: TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    tracking = true;
+    decided = false;
+    dismissing = false;
+    content.style.transition = 'none';
+  }, { passive: true });
+
+  content.addEventListener('touchmove', (e: TouchEvent) => {
+    if (!tracking) return;
+    currentY = e.touches[0].clientY;
     const dy = currentY - startY;
 
-    if (dy < 0) {
-      // Upward — cancel, not a dismiss gesture
-      tracking = false;
+    // First significant movement — decide dismiss or scroll
+    if (!decided && Math.abs(dy) > 5) {
+      decided = true;
+
+      if (dy > 0) {
+        // Pulling down — dismiss if:
+        // (a) touch started in header/handle, OR
+        // (b) content is scrolled to top
+        const inHeader = isInHeaderZone(e.target);
+        const atTop = content.scrollTop <= 0;
+        dismissing = inHeader || atTop;
+      }
+      // Pulling up or not eligible → let browser scroll normally
+    }
+
+    if (dismissing && dy > 0) {
+      e.preventDefault();
+      const progress = Math.min(dy / 300, 1);
+      content.style.transform = `translateY(${dy}px)`;
+      content.style.opacity = `${1 - progress * 0.5}`;
+    }
+  }, { passive: false });
+
+  content.addEventListener('touchend', () => {
+    if (!tracking) return;
+    tracking = false;
+
+    if (!dismissing) {
       resetContentStyle();
-      releaseCapture();
       return;
     }
 
-    if (dy > 5) {
-      const progress = Math.min(dy / 300, 1);
-      content!.style.transform = `translateY(${dy}px)`;
-      content!.style.opacity = `${1 - progress * 0.5}`;
-    }
-  }
-
-  function onPointerUp(e: PointerEvent): void {
-    if (!tracking || !e.isPrimary) return;
-    tracking = false;
-    releaseCapture();
     const dy = currentY - startY;
 
     if (dy > 80) {
-      // Dismiss with animation
-      content!.classList.add('dismissing');
-      content!.style.transform = '';
-      content!.style.opacity = '';
-      content!.style.transition = '';
+      // Dismiss — transition from current position to off-screen
+      content.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+      content.style.transform = 'translateY(100%)';
+      content.style.opacity = '0';
       const onEnd = () => {
-        content!.classList.remove('dismissing');
+        content.style.transform = '';
+        content.style.opacity = '';
+        content.style.transition = '';
         closeFn();
       };
-      content!.addEventListener('animationend', onEnd, { once: true });
-      setTimeout(onEnd, 250);
+      content.addEventListener('transitionend', onEnd, { once: true });
+      setTimeout(onEnd, 300); // safety fallback
     } else {
+      // Snap back
       resetContentStyle();
     }
-  }
 
-  function onPointerCancel(): void {
+    dismissing = false;
+  });
+
+  content.addEventListener('touchcancel', () => {
     if (!tracking) return;
     tracking = false;
-    releaseCapture();
+    dismissing = false;
     resetContentStyle();
-  }
-
-  // Non-passive touchmove on each drag zone — prevents the browser from
-  // interpreting the vertical touch as a scroll on the parent container.
-  function onTouchMove(e: TouchEvent): void {
-    if (!tracking) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy > 5) {
-      e.preventDefault();
-    }
-  }
-
-  // Wire all drag zone elements
-  for (const zone of dragZones) {
-    zone.addEventListener('pointerdown', onPointerDown);
-    zone.addEventListener('pointermove', onPointerMove);
-    zone.addEventListener('pointerup', onPointerUp);
-    zone.addEventListener('pointercancel', onPointerCancel);
-    zone.addEventListener('touchmove', onTouchMove, { passive: false });
-  }
+  });
 
   function resetContentStyle(): void {
     content!.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
     content!.style.transform = '';
     content!.style.opacity = '';
-  }
-
-  function releaseCapture(): void {
-    if (captureEl && capturePointerId !== null) {
-      try { captureEl.releasePointerCapture(capturePointerId); } catch { /* ignored */ }
-      captureEl = null;
-      capturePointerId = null;
-    }
   }
 
   // --- Android back gesture (history-based) ---
