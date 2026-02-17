@@ -157,6 +157,9 @@ function initHandleDrag(
   let startY = 0;
   let tracking = false;
 
+  // Prevent browser from claiming touch on handles (they're small, no scroll intent)
+  handle.style.touchAction = 'none';
+
   handle.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0 || !e.isPrimary) return;
     startX = e.clientX;
@@ -177,6 +180,11 @@ function initHandleDrag(
 
   handle.addEventListener('pointerup', () => { tracking = false; });
   handle.addEventListener('pointercancel', () => { tracking = false; });
+
+  // Prevent browser scroll during handle drag (keeps pointer alive)
+  handle.addEventListener('touchmove', (e: TouchEvent) => {
+    if (tracking) e.preventDefault();
+  }, { passive: false });
 }
 
 /** Wire pointer-based drag on a tab (for reorder/ungroup). */
@@ -184,6 +192,8 @@ function initTabDrag(tab: HTMLElement): void {
   let startX = 0;
   let startY = 0;
   let tracking = false;
+
+  tab.style.touchAction = 'none';
 
   tab.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0 || !e.isPrimary) return;
@@ -205,6 +215,10 @@ function initTabDrag(tab: HTMLElement): void {
 
   tab.addEventListener('pointerup', () => { tracking = false; });
   tab.addEventListener('pointercancel', () => { tracking = false; });
+
+  tab.addEventListener('touchmove', (e: TouchEvent) => {
+    if (tracking) e.preventDefault();
+  }, { passive: false });
 }
 
 function renderSingleCategory(category: Category, currentCardSize: number, showCardNames: boolean): HTMLElement {

@@ -178,6 +178,25 @@ export function initLongPress(card: HTMLElement): void {
     }
   });
 
+  // Prevent browser from claiming the touch for scroll (which fires pointercancel).
+  // Three phases: (1) during 500ms timer — prevent scroll while finger is still
+  // (< 10px), allowing normal swipe-to-scroll if moved further; (2) after activation —
+  // always prevent; (3) during drag — always prevent.
+  card.addEventListener('touchmove', (e: TouchEvent) => {
+    if (activated || dragStarted) {
+      e.preventDefault();
+      return;
+    }
+    if (timer !== null) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.sqrt(dx * dx + dy * dy) <= 10) {
+        e.preventDefault();
+      }
+    }
+  }, { passive: false });
+
   // Prevent native context menu on long-press (mobile browsers)
   card.addEventListener('contextmenu', (e) => {
     e.preventDefault();

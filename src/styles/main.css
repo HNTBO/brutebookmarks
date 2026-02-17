@@ -1528,6 +1528,11 @@ footer {
     .tab-group-mobile .tab-content {
         touch-action: pan-y;
     }
+
+    /* Prevent browser from aggressively claiming touch during long-press on cards */
+    .bookmarks-grid {
+        touch-action: pan-y;
+    }
 }
 
 /* Long-press active state (mobile context menu trigger) */
