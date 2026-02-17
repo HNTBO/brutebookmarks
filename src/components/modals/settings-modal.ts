@@ -206,7 +206,7 @@ async function executeImport(importedData: Category[]): Promise<void> {
 async function fetchAllFavicons(): Promise<void> {
   const btn = document.getElementById('fetch-favicons-btn') as HTMLButtonElement;
   const modalContent = document.querySelector('#settings-modal .modal-content') as HTMLElement;
-  btn.textContent = 'Fetching...';
+  btn.textContent = 'Finding best favicons...';
   settingsBusy = true;
   modalContent.style.pointerEvents = 'none';
   modalContent.style.opacity = '0.6';
@@ -229,26 +229,27 @@ async function fetchAllFavicons(): Promise<void> {
 
     // Count unique domains for progress
     const uniqueDomains = new Set(allBookmarks.map((bk) => new URL(bk.url).hostname));
-    btn.textContent = `Fetching... (0/${uniqueDomains.size})`;
 
     let updated = 0;
 
     if (isConvexMode()) {
       // Sync mode: use server-side bulk resolver
+      btn.textContent = `Finding best favicons... (${uniqueDomains.size} domains)`;
       const client = getConvexClient();
       if (client) {
         const results = await client.action(api.favicons.resolveFaviconBulk, {
           bookmarks: allBookmarks.map((bk) => ({ bookmarkId: bk.bookmarkId, url: bk.url })),
         });
 
-        btn.textContent = `Updating... (${uniqueDomains.size}/${uniqueDomains.size})`;
-
+        let applied = 0;
         for (const result of results) {
           const bk = allBookmarks.find((b) => b.bookmarkId === result.bookmarkId);
           if (bk && bk.iconPath !== result.iconUrl) {
             await updateBookmark(bk.bookmarkId, bk.title, bk.url, result.iconUrl);
             updated++;
           }
+          applied++;
+          btn.textContent = `Updating favicons... (${applied}/${results.length})`;
         }
       }
     } else {
@@ -257,6 +258,7 @@ async function fetchAllFavicons(): Promise<void> {
       const cachedMap = new Map<string, string>();
       const convexUrl = import.meta.env.VITE_CONVEX_URL;
       if (convexUrl) {
+        btn.textContent = `Checking favicon cache...`;
         try {
           const { ConvexHttpClient } = await import('convex/browser');
           const httpClient = new ConvexHttpClient(convexUrl);
@@ -278,7 +280,7 @@ async function fetchAllFavicons(): Promise<void> {
           updated++;
         }
         resolved++;
-        btn.textContent = `Fetching... (${resolved}/${allBookmarks.length})`;
+        btn.textContent = `Finding best favicons... (${resolved}/${allBookmarks.length})`;
       }
     }
 

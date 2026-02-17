@@ -79,6 +79,8 @@ export function initLongPress(card: HTMLElement): void {
   card.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0) return;
     if (!e.isPrimary) return;
+    // Don't capture pointer for edit/delete button clicks — let them bubble normally
+    if ((e.target as HTMLElement).closest('[data-action]')) return;
     startX = e.clientX;
     startY = e.clientY;
     activated = false;
