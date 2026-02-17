@@ -159,14 +159,17 @@ function initHandleDrag(
   let startY = 0;
   let tracking = false;
 
-  // Prevent browser from claiming touch on handles (they're small, no scroll intent)
+  // Prevent browser from claiming touch and native drag
   handle.style.touchAction = 'none';
+  handle.addEventListener('dragstart', (e) => e.preventDefault());
 
   handle.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0 || !e.isPrimary) return;
     startX = e.clientX;
     startY = e.clientY;
     tracking = true;
+    // Capture pointer so pointermove always reaches this element
+    try { handle.setPointerCapture(e.pointerId); } catch { /* ignored */ }
   });
 
   handle.addEventListener('pointermove', (e: PointerEvent) => {
@@ -202,6 +205,7 @@ function initTabDrag(tab: HTMLElement): void {
     startX = e.clientX;
     startY = e.clientY;
     tracking = true;
+    try { tab.setPointerCapture(e.pointerId); } catch { /* ignored */ }
   });
 
   tab.addEventListener('pointermove', (e: PointerEvent) => {
@@ -242,9 +246,12 @@ function renderSingleCategory(category: Category, currentCardSize: number, showC
 
   wireBookmarkCards(categoryEl);
 
-  // Category header drag handle → pointer-based drag
+  // Category header drag — handle + title are both drag zones
+  const dragData = () => ({ kind: 'category' as const, id: category.id });
   const handle = categoryEl.querySelector('.category-drag-handle') as HTMLElement;
-  initHandleDrag(handle, () => ({ kind: 'category', id: category.id }));
+  const title = categoryEl.querySelector('.category-title') as HTMLElement;
+  initHandleDrag(handle, dragData);
+  if (title) initHandleDrag(title, dragData);
 
   return categoryEl;
 }

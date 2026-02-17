@@ -466,6 +466,12 @@ h1 em {
     text-transform: uppercase;
     white-space: nowrap;
     border-right: none;
+    cursor: grab;
+    user-select: none;
+}
+
+.category-title:active {
+    cursor: grabbing;
 }
 
 /* Bookmark Grid - Asymmetric */
