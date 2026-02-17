@@ -144,7 +144,19 @@ async function saveBookmark(event: Event): Promise<void> {
     const movedCategory = selectedCategoryId !== originalCategoryId ? selectedCategoryId : undefined;
     await updateBookmark(editingBookmarkId, title, url, iconPath, movedCategory);
   } else {
-    await createBookmark(selectedCategoryId, title, url, iconPath);
+    const newId = await createBookmark(selectedCategoryId, title, url, iconPath);
+    // Auto-fetch favicon in sync mode if user didn't manually pick an icon
+    if (!iconPath && isConvexMode() && url && /^https?:\/\//i.test(url)) {
+      const client = getConvexClient();
+      if (client) {
+        // Fire-and-forget: don't block modal close
+        client.action(api.favicons.resolveFavicon, { url }).then((result) => {
+          if (result.iconUrl) {
+            updateBookmark(newId, title, url, result.iconUrl).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+    }
   }
   closeBookmarkModal();
 }

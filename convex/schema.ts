@@ -32,6 +32,13 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_category_order', ['categoryId', 'order']),
 
+  faviconCache: defineTable({
+    domain: v.string(),
+    iconUrl: v.string(),
+    source: v.string(),
+    fetchedAt: v.float64(),
+  }).index('by_domain', ['domain']),
+
   userPreferences: defineTable({
     userId: v.string(),
     theme: v.string(),

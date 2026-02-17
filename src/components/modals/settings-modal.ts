@@ -1,4 +1,6 @@
 import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
+import { getConvexClient } from '../../data/convex-client';
+import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
@@ -204,27 +206,63 @@ async function executeImport(importedData: Category[]): Promise<void> {
 async function fetchAllFavicons(): Promise<void> {
   const btn = document.getElementById('fetch-favicons-btn') as HTMLButtonElement;
   const modalContent = document.querySelector('#settings-modal .modal-content') as HTMLElement;
-  btn.textContent = 'Fetching';
+  btn.textContent = 'Fetching...';
   settingsBusy = true;
   modalContent.style.pointerEvents = 'none';
   modalContent.style.opacity = '0.6';
 
   try {
     const categories = getCategories();
-    let updated = 0;
 
+    // Collect all bookmarks with valid URLs
+    const allBookmarks: { bookmarkId: string; url: string; title: string; iconPath: string | null }[] = [];
     for (const cat of categories) {
       for (const bk of cat.bookmarks) {
         try {
-          const domain = new URL(bk.url).hostname;
-          const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-          if (bk.iconPath !== faviconUrl) {
-            await updateBookmark(bk.id, bk.title, bk.url, faviconUrl);
-            updated++;
-          }
+          new URL(bk.url); // validate
+          allBookmarks.push({ bookmarkId: bk.id, url: bk.url, title: bk.title, iconPath: bk.iconPath });
         } catch {
           // Invalid URL — skip
         }
+      }
+    }
+
+    // Count unique domains for progress
+    const uniqueDomains = new Set(allBookmarks.map((bk) => new URL(bk.url).hostname));
+    btn.textContent = `Fetching... (0/${uniqueDomains.size})`;
+
+    let updated = 0;
+
+    if (isConvexMode()) {
+      // Sync mode: use server-side bulk resolver
+      const client = getConvexClient();
+      if (client) {
+        const results = await client.action(api.favicons.resolveFaviconBulk, {
+          bookmarks: allBookmarks.map((bk) => ({ bookmarkId: bk.bookmarkId, url: bk.url })),
+        });
+
+        btn.textContent = `Updating... (${uniqueDomains.size}/${uniqueDomains.size})`;
+
+        for (const result of results) {
+          const bk = allBookmarks.find((b) => b.bookmarkId === result.bookmarkId);
+          if (bk && bk.iconPath !== result.iconUrl) {
+            await updateBookmark(bk.bookmarkId, bk.title, bk.url, result.iconUrl);
+            updated++;
+          }
+        }
+      }
+    } else {
+      // Local mode: fall back to Google S2 URLs
+      let resolved = 0;
+      for (const bk of allBookmarks) {
+        const domain = new URL(bk.url).hostname;
+        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        if (bk.iconPath !== faviconUrl) {
+          await updateBookmark(bk.bookmarkId, bk.title, bk.url, faviconUrl);
+          updated++;
+        }
+        resolved++;
+        btn.textContent = `Fetching... (${resolved}/${allBookmarks.length})`;
       }
     }
 
