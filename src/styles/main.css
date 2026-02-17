@@ -1460,21 +1460,22 @@ footer {
         color: var(--accent);
     }
 
-    /* Mobile tab group — infinite carousel */
+    /* Mobile tab group — infinite carousel (ribbon model) */
     .tab-bar-mobile {
         overflow: hidden;
     }
 
-    .tab-bar-mobile .tab:first-child {
+    .tab-bar-mobile .tab {
+        font-size: 1rem;
         flex-shrink: 0;
+        overflow: visible;
+        text-overflow: clip;
+        min-width: auto;
+        cursor: pointer;
     }
 
     .tab-bar-mobile .tab:not(.tab-active) {
         opacity: 0.5;
-    }
-
-    .tab-group-mobile .tab {
-        cursor: pointer;
     }
 
     .tab-group-mobile .tab-content {

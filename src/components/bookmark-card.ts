@@ -134,79 +134,93 @@ export function initLongPress(card: HTMLElement): void {
   });
 }
 
-export function initUndoRedoLongPress(card: HTMLElement): void {
+export function initGridLongPress(grid: HTMLElement): void {
   let timer: number | null = null;
   let startX = 0;
   let startY = 0;
-  let activated = false;
 
-  card.addEventListener('pointerdown', (e: PointerEvent) => {
+  grid.addEventListener('pointerdown', (e: PointerEvent) => {
+    // Only fire on grid background (gaps / empty area), not on cards
+    if ((e.target as HTMLElement).closest('.bookmark-card')) return;
     if (e.button !== 0) return;
     startX = e.clientX;
     startY = e.clientY;
-    activated = false;
 
     timer = window.setTimeout(() => {
-      activated = true;
-      card.classList.add('long-press-active');
+      timer = null;
       try { navigator.vibrate?.(50); } catch { /* ignored */ }
+      dismissContextMenu();
+      showUndoRedoMenu(e.clientX, e.clientY);
     }, 500);
   });
 
-  card.addEventListener('pointermove', (e: PointerEvent) => {
+  grid.addEventListener('pointermove', (e: PointerEvent) => {
     if (timer === null) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (Math.sqrt(dx * dx + dy * dy) > 10) {
       clearTimeout(timer);
       timer = null;
-      if (activated) {
-        card.classList.remove('long-press-active');
-        activated = false;
-      }
     }
   });
 
-  card.addEventListener('pointerup', (e: PointerEvent) => {
-    if (timer !== null) {
-      clearTimeout(timer);
-      timer = null;
-    }
-    if (!activated) return;
-    activated = false;
-    card.classList.remove('long-press-active');
-
-    longPressClickGuard = true;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => { longPressClickGuard = false; });
-    });
-
-    dismissContextMenu();
-    showUndoRedoMenu(e.clientX, e.clientY);
+  grid.addEventListener('pointerup', () => {
+    if (timer !== null) { clearTimeout(timer); timer = null; }
+  });
+  grid.addEventListener('pointercancel', () => {
+    if (timer !== null) { clearTimeout(timer); timer = null; }
   });
 
-  card.addEventListener('pointercancel', () => {
-    if (timer !== null) {
-      clearTimeout(timer);
-      timer = null;
-    }
-    if (activated) {
-      card.classList.remove('long-press-active');
-      activated = false;
-    }
-  });
-
-  card.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-  });
-
-  // Capture-phase click guard to prevent add-bookmark modal after long-press
-  card.addEventListener('click', (e) => {
-    if (longPressClickGuard) {
-      e.stopPropagation();
+  grid.addEventListener('contextmenu', (e) => {
+    if (!(e.target as HTMLElement).closest('.bookmark-card')) {
       e.preventDefault();
     }
-  }, true);
+  });
+}
+
+function wireSwipeToDismiss(menu: HTMLElement): void {
+  let startX = 0;
+  let tracking = false;
+
+  menu.addEventListener('pointerdown', (e: PointerEvent) => {
+    startX = e.clientX;
+    tracking = true;
+    menu.style.transition = 'none';
+  });
+
+  menu.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!tracking) return;
+    const dx = e.clientX - startX;
+    menu.style.transform = `translateX(${dx}px)`;
+    menu.style.opacity = `${Math.max(0, 1 - Math.abs(dx) / 120)}`;
+  });
+
+  menu.addEventListener('pointerup', (e: PointerEvent) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 60) {
+      // Swipe past threshold — slide out and dismiss
+      const direction = dx > 0 ? 200 : -200;
+      menu.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
+      menu.style.transform = `translateX(${direction}px)`;
+      menu.style.opacity = '0';
+      menu.addEventListener('transitionend', () => dismissContextMenu(), { once: true });
+    } else {
+      // Snap back
+      menu.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
+      menu.style.transform = 'translateX(0)';
+      menu.style.opacity = '1';
+    }
+  });
+
+  menu.addEventListener('pointercancel', () => {
+    if (!tracking) return;
+    tracking = false;
+    menu.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
+    menu.style.transform = 'translateX(0)';
+    menu.style.opacity = '1';
+  });
 }
 
 function showUndoRedoMenu(x: number, y: number): void {
@@ -229,6 +243,7 @@ function showUndoRedoMenu(x: number, y: number): void {
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
   activeContextMenu = menu;
+  wireSwipeToDismiss(menu);
 
   menu.querySelector('[data-action="undo"]')!.addEventListener('click', async () => {
     dismissContextMenu();
@@ -284,6 +299,7 @@ function showContextMenu(x: number, y: number, categoryId: string, bookmarkId: s
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
   activeContextMenu = menu;
+  wireSwipeToDismiss(menu);
 
   // Wire edit
   menu.querySelector('[data-action="edit"]')!.addEventListener('click', async () => {

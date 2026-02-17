@@ -3,7 +3,7 @@ import type { Category, TabGroup, LayoutItem } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
-import { handleCardMouseMove, handleCardMouseLeave, initLongPress, initUndoRedoLongPress, consumeLongPressGuard } from './bookmark-card';
+import { handleCardMouseMove, handleCardMouseLeave, initLongPress, initGridLongPress, consumeLongPressGuard } from './bookmark-card';
 import {
   handleDragStart,
   handleDragEnd,
@@ -165,19 +165,15 @@ function wireBookmarkCards(el: HTMLElement): void {
     });
   });
 
-  // Long-press undo/redo on add-bookmark cards (mobile)
-  if (window.matchMedia('(max-width: 768px)').matches) {
-    el.querySelectorAll<HTMLElement>('.bookmark-card.add-bookmark').forEach((card) => {
-      initUndoRedoLongPress(card);
-    });
-  }
-
   // Grid-level drag handlers for continuous drop zones (covers gaps between cards)
   const grids = el.querySelectorAll<HTMLElement>('.bookmarks-grid');
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
   grids.forEach((grid) => {
     grid.addEventListener('dragover', handleGridDragOver as EventListener);
     grid.addEventListener('drop', ((e: DragEvent) => handleGridDrop(e, renderCategories)) as EventListener);
     grid.addEventListener('dragleave', handleGridDragLeave as EventListener);
+    // Long-press grid background → undo/redo (mobile only)
+    if (isMobile) initGridLongPress(grid);
   });
 }
 
