@@ -1656,6 +1656,8 @@ body.dragging {
 .bookmark-card:not(.add-bookmark) {
     cursor: grab;
     -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-drag: none;
 }
 
 .bookmark-card:not(.add-bookmark):active {

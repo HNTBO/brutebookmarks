@@ -98,7 +98,7 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
              ${nameOnHover ? `title="${escapeHtml(bookmark.title)}"` : ''}>
           <button class="edit-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">✎</button>
           <button class="delete-btn" data-action="delete-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">×</button>
-          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}">
+          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" draggable="false">
           <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         </div>
       `,
@@ -129,6 +129,8 @@ function wireBookmarkCards(el: HTMLElement): void {
     // Pointer events: long-press (mobile) / immediate drag (desktop) handled in initLongPress
     card.addEventListener('mousemove', handleCardMouseMove as EventListener);
     card.addEventListener('mouseleave', handleCardMouseLeave as EventListener);
+    // Prevent native browser drag (img/link) from stealing pointer events
+    card.addEventListener('dragstart', (e) => e.preventDefault());
     initLongPress(card);
 
     card.addEventListener('click', (e) => {
