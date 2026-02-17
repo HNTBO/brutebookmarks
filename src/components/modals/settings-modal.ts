@@ -1,4 +1,5 @@
 import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
+import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
@@ -423,5 +424,11 @@ export function initSettingsModal(): void {
       closeSettingsModal();
     }
     mouseDownOnBackdrop = false;
+  });
+
+  // Mobile swipe-down to dismiss
+  wireModalSwipeDismiss('settings-modal', closeSettingsModal);
+  wireModalSwipeDismiss('help-modal', () => {
+    document.getElementById('help-modal')!.classList.remove('active');
   });
 }

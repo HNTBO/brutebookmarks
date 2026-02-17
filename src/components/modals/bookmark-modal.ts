@@ -1,4 +1,5 @@
 import { getCategories, createBookmark, updateBookmark, deleteBookmarkById, isConvexMode } from '../../data/store';
+import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { getIconUrl } from '../../utils/icons';
@@ -184,4 +185,7 @@ export function initBookmarkModal(): void {
     }
     mouseDownOnBackdrop = false;
   });
+
+  // Mobile swipe-down to dismiss
+  wireModalSwipeDismiss('bookmark-modal', closeBookmarkModal);
 }

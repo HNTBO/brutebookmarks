@@ -1,3 +1,8 @@
+/* Prevent pull-to-refresh on mobile (interferes with long-press drag) */
+html, body {
+    overscroll-behavior-y: contain;
+}
+
 :root {
     /* Core palette - stark and editorial */
     --bg-primary: #000c17;
@@ -697,6 +702,34 @@ body:has(.modal.active) {
     from {
         opacity: 0;
         transform: translateY(-20px);
+    }
+}
+
+@keyframes modalSlideOut {
+    to {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+}
+
+.modal-content.dismissing {
+    animation: modalSlideOut 0.2s ease-in forwards;
+}
+
+/* Swipe handle pill for mobile modals */
+.modal-swipe-handle {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .modal-swipe-handle {
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: var(--text-muted);
+        border-radius: 2px;
+        margin: 8px auto 0;
+        flex-shrink: 0;
     }
 }
 

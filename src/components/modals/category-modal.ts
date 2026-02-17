@@ -9,6 +9,7 @@ import {
   isConvexMode,
 } from '../../data/store';
 import { styledConfirm, styledPrompt } from './confirm-modal';
+import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 
 let editingCategoryId: string | null = null;
 
@@ -127,4 +128,7 @@ export function initCategoryModal(): void {
     }
     mouseDownOnBackdrop = false;
   });
+
+  // Mobile swipe-down to dismiss
+  wireModalSwipeDismiss('category-modal', closeCategoryModal);
 }

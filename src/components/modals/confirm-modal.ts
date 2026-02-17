@@ -1,3 +1,5 @@
+import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
+
 let _resolve: ((value: boolean | null) => void) | null = null;
 let _promptResolve: ((value: string | null) => void) | null = null;
 
@@ -141,5 +143,14 @@ export function initConfirmModal(): void {
       }
     }
     mouseDownOnBackdrop = false;
+  });
+
+  // Mobile swipe-down to dismiss
+  wireModalSwipeDismiss('confirm-modal', () => {
+    if (_promptResolve) {
+      closePrompt(null);
+    } else {
+      close(null);
+    }
   });
 }
