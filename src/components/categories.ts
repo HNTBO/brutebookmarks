@@ -50,7 +50,7 @@ function rotateToActive(categories: Category[], activeId: string): Category[] {
 
 function wireTabClicks(
   groupEl: HTMLElement,
-  switchFn: (catId: string) => void
+  switchFn: (catId: string, direction?: 'forward' | 'backward') => void
 ): void {
   groupEl.querySelectorAll<HTMLElement>('.tab-bar-mobile .tab').forEach((tab) => {
     tab.addEventListener('click', () => switchFn(tab.dataset.tabCategoryId!));
@@ -61,7 +61,7 @@ function initTabSwipe(
   contentEl: HTMLElement,
   categories: Category[],
   getActive: () => string,
-  switchFn: (catId: string) => void
+  switchFn: (catId: string, direction?: 'forward' | 'backward') => void
 ): void {
   let startX = 0;
   let startY = 0;
@@ -92,7 +92,7 @@ function initTabSwipe(
       const nextIdx = dx < 0
         ? (idx + 1) % len   // swipe left → next
         : (idx - 1 + len) % len; // swipe right → prev
-      switchFn(categories[nextIdx].id);
+      switchFn(categories[nextIdx].id, dx < 0 ? 'forward' : 'backward');
     }
   });
 
@@ -217,23 +217,27 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
   const activeTabId = getActiveTabId(group);
   const rotated = rotateToActive(group.categories, activeTabId);
 
+  function tabsHtml(cats: Category[], activeCatId: string): string {
+    return cats
+      .map(
+        (cat) => `
+      <div class="tab ${cat.id === activeCatId ? 'tab-active' : ''}"
+           role="button"
+           tabindex="0"
+           data-tab-category-id="${escapeHtml(cat.id)}"
+           data-group-id="${escapeHtml(group.id)}">
+        ${escapeHtml(cat.name)}
+      </div>
+    `,
+      )
+      .join('');
+  }
+
   groupEl.innerHTML = `
     <div class="tab-group-header">
       <div class="category-drag-handle" title="Drag to reorder">⠿</div>
       <div class="tab-bar tab-bar-mobile">
-        ${rotated
-          .map(
-            (cat) => `
-          <div class="tab ${cat.id === activeTabId ? 'tab-active' : ''}"
-               role="button"
-               tabindex="0"
-               data-tab-category-id="${escapeHtml(cat.id)}"
-               data-group-id="${escapeHtml(group.id)}">
-            ${escapeHtml(cat.name)}
-          </div>
-        `,
-          )
-          .join('')}
+        <div class="tab-ribbon">${tabsHtml(rotated, activeTabId)}</div>
       </div>
       <button class="category-edit-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit group">✎</button>
     </div>
@@ -251,31 +255,64 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
     </div>
   `;
 
-  function switchToTab(catId: string): void {
-    activeTabPerGroup.set(group.id, catId);
-    // Haptic tick on tab switch (Android; no-op on iOS / desktop)
-    try { navigator.vibrate?.(10); } catch { /* ignored */ }
-    // Re-render tab bar with new rotation
-    const bar = groupEl.querySelector('.tab-bar-mobile')!;
+  let sliding = false;
+
+  function rebuildRibbon(catId: string): void {
+    const ribbon = groupEl.querySelector('.tab-ribbon') as HTMLElement;
     const newRotated = rotateToActive(group.categories, catId);
-    bar.innerHTML = newRotated
-      .map(
-        (cat) => `
-      <div class="tab ${cat.id === catId ? 'tab-active' : ''}"
-           role="button"
-           tabindex="0"
-           data-tab-category-id="${escapeHtml(cat.id)}"
-           data-group-id="${escapeHtml(group.id)}">
-        ${escapeHtml(cat.name)}
-      </div>
-    `,
-      )
-      .join('');
-    // Toggle panels
+    ribbon.style.transition = 'none';
+    ribbon.style.transform = 'translateX(0)';
+    ribbon.innerHTML = tabsHtml(newRotated, catId);
+    wireTabClicks(groupEl, switchToTab);
+  }
+
+  function switchToTab(catId: string, direction?: 'forward' | 'backward'): void {
+    const currentActiveId = activeTabPerGroup.get(group.id) || group.categories[0]?.id;
+    if (catId === currentActiveId) return;
+    if (sliding) return;
+
+    activeTabPerGroup.set(group.id, catId);
+    try { navigator.vibrate?.(10); } catch { /* ignored */ }
+
+    // Toggle panels immediately
     groupEl.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('tab-panel-active'));
     groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
-    // Re-wire tab clicks
-    wireTabClicks(groupEl, switchToTab);
+
+    const ribbon = groupEl.querySelector('.tab-ribbon') as HTMLElement;
+    if (!ribbon) { rebuildRibbon(catId); return; }
+
+    const dir = direction || 'forward';
+    sliding = true;
+
+    if (dir === 'forward') {
+      // Slide left: calculate offset to target tab
+      const tabs = Array.from(ribbon.children) as HTMLElement[];
+      let offset = 0;
+      for (const tab of tabs) {
+        if (tab.dataset.tabCategoryId === catId) break;
+        offset += tab.offsetWidth;
+      }
+      ribbon.style.transition = 'transform 0.25s ease';
+      ribbon.style.transform = `translateX(${-offset}px)`;
+      ribbon.addEventListener('transitionend', () => {
+        rebuildRibbon(catId);
+        sliding = false;
+      }, { once: true });
+      setTimeout(() => { if (sliding) { rebuildRibbon(catId); sliding = false; } }, 300);
+    } else {
+      // Slide right: rebuild first, then animate from offset to 0
+      rebuildRibbon(catId);
+      const firstTab = ribbon.children[0] as HTMLElement;
+      const firstWidth = firstTab.offsetWidth;
+      ribbon.style.transition = 'none';
+      ribbon.style.transform = `translateX(${-firstWidth}px)`;
+      // Force layout so the browser registers the starting position
+      void ribbon.offsetWidth;
+      ribbon.style.transition = 'transform 0.25s ease';
+      ribbon.style.transform = 'translateX(0)';
+      ribbon.addEventListener('transitionend', () => { sliding = false; }, { once: true });
+      setTimeout(() => { sliding = false; }, 300);
+    }
   }
 
   wireTabClicks(groupEl, switchToTab);

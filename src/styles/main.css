@@ -1465,6 +1465,12 @@ footer {
         overflow: hidden;
     }
 
+    .tab-ribbon {
+        display: flex;
+        align-items: stretch;
+        width: max-content;
+    }
+
     .tab-bar-mobile .tab {
         font-size: 1rem;
         flex-shrink: 0;
