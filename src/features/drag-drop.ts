@@ -117,6 +117,7 @@ class DragController {
   private onPointerMoveBound = this.onPointerMove.bind(this);
   private onPointerUpBound = this.onPointerUp.bind(this);
   private onKeyDownBound = this.onKeyDown.bind(this);
+  private onTouchMoveBound = this.onTouchMove.bind(this);
 
   // -------------------------------------------------------------------
   // Public API
@@ -198,6 +199,10 @@ class DragController {
     document.addEventListener('pointerup', this.onPointerUpBound);
     document.addEventListener('pointercancel', this.onPointerUpBound);
     document.addEventListener('keydown', this.onKeyDownBound);
+    // Non-passive touchmove on document prevents compositor from claiming the
+    // touch for scroll mid-drag (touch-action is read at gesture start, so
+    // setting it during startDrag is too late — must use preventDefault).
+    document.addEventListener('touchmove', this.onTouchMoveBound, { passive: false });
 
     // Start auto-scroll loop
     this.startAutoScroll();
@@ -292,6 +297,10 @@ class DragController {
     this.cleanup();
   }
 
+  private onTouchMove(e: TouchEvent): void {
+    if (this.isDragging) e.preventDefault();
+  }
+
   private onKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Escape' && this.isDragging) {
       this.cancelDrag();
@@ -318,6 +327,7 @@ class DragController {
     document.removeEventListener('pointerup', this.onPointerUpBound);
     document.removeEventListener('pointercancel', this.onPointerUpBound);
     document.removeEventListener('keydown', this.onKeyDownBound);
+    document.removeEventListener('touchmove', this.onTouchMoveBound);
 
     // Restore touch-action
     document.documentElement.style.touchAction = '';

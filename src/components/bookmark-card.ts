@@ -89,6 +89,11 @@ export function initLongPress(card: HTMLElement): void {
       // Desktop: no long-press timer — drag starts on move
       timer = null;
     } else {
+      // Touch: capture pointer immediately so the browser can't fire
+      // pointercancel (claiming the touch for scroll) during the hold.
+      // Released if the user scrolls (movement > 10px before timer fires).
+      try { card.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+
       // Touch: start 500ms timer for long-press activation
       timer = window.setTimeout(() => {
         timer = null;
@@ -124,6 +129,8 @@ export function initLongPress(card: HTMLElement): void {
       if (timer !== null && dist > 10) {
         clearTimeout(timer);
         timer = null;
+        // Release capture so browser can resume scrolling
+        try { card.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
       }
       // Touch: if activated (long-press fired) and moved > 5px → start drag
       if (activated && dist > 5 && !dragController.active) {
@@ -146,6 +153,9 @@ export function initLongPress(card: HTMLElement): void {
       timer = null;
     }
     savedEvent = null;
+
+    // Release capture if we still hold it (timer period ended without drag)
+    try { card.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
 
     if (dragStarted) return; // DragController handles pointerup
 
