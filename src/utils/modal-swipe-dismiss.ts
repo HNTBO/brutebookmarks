@@ -1,9 +1,14 @@
 /**
  * Wire swipe-down-to-dismiss on a mobile modal.
  * The drag zone is the swipe handle + modal header.
- * Uses touchmove preventDefault (non-passive) to stop the browser from
- * hijacking the vertical touch — touch-action CSS alone doesn't propagate
- * to child elements (h2, close button).
+ *
+ * Key insight: .modal-content has overflow-y: auto, making it a scroll
+ * container. The compositor claims vertical touches for scroll and fires
+ * pointercancel before JavaScript can respond. To avoid this, we listen
+ * on the header/handle directly (which have touch-action: none on
+ * themselves and all children) and set pointer capture on those elements
+ * — never on the scrollable content container.
+ *
  * Also pushes a history entry so Android back gesture closes the modal.
  *
  * @param modalId  The DOM id of the .modal element
@@ -20,35 +25,31 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): voi
   handle.className = 'modal-swipe-handle';
   content.insertBefore(handle, content.firstChild);
 
-  // --- Swipe-down to dismiss ---
   const header = content.querySelector('.modal-header') as HTMLElement | null;
+
+  // Collect all drag zone elements (handle + header)
+  const dragZones: HTMLElement[] = [handle];
+  if (header) dragZones.push(header);
 
   let startY = 0;
   let currentY = 0;
   let tracking = false;
-  let pointerId: number | null = null;
+  let captureEl: HTMLElement | null = null;
+  let capturePointerId: number | null = null;
 
-  // We listen on the content element (captures bubbling from header children)
-  // but only activate if the touch started inside a drag zone.
-  function isInDragZone(target: EventTarget | null): boolean {
-    if (!target || !(target instanceof Node)) return false;
-    if (handle.contains(target) || target === handle) return true;
-    if (header && (header.contains(target) || target === header)) return true;
-    return false;
-  }
-
-  content.addEventListener('pointerdown', (e: PointerEvent) => {
+  function onPointerDown(e: PointerEvent): void {
     if (!e.isPrimary || e.button !== 0) return;
-    if (!isInDragZone(e.target)) return;
     startY = e.clientY;
     currentY = e.clientY;
     tracking = true;
-    pointerId = e.pointerId;
-    content.style.transition = 'none';
-    try { content.setPointerCapture(e.pointerId); } catch { /* ignored */ }
-  });
+    captureEl = e.currentTarget as HTMLElement;
+    capturePointerId = e.pointerId;
+    content!.style.transition = 'none';
+    // Capture on the drag zone element (not the scrollable content)
+    try { captureEl.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+  }
 
-  content.addEventListener('pointermove', (e: PointerEvent) => {
+  function onPointerMove(e: PointerEvent): void {
     if (!tracking || !e.isPrimary) return;
     currentY = e.clientY;
     const dy = currentY - startY;
@@ -63,23 +64,12 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): voi
 
     if (dy > 5) {
       const progress = Math.min(dy / 300, 1);
-      content.style.transform = `translateY(${dy}px)`;
-      content.style.opacity = `${1 - progress * 0.5}`;
+      content!.style.transform = `translateY(${dy}px)`;
+      content!.style.opacity = `${1 - progress * 0.5}`;
     }
-  });
+  }
 
-  // The key fix: a non-passive touchmove listener that calls preventDefault
-  // when we're tracking a swipe. This prevents the browser from interpreting
-  // the vertical touch as a scroll, which would fire pointercancel.
-  content.addEventListener('touchmove', (e: TouchEvent) => {
-    if (!tracking) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy > 5) {
-      e.preventDefault();
-    }
-  }, { passive: false });
-
-  content.addEventListener('pointerup', (e: PointerEvent) => {
+  function onPointerUp(e: PointerEvent): void {
     if (!tracking || !e.isPrimary) return;
     tracking = false;
     releaseCapture();
@@ -87,27 +77,46 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): voi
 
     if (dy > 80) {
       // Dismiss with animation
-      content.classList.add('dismissing');
-      content.style.transform = '';
-      content.style.opacity = '';
-      content.style.transition = '';
+      content!.classList.add('dismissing');
+      content!.style.transform = '';
+      content!.style.opacity = '';
+      content!.style.transition = '';
       const onEnd = () => {
-        content.classList.remove('dismissing');
+        content!.classList.remove('dismissing');
         closeFn();
       };
-      content.addEventListener('animationend', onEnd, { once: true });
+      content!.addEventListener('animationend', onEnd, { once: true });
       setTimeout(onEnd, 250);
     } else {
       resetContentStyle();
     }
-  });
+  }
 
-  content.addEventListener('pointercancel', () => {
+  function onPointerCancel(): void {
     if (!tracking) return;
     tracking = false;
     releaseCapture();
     resetContentStyle();
-  });
+  }
+
+  // Non-passive touchmove on each drag zone — prevents the browser from
+  // interpreting the vertical touch as a scroll on the parent container.
+  function onTouchMove(e: TouchEvent): void {
+    if (!tracking) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 5) {
+      e.preventDefault();
+    }
+  }
+
+  // Wire all drag zone elements
+  for (const zone of dragZones) {
+    zone.addEventListener('pointerdown', onPointerDown);
+    zone.addEventListener('pointermove', onPointerMove);
+    zone.addEventListener('pointerup', onPointerUp);
+    zone.addEventListener('pointercancel', onPointerCancel);
+    zone.addEventListener('touchmove', onTouchMove, { passive: false });
+  }
 
   function resetContentStyle(): void {
     content!.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
@@ -116,9 +125,10 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): voi
   }
 
   function releaseCapture(): void {
-    if (pointerId !== null) {
-      try { content!.releasePointerCapture(pointerId); } catch { /* ignored */ }
-      pointerId = null;
+    if (captureEl && capturePointerId !== null) {
+      try { captureEl.releasePointerCapture(capturePointerId); } catch { /* ignored */ }
+      captureEl = null;
+      capturePointerId = null;
     }
   }
 

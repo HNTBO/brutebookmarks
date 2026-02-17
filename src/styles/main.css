@@ -741,8 +741,13 @@ body:has(.modal.active) {
         touch-action: none;  /* prevent browser scroll hijack */
     }
 
-    /* Header is a drag zone for swipe-dismiss on mobile */
-    .modal-header {
+    /* Header + handle are drag zones for swipe-dismiss on mobile.
+       touch-action doesn't inherit, so apply to all children too —
+       otherwise touching the h2 or close button lets the compositor
+       claim the touch for scroll on the overflow-y: auto parent. */
+    .modal-swipe-handle,
+    .modal-header,
+    .modal-header * {
         touch-action: none;
     }
 }
