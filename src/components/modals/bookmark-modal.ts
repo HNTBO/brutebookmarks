@@ -1,5 +1,6 @@
 import { getCategories, createBookmark, updateBookmark, deleteBookmarkById, isConvexMode } from '../../data/store';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
+import { ConvexHttpClient } from 'convex/browser';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { getIconUrl } from '../../utils/icons';
@@ -145,16 +146,30 @@ async function saveBookmark(event: Event): Promise<void> {
     await updateBookmark(editingBookmarkId, title, url, iconPath, movedCategory);
   } else {
     const newId = await createBookmark(selectedCategoryId, title, url, iconPath);
-    // Auto-fetch favicon in sync mode if user didn't manually pick an icon
-    if (!iconPath && isConvexMode() && url && /^https?:\/\//i.test(url)) {
-      const client = getConvexClient();
-      if (client) {
-        // Fire-and-forget: don't block modal close
-        client.action(api.favicons.resolveFavicon, { url }).then((result) => {
-          if (result.iconUrl) {
-            updateBookmark(newId, title, url, result.iconUrl).catch(() => {});
-          }
-        }).catch(() => {});
+    // Auto-fetch favicon if user didn't manually pick an icon
+    if (!iconPath && url && /^https?:\/\//i.test(url)) {
+      if (isConvexMode()) {
+        const client = getConvexClient();
+        if (client) {
+          // Fire-and-forget: don't block modal close
+          client.action(api.favicons.resolveFavicon, { url }).then((result) => {
+            if (result.iconUrl) {
+              updateBookmark(newId, title, url, result.iconUrl).catch(() => {});
+            }
+          }).catch(() => {});
+        }
+      } else {
+        // Local mode: try cache lookup via unauthenticated ConvexHttpClient
+        const convexUrl = import.meta.env.VITE_CONVEX_URL;
+        if (convexUrl) {
+          const httpClient = new ConvexHttpClient(convexUrl);
+          const domain = new URL(url).hostname;
+          httpClient.query(api.favicons.lookupCachedFavicons, { domains: [domain] }).then((results) => {
+            if (results.length > 0) {
+              updateBookmark(newId, title, url, results[0].iconUrl).catch(() => {});
+            }
+          }).catch(() => {});
+        }
       }
     }
   }

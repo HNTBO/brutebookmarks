@@ -1,6 +1,6 @@
 "use node";
 
-import { action, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -283,6 +283,25 @@ export const upsertFaviconCache = internalMutation({
     } else {
       await ctx.db.insert("faviconCache", { domain, iconUrl, source, fetchedAt });
     }
+  },
+});
+
+// --- Public queries (no auth, read-only cache access for local-mode users) ---
+
+export const lookupCachedFavicons = query({
+  args: { domains: v.array(v.string()) },
+  handler: async (ctx, { domains }) => {
+    const results: { domain: string; iconUrl: string; source: string }[] = [];
+    for (const domain of domains) {
+      const cached = await ctx.db
+        .query("faviconCache")
+        .withIndex("by_domain", (q) => q.eq("domain", domain))
+        .first();
+      if (cached) {
+        results.push({ domain: cached.domain, iconUrl: cached.iconUrl, source: cached.source });
+      }
+    }
+    return results;
   },
 });
 

@@ -252,11 +252,27 @@ async function fetchAllFavicons(): Promise<void> {
         }
       }
     } else {
-      // Local mode: fall back to Google S2 URLs
+      // Local mode: try cache lookup, fall back to Google S2
+      const domains = [...uniqueDomains];
+      const cachedMap = new Map<string, string>();
+      const convexUrl = import.meta.env.VITE_CONVEX_URL;
+      if (convexUrl) {
+        try {
+          const { ConvexHttpClient } = await import('convex/browser');
+          const httpClient = new ConvexHttpClient(convexUrl);
+          const cached = await httpClient.query(api.favicons.lookupCachedFavicons, { domains });
+          for (const entry of cached) {
+            cachedMap.set(entry.domain, entry.iconUrl);
+          }
+        } catch {
+          // Cache lookup failed — fall through to Google S2 for all
+        }
+      }
+
       let resolved = 0;
       for (const bk of allBookmarks) {
         const domain = new URL(bk.url).hostname;
-        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        const faviconUrl = cachedMap.get(domain) || `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
         if (bk.iconPath !== faviconUrl) {
           await updateBookmark(bk.bookmarkId, bk.title, bk.url, faviconUrl);
           updated++;
