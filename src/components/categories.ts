@@ -285,13 +285,20 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
     sliding = true;
 
     if (dir === 'forward') {
-      // Slide left: calculate offset to target tab
       const tabs = Array.from(ribbon.children) as HTMLElement[];
+      // Clone departing tabs and append to the end (continuous wrap)
       let offset = 0;
       for (const tab of tabs) {
         if (tab.dataset.tabCategoryId === catId) break;
         offset += tab.offsetWidth;
+        const clone = tab.cloneNode(true) as HTMLElement;
+        clone.classList.remove('tab-active');
+        ribbon.appendChild(clone);
       }
+      // Swap active class immediately (no flash at rebuild)
+      ribbon.querySelector('.tab-active')?.classList.remove('tab-active');
+      ribbon.querySelector(`[data-tab-category-id="${catId}"]`)?.classList.add('tab-active');
+      // Slide left
       ribbon.style.transition = 'transform 0.25s ease';
       ribbon.style.transform = `translateX(${-offset}px)`;
       ribbon.addEventListener('transitionend', () => {
