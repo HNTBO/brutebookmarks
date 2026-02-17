@@ -1,6 +1,6 @@
 "use node";
 
-import { action, internalMutation, internalQuery, query } from "./_generated/server";
+import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -254,57 +254,6 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
   };
 }
 
-// --- Internal query/mutation for cache access from actions ---
-
-export const getCachedFavicon = internalQuery({
-  args: { domain: v.string() },
-  handler: async (ctx, { domain }) => {
-    return await ctx.db
-      .query("faviconCache")
-      .withIndex("by_domain", (q) => q.eq("domain", domain))
-      .first();
-  },
-});
-
-export const upsertFaviconCache = internalMutation({
-  args: {
-    domain: v.string(),
-    iconUrl: v.string(),
-    source: v.string(),
-    fetchedAt: v.float64(),
-  },
-  handler: async (ctx, { domain, iconUrl, source, fetchedAt }) => {
-    const existing = await ctx.db
-      .query("faviconCache")
-      .withIndex("by_domain", (q) => q.eq("domain", domain))
-      .first();
-    if (existing) {
-      await ctx.db.patch(existing._id, { iconUrl, source, fetchedAt });
-    } else {
-      await ctx.db.insert("faviconCache", { domain, iconUrl, source, fetchedAt });
-    }
-  },
-});
-
-// --- Public queries (no auth, read-only cache access for local-mode users) ---
-
-export const lookupCachedFavicons = query({
-  args: { domains: v.array(v.string()) },
-  handler: async (ctx, { domains }) => {
-    const results: { domain: string; iconUrl: string; source: string }[] = [];
-    for (const domain of domains) {
-      const cached = await ctx.db
-        .query("faviconCache")
-        .withIndex("by_domain", (q) => q.eq("domain", domain))
-        .first();
-      if (cached) {
-        results.push({ domain: cached.domain, iconUrl: cached.iconUrl, source: cached.source });
-      }
-    }
-    return results;
-  },
-});
-
 // --- Public actions ---
 
 export const resolveFavicon = action({
@@ -322,7 +271,7 @@ export const resolveFavicon = action({
     }
 
     // Check cache
-    const cached = await ctx.runQuery(internal.favicons.getCachedFavicon, { domain });
+    const cached = await ctx.runQuery(internal.faviconCache.getCachedFavicon, { domain });
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
       return { iconUrl: cached.iconUrl, source: cached.source };
     }
@@ -331,7 +280,7 @@ export const resolveFavicon = action({
     const result = await resolveForDomain(domain);
 
     // Cache result
-    await ctx.runMutation(internal.favicons.upsertFaviconCache, {
+    await ctx.runMutation(internal.faviconCache.upsertFaviconCache, {
       domain,
       iconUrl: result.iconUrl,
       source: result.source,
@@ -377,7 +326,7 @@ export const resolveFaviconBulk = action({
     for (const domain of domainMap.keys()) {
       // Check cache (unless force refresh)
       if (!forceRefresh) {
-        const cached = await ctx.runQuery(internal.favicons.getCachedFavicon, { domain });
+        const cached = await ctx.runQuery(internal.faviconCache.getCachedFavicon, { domain });
         if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
           domainResults.set(domain, {
             iconUrl: cached.iconUrl,
@@ -391,7 +340,7 @@ export const resolveFaviconBulk = action({
       domainResults.set(domain, result);
 
       // Cache
-      await ctx.runMutation(internal.favicons.upsertFaviconCache, {
+      await ctx.runMutation(internal.faviconCache.upsertFaviconCache, {
         domain,
         iconUrl: result.iconUrl,
         source: result.source,

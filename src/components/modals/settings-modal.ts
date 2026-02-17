@@ -260,7 +260,7 @@ async function fetchAllFavicons(): Promise<void> {
         try {
           const { ConvexHttpClient } = await import('convex/browser');
           const httpClient = new ConvexHttpClient(convexUrl);
-          const cached = await httpClient.query(api.favicons.lookupCachedFavicons, { domains });
+          const cached = await httpClient.query(api.faviconCache.lookupCachedFavicons, { domains });
           for (const entry of cached) {
             cachedMap.set(entry.domain, entry.iconUrl);
           }

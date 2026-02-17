@@ -164,7 +164,7 @@ async function saveBookmark(event: Event): Promise<void> {
         if (convexUrl) {
           const httpClient = new ConvexHttpClient(convexUrl);
           const domain = new URL(url).hostname;
-          httpClient.query(api.favicons.lookupCachedFavicons, { domains: [domain] }).then((results) => {
+          httpClient.query(api.faviconCache.lookupCachedFavicons, { domains: [domain] }).then((results) => {
             if (results.length > 0) {
               updateBookmark(newId, title, url, results[0].iconUrl).catch(() => {});
             }
