@@ -98,7 +98,7 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
              ${nameOnHover ? `title="${escapeHtml(bookmark.title)}"` : ''}>
           <button class="edit-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">✎</button>
           <button class="delete-btn" data-action="delete-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">×</button>
-          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" draggable="false">
+          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" draggable="false" ${!bookmark.iconPath ? 'data-auto-icon' : ''}>
           <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         </div>
       `,
@@ -117,8 +117,9 @@ function wireBookmarkCards(el: HTMLElement): void {
   el.querySelectorAll<HTMLImageElement>('.bookmark-icon').forEach((img) => {
     img.addEventListener('error', () => { img.src = FALLBACK_ICON; }, { once: true });
     img.addEventListener('load', () => {
-      // Google's default globe is 16x16 even at sz=64 — replace with our fallback
-      if (img.naturalWidth <= 16 && img.naturalHeight <= 16 && !img.src.startsWith('data:')) {
+      // Google S2 returns a 16x16 globe for unknown domains — replace with our fallback.
+      // Only check auto-generated icons (no explicit iconPath); trust resolver-set icons.
+      if (img.hasAttribute('data-auto-icon') && img.naturalWidth <= 16 && img.naturalHeight <= 16) {
         img.src = FALLBACK_ICON;
       }
     }, { once: true });
