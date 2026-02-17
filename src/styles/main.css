@@ -728,8 +728,16 @@ body:has(.modal.active) {
         height: 4px;
         background: var(--text-muted);
         border-radius: 2px;
-        margin: 8px auto 0;
+        margin: 0 auto;
+        padding: 10px 40px;    /* large touch target */
+        background-clip: content-box;
         flex-shrink: 0;
+        touch-action: none;  /* prevent browser scroll hijack */
+    }
+
+    /* Header is a drag zone for swipe-dismiss on mobile */
+    .modal-header {
+        touch-action: none;
     }
 }
 
