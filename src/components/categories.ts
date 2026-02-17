@@ -295,6 +295,12 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
 
   let sliding = false;
 
+  function wireTabDrags(): void {
+    groupEl.querySelectorAll<HTMLElement>('.tab-bar-mobile .tab').forEach((tab) => {
+      initTabDrag(tab);
+    });
+  }
+
   function rebuildRibbon(catId: string): void {
     const ribbon = groupEl.querySelector('.tab-ribbon') as HTMLElement;
     const newRotated = rotateToActive(group.categories, catId);
@@ -302,6 +308,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
     ribbon.style.transform = 'translateX(0)';
     ribbon.innerHTML = tabsHtml(newRotated, catId);
     wireTabClicks(groupEl, switchToTab);
+    wireTabDrags();
   }
 
   function switchToTab(catId: string, direction?: 'forward' | 'backward'): void {
@@ -361,6 +368,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
   }
 
   wireTabClicks(groupEl, switchToTab);
+  wireTabDrags();
 
   const contentEl = groupEl.querySelector('.tab-content') as HTMLElement;
   initTabSwipe(contentEl, group.categories, () => getActiveTabId(group), switchToTab);
