@@ -8,19 +8,14 @@ import {
   isConvexMode,
   createTabGroup,
   setCategoryGroup,
-  deleteTabGroup,
   mergeTabGroups,
 } from '../data/store';
-import type { LayoutItem } from '../types';
 import { pushUndo, isUndoing } from './undo';
 
-let draggedElement: HTMLElement | null = null;
-let draggedBookmark: { categoryId: string; bookmarkId: string; index: number } | null = null;
+// ---------------------------------------------------------------------------
+// Helpers (kept from original — used by drop execution + undo)
+// ---------------------------------------------------------------------------
 
-// Grid-level drop target state — set by handleGridDragOver, read by handleGridDrop
-let _gridDropState: { categoryId: string; bookmarkId: string; before: boolean } | null = null;
-
-// Undo helpers for local mode
 function restoreLocalOrder(categoryId: string, ids: string[], renderCallback: () => void): void {
   const cat = getCategories().find((c) => c.id === categoryId);
   if (!cat) return;
@@ -45,44 +40,6 @@ function moveBookmarkLocal(
   renderCallback();
 }
 
-// --- Category / layout item drag state ---
-let draggedLayoutItem: { type: 'category' | 'tabGroup'; id: string } | null = null;
-
-export function handleDragStart(e: DragEvent): void {
-  const target = e.currentTarget as HTMLElement;
-  draggedElement = target;
-  draggedBookmark = {
-    categoryId: target.dataset.categoryId!,
-    bookmarkId: target.dataset.bookmarkId!,
-    index: parseInt(target.dataset.index!),
-  };
-  target.classList.add('dragging');
-  e.dataTransfer!.effectAllowed = 'move';
-  e.dataTransfer!.setData('text/plain', ''); // Required for Firefox
-}
-
-export function handleDragEnd(e: DragEvent): void {
-  (e.currentTarget as HTMLElement).classList.remove('dragging');
-  draggedElement = null;
-  draggedBookmark = null;
-  _gridDropState = null;
-  document.querySelectorAll('.bookmark-card').forEach((card) => {
-    card.classList.remove('drag-over');
-  });
-  document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
-  document.querySelectorAll('.category').forEach((cat) => {
-    cat.classList.remove('drop-target');
-  });
-}
-
-export function handleDragOver(e: DragEvent): void {
-  if (draggedLayoutItem) return; // Layout drag — let event bubble to container
-  if (!draggedBookmark) return;
-  e.preventDefault();
-  e.dataTransfer!.dropEffect = 'move';
-  // Indicator logic handled by grid-level handleGridDragOver
-}
-
 function computeMidpoint(
   bookmarks: { order?: number }[],
   targetIndex: number,
@@ -95,7 +52,926 @@ function computeMidpoint(
   return (prev + next) / 2;
 }
 
-/** Core bookmark drop logic — shared by per-card and grid-level handlers. */
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type DragKind = 'bookmark' | 'category' | 'tabGroup';
+
+interface BookmarkDragData {
+  kind: 'bookmark';
+  categoryId: string;
+  bookmarkId: string;
+  index: number;
+}
+
+interface LayoutDragData {
+  kind: 'category' | 'tabGroup';
+  id: string;
+}
+
+type DragData = BookmarkDragData | LayoutDragData;
+
+type DropZone =
+  | { action: 'reorder-before'; targetEl: Element }
+  | { action: 'reorder-after' }
+  | { action: 'reorder-after-item'; targetEl: Element }
+  | { action: 'group'; targetCategoryId: string; targetEl: HTMLElement }
+  | { action: 'add-to-group'; targetGroupId: string; targetEl: HTMLElement }
+  | { action: 'absorb-category'; targetCategoryId: string; groupId: string; targetEl: HTMLElement }
+  | null;
+
+// ---------------------------------------------------------------------------
+// DragController — unified pointer-events drag engine
+// ---------------------------------------------------------------------------
+
+class DragController {
+  // State
+  private dragData: DragData | null = null;
+  private sourceEl: HTMLElement | null = null;
+  private proxy: HTMLElement | null = null;
+  private pointerId: number | null = null;
+  private renderCallback: (() => void) | null = null;
+
+  // Pointer tracking
+  private startX = 0;
+  private startY = 0;
+  private currentX = 0;
+  private currentY = 0;
+  private isDragging = false;
+
+  // Bookmark grid drop state
+  private gridDropState: { categoryId: string; bookmarkId: string; before: boolean } | null = null;
+
+  // Auto-scroll
+  private scrollRAF: number | null = null;
+
+  // Hover-to-switch timer (bookmark drag over tab)
+  private hoverSwitchTimer: number | null = null;
+  private hoverSwitchTabId: string | null = null;
+
+  // Click guard — after desktop drag, suppress the next click on the source
+  private clickGuardActive = false;
+
+  // Bound handlers for document-level listeners (added/removed per drag)
+  private onPointerMoveBound = this.onPointerMove.bind(this);
+  private onPointerUpBound = this.onPointerUp.bind(this);
+  private onKeyDownBound = this.onKeyDown.bind(this);
+
+  // -------------------------------------------------------------------
+  // Public API
+  // -------------------------------------------------------------------
+
+  /** Call once after each render to register the render callback. */
+  init(renderCallback: () => void): void {
+    this.renderCallback = renderCallback;
+
+    // Global listeners that persist for the lifetime of the app
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.isDragging) this.cancelDrag();
+    });
+  }
+
+  /** True while a drag is in progress. */
+  get active(): boolean { return this.isDragging; }
+
+  /** The current drag data (if dragging). */
+  get data(): DragData | null { return this.dragData; }
+
+  /** True if we're dragging a layout item (category or tabGroup). */
+  get isDraggingLayout(): boolean {
+    return this.isDragging && this.dragData !== null && this.dragData.kind !== 'bookmark';
+  }
+
+  /** Bookmark drag state for external consumers (e.g. hover-to-switch). */
+  get bookmarkState(): { categoryId: string; bookmarkId: string } | null {
+    if (!this.isDragging || !this.dragData || this.dragData.kind !== 'bookmark') return null;
+    return { categoryId: this.dragData.categoryId, bookmarkId: this.dragData.bookmarkId };
+  }
+
+  // -------------------------------------------------------------------
+  // Start drag — called from pointer event handlers
+  // -------------------------------------------------------------------
+
+  startDrag(e: PointerEvent, data: DragData, sourceEl: HTMLElement): void {
+    if (this.isDragging) return;
+    if (!e.isPrimary) return; // reject multi-touch
+
+    this.dragData = data;
+    this.sourceEl = sourceEl;
+    this.pointerId = e.pointerId;
+    this.startX = e.clientX;
+    this.startY = e.clientY;
+    this.currentX = e.clientX;
+    this.currentY = e.clientY;
+    this.isDragging = true;
+    this.gridDropState = null;
+
+    // Capture pointer for reliable tracking outside bounds
+    try { sourceEl.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+
+    // Suppress browser scroll/pan during drag
+    document.documentElement.style.touchAction = 'none';
+    document.body.classList.add('dragging');
+
+    // Haptic feedback
+    try { navigator.vibrate?.(30); } catch { /* ignored */ }
+
+    // Mark source
+    if (data.kind === 'bookmark') {
+      sourceEl.classList.add('drag-source-active');
+    } else if (data.kind === 'category') {
+      const catEl = sourceEl.closest('.category') as HTMLElement | null;
+      const tabEl = document.querySelector(`[data-tab-category-id="${data.id}"]`) as HTMLElement | null;
+      if (catEl) catEl.classList.add('dragging-category');
+      if (tabEl) tabEl.classList.add('dragging-tab');
+    } else if (data.kind === 'tabGroup') {
+      const groupEl = sourceEl.closest('.tab-group') as HTMLElement | null;
+      if (groupEl) groupEl.classList.add('dragging-category');
+    }
+
+    // Create proxy
+    this.createProxy(sourceEl, e.clientX, e.clientY);
+
+    // Document-level listeners
+    document.addEventListener('pointermove', this.onPointerMoveBound);
+    document.addEventListener('pointerup', this.onPointerUpBound);
+    document.addEventListener('pointercancel', this.onPointerUpBound);
+    document.addEventListener('keydown', this.onKeyDownBound);
+
+    // Start auto-scroll loop
+    this.startAutoScroll();
+  }
+
+  cancelDrag(): void {
+    if (!this.isDragging) return;
+    this.cleanup();
+  }
+
+  /** Returns true if a post-drag click guard is active and consumes it. */
+  consumeClickGuard(): boolean {
+    if (this.clickGuardActive) {
+      this.clickGuardActive = false;
+      return true;
+    }
+    return false;
+  }
+
+  // -------------------------------------------------------------------
+  // Proxy lifecycle
+  // -------------------------------------------------------------------
+
+  private createProxy(source: HTMLElement, x: number, y: number): void {
+    const rect = source.getBoundingClientRect();
+    const proxy = source.cloneNode(true) as HTMLElement;
+    proxy.className = 'drag-proxy';
+    // Copy computed dimensions
+    proxy.style.width = `${rect.width}px`;
+    proxy.style.height = `${rect.height}px`;
+    proxy.style.left = `${x - rect.width / 2}px`;
+    proxy.style.top = `${y - rect.height / 2}px`;
+    document.body.appendChild(proxy);
+    this.proxy = proxy;
+  }
+
+  private moveProxy(x: number, y: number): void {
+    if (!this.proxy) return;
+    const w = parseFloat(this.proxy.style.width);
+    const h = parseFloat(this.proxy.style.height);
+    this.proxy.style.left = `${x - w / 2}px`;
+    this.proxy.style.top = `${y - h / 2}px`;
+  }
+
+  private removeProxy(): void {
+    if (this.proxy) {
+      this.proxy.remove();
+      this.proxy = null;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Pointer event handlers
+  // -------------------------------------------------------------------
+
+  private onPointerMove(e: PointerEvent): void {
+    if (!e.isPrimary || !this.isDragging) return;
+    e.preventDefault();
+
+    this.currentX = e.clientX;
+    this.currentY = e.clientY;
+
+    this.moveProxy(e.clientX, e.clientY);
+
+    // Hit-test based on drag kind
+    if (this.dragData!.kind === 'bookmark') {
+      this.hitTestBookmark(e.clientX, e.clientY);
+      this.hitTestTabHover(e.clientX, e.clientY);
+    } else {
+      this.hitTestLayout(e.clientX, e.clientY);
+    }
+  }
+
+  private onPointerUp(e: PointerEvent): void {
+    if (!this.isDragging) return;
+
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (this.dragData!.kind === 'bookmark') {
+      this.executeBookmarkDrop(x, y);
+    } else {
+      this.executeLayoutDrop(x, y);
+    }
+
+    // Click guard for desktop (prevent URL open after drag)
+    if (e.pointerType === 'mouse') {
+      this.clickGuardActive = true;
+      setTimeout(() => { this.clickGuardActive = false; }, 100);
+    }
+
+    this.cleanup();
+  }
+
+  private onKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && this.isDragging) {
+      this.cancelDrag();
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Cleanup
+  // -------------------------------------------------------------------
+
+  private cleanup(): void {
+    this.isDragging = false;
+
+    // Release pointer capture
+    if (this.sourceEl && this.pointerId !== null) {
+      try { this.sourceEl.releasePointerCapture(this.pointerId); } catch { /* ignored */ }
+    }
+
+    // Remove proxy
+    this.removeProxy();
+
+    // Remove document listeners
+    document.removeEventListener('pointermove', this.onPointerMoveBound);
+    document.removeEventListener('pointerup', this.onPointerUpBound);
+    document.removeEventListener('pointercancel', this.onPointerUpBound);
+    document.removeEventListener('keydown', this.onKeyDownBound);
+
+    // Restore touch-action
+    document.documentElement.style.touchAction = '';
+    document.body.classList.remove('dragging');
+
+    // Clean up visual states
+    document.querySelectorAll('.drag-source-active').forEach((el) => el.classList.remove('drag-source-active'));
+    document.querySelectorAll('.dragging-category').forEach((el) => el.classList.remove('dragging-category'));
+    document.querySelectorAll('.dragging-tab').forEach((el) => el.classList.remove('dragging-tab'));
+    document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
+    document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+    document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
+    document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
+    document.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
+    document.querySelectorAll('.tab-drag-hover').forEach((el) => el.classList.remove('tab-drag-hover'));
+
+    // Stop auto-scroll
+    this.stopAutoScroll();
+
+    // Clear hover timer
+    this.clearHoverSwitch();
+
+    // Reset state
+    this.dragData = null;
+    this.sourceEl = null;
+    this.pointerId = null;
+    this.gridDropState = null;
+  }
+
+  // -------------------------------------------------------------------
+  // Bookmark hit-testing (grid-level)
+  // -------------------------------------------------------------------
+
+  private hitTestBookmark(clientX: number, clientY: number): void {
+    const bkData = this.dragData as BookmarkDragData;
+
+    // Clean up previous indicators
+    document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
+    document.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
+    this.gridDropState = null;
+
+    // Find the grid under the pointer (proxy has pointer-events: none, so elementFromPoint ignores it)
+    const el = document.elementFromPoint(clientX, clientY);
+    if (!el) return;
+
+    const grid = el.closest('.bookmarks-grid') as HTMLElement | null;
+    if (!grid) {
+      // Maybe over a category/panel background — show category drop target
+      const catEl = el.closest('.category, .tab-panel') as HTMLElement | null;
+      if (catEl) {
+        const catId = catEl.dataset.categoryId || catEl.dataset.tabPanelId;
+        if (catId && catId !== bkData.categoryId) {
+          catEl.classList.add('drop-target');
+        }
+      }
+      return;
+    }
+
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)'))
+      .filter((c) => c.dataset.bookmarkId !== bkData.bookmarkId);
+    if (cards.length === 0) {
+      // Empty grid — show category-level drop target
+      const catEl = grid.closest('.category, .tab-panel') as HTMLElement | null;
+      if (catEl) {
+        const catId = catEl.dataset.categoryId || catEl.dataset.tabPanelId;
+        if (catId && catId !== bkData.categoryId) {
+          catEl.classList.add('drop-target');
+        }
+      }
+      return;
+    }
+
+    // Group cards by visual row
+    const rows: { top: number; bottom: number; cards: HTMLElement[] }[] = [];
+    for (const card of cards) {
+      const rect = card.getBoundingClientRect();
+      const row = rows.find((r) => Math.abs(r.top - rect.top) < rect.height / 2);
+      if (row) {
+        row.cards.push(card);
+        row.bottom = Math.max(row.bottom, rect.bottom);
+      } else {
+        rows.push({ top: rect.top, bottom: rect.bottom, cards: [card] });
+      }
+    }
+    rows.sort((a, b) => a.top - b.top);
+
+    // Find target row
+    let targetRow = rows[0];
+    let minRowDist = Infinity;
+    for (const row of rows) {
+      if (clientY >= row.top && clientY <= row.bottom) {
+        targetRow = row;
+        minRowDist = 0;
+        break;
+      }
+      const dist = clientY < row.top ? row.top - clientY : clientY - row.bottom;
+      if (dist < minRowDist) {
+        minRowDist = dist;
+        targetRow = row;
+      }
+    }
+
+    // Sort left-to-right
+    targetRow.cards.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+
+    // Find nearest card
+    let nearestCard: HTMLElement = targetRow.cards[0];
+    let nearestDist = Infinity;
+    for (const card of targetRow.cards) {
+      const rect = card.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const dist = Math.abs(clientX - centerX);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestCard = card;
+      }
+    }
+
+    const cardRect = nearestCard.getBoundingClientRect();
+    const before = clientX < cardRect.left + cardRect.width / 2;
+    const idx = targetRow.cards.indexOf(nearestCard);
+
+    // Suppress no-op indicator at origin
+    if (bkData.categoryId === nearestCard.dataset.categoryId) {
+      const cat = getCategories().find((c) => c.id === bkData.categoryId);
+      if (cat) {
+        const dragIdx = cat.bookmarks.findIndex((b) => b.id === bkData.bookmarkId);
+        const targetIdx = cat.bookmarks.findIndex((b) => b.id === nearestCard.dataset.bookmarkId);
+        if ((before && targetIdx === dragIdx + 1) || (!before && targetIdx === dragIdx - 1)) {
+          return;
+        }
+      }
+    }
+
+    // Position indicator
+    const gridRect = grid.getBoundingClientRect();
+    const indicator = document.createElement('div');
+    indicator.className = 'card-drop-indicator';
+
+    let indicatorX: number;
+    if (before) {
+      if (idx > 0) {
+        const prevRect = targetRow.cards[idx - 1].getBoundingClientRect();
+        indicatorX = (prevRect.right + cardRect.left) / 2;
+      } else {
+        indicatorX = cardRect.left;
+      }
+    } else {
+      if (idx < targetRow.cards.length - 1) {
+        const nextRect = targetRow.cards[idx + 1].getBoundingClientRect();
+        indicatorX = (cardRect.right + nextRect.left) / 2;
+      } else {
+        indicatorX = cardRect.right;
+      }
+    }
+
+    indicator.style.left = `${indicatorX - gridRect.left - 2}px`;
+    indicator.style.top = `${cardRect.top - gridRect.top}px`;
+    indicator.style.height = `${cardRect.height}px`;
+    grid.appendChild(indicator);
+
+    this.gridDropState = {
+      categoryId: nearestCard.dataset.categoryId!,
+      bookmarkId: nearestCard.dataset.bookmarkId!,
+      before,
+    };
+  }
+
+  // -------------------------------------------------------------------
+  // Tab hover-to-switch (bookmark dragged over a tab)
+  // -------------------------------------------------------------------
+
+  private hitTestTabHover(clientX: number, clientY: number): void {
+    const el = document.elementFromPoint(clientX, clientY);
+    if (!el) { this.clearHoverSwitch(); return; }
+
+    const tab = el.closest('.tab') as HTMLElement | null;
+    if (!tab || tab.classList.contains('tab-active')) {
+      this.clearHoverSwitch();
+      return;
+    }
+
+    const catId = tab.dataset.tabCategoryId;
+    if (!catId || catId === this.hoverSwitchTabId) return; // already timing this tab
+
+    this.clearHoverSwitch();
+    this.hoverSwitchTabId = catId;
+    tab.classList.add('tab-drag-hover');
+
+    this.hoverSwitchTimer = window.setTimeout(() => {
+      tab.classList.remove('tab-drag-hover');
+      // Simulate tab switch
+      const groupEl = tab.closest('.tab-group') as HTMLElement | null;
+      if (groupEl) {
+        groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
+        tab.classList.add('tab-active');
+        groupEl.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('tab-panel-active'));
+        groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
+      }
+      this.hoverSwitchTimer = null;
+      this.hoverSwitchTabId = null;
+    }, 400);
+  }
+
+  private clearHoverSwitch(): void {
+    if (this.hoverSwitchTimer !== null) {
+      clearTimeout(this.hoverSwitchTimer);
+      this.hoverSwitchTimer = null;
+    }
+    if (this.hoverSwitchTabId) {
+      document.querySelectorAll('.tab-drag-hover').forEach((el) => el.classList.remove('tab-drag-hover'));
+      this.hoverSwitchTabId = null;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Layout hit-testing (categories + tab groups)
+  // -------------------------------------------------------------------
+
+  private hitTestLayout(clientX: number, clientY: number): void {
+    const layoutData = this.dragData as LayoutDragData;
+
+    const container = document.getElementById('categories-container');
+    if (!container) return;
+
+    // Clean up
+    container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
+    container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
+    document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
+
+    // Tab reorder zone: if dragging a category near a tab-group header, show tab indicators
+    if (layoutData.kind === 'category') {
+      const TOLERANCE = 12;
+      const headers = container.querySelectorAll<HTMLElement>('.tab-group-header');
+      for (const header of headers) {
+        const rect = header.getBoundingClientRect();
+        if (clientY >= rect.top - TOLERANCE && clientY <= rect.bottom + TOLERANCE
+            && clientX >= rect.left && clientX <= rect.right) {
+          const groupEl = header.closest('.tab-group')!;
+          const tabs = Array.from(groupEl.querySelectorAll<HTMLElement>('.tab'));
+          let nearestTab: HTMLElement | null = null;
+          let nearestDist = Infinity;
+          for (const tab of tabs) {
+            const tabRect = tab.getBoundingClientRect();
+            const centerX = tabRect.left + tabRect.width / 2;
+            const dist = Math.abs(clientX - centerX);
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearestTab = tab;
+            }
+          }
+          if (nearestTab && nearestTab.dataset.tabCategoryId !== layoutData.id) {
+            const tabRect = nearestTab.getBoundingClientRect();
+            const isLeftHalf = clientX < tabRect.left + tabRect.width / 2;
+            const indicator = document.createElement('div');
+            indicator.className = 'tab-drop-indicator';
+            if (isLeftHalf) {
+              nearestTab.parentNode!.insertBefore(indicator, nearestTab);
+            } else {
+              nearestTab.parentNode!.insertBefore(indicator, nearestTab.nextSibling);
+            }
+          }
+          return;
+        }
+      }
+    }
+
+    const zone = this.detectDropZone(clientX, clientY, container);
+    if (!zone) return;
+
+    if (zone.action === 'reorder-before') {
+      const prev = zone.targetEl.previousElementSibling as HTMLElement | null;
+      const prevId = prev?.dataset.categoryId || prev?.dataset.groupId;
+      if (prevId === layoutData.id) return;
+      const indicator = document.createElement('div');
+      indicator.className = 'layout-drop-indicator';
+      container.insertBefore(indicator, zone.targetEl);
+    } else if (zone.action === 'reorder-after-item') {
+      const next = zone.targetEl.nextElementSibling as HTMLElement | null;
+      const nextId = next?.dataset.categoryId || next?.dataset.groupId;
+      if (nextId === layoutData.id) return;
+      const targetId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
+      if (targetId === layoutData.id) return;
+      const indicator = document.createElement('div');
+      indicator.className = 'layout-drop-indicator';
+      container.insertBefore(indicator, zone.targetEl.nextSibling);
+    } else if (zone.action === 'reorder-after') {
+      const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
+      const last = layoutEls[layoutEls.length - 1] as HTMLElement;
+      const lastId = last?.dataset.categoryId || last?.dataset.groupId;
+      if (lastId === layoutData.id) return;
+      const indicator = document.createElement('div');
+      indicator.className = 'layout-drop-indicator';
+      container.appendChild(indicator);
+    } else if (zone.action === 'group' || zone.action === 'add-to-group' || zone.action === 'absorb-category') {
+      zone.targetEl.classList.add('group-drop-target');
+    }
+  }
+
+  private detectDropZone(clientX: number, clientY: number, container: HTMLElement): DropZone {
+    const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
+    if (layoutEls.length === 0) return null;
+
+    const layoutData = this.dragData as LayoutDragData;
+    const dragId = layoutData.id;
+    const dragType = layoutData.kind;
+
+    for (const item of layoutEls) {
+      const rect = item.getBoundingClientRect();
+      const el = item as HTMLElement;
+      const elId = el.dataset.categoryId || el.dataset.groupId;
+      if (elId === dragId) continue;
+      if (clientY < rect.top || clientY > rect.bottom) continue;
+
+      const relativeY = (clientY - rect.top) / rect.height;
+
+      if (el.classList.contains('tab-group')) {
+        if (relativeY < 0.3) return { action: 'reorder-before', targetEl: item };
+        if (relativeY > 0.7) return { action: 'reorder-after-item', targetEl: item };
+        const groupId = el.dataset.groupId!;
+        if (dragType === 'category') {
+          const categories = getCategories();
+          const draggedCat = categories.find((c) => c.id === dragId);
+          if (draggedCat?.groupId === groupId) return { action: 'reorder-after-item', targetEl: item };
+          return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
+        }
+        if (dragType === 'tabGroup') {
+          return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
+        }
+      }
+
+      if (el.classList.contains('category')) {
+        if (relativeY < 0.4) return { action: 'reorder-before', targetEl: item };
+        if (relativeY > 0.6) return { action: 'reorder-after-item', targetEl: item };
+        if (dragType === 'category') {
+          return { action: 'group', targetCategoryId: el.dataset.categoryId!, targetEl: el };
+        }
+        if (dragType === 'tabGroup') {
+          return { action: 'absorb-category', targetCategoryId: el.dataset.categoryId!, groupId: dragId, targetEl: el };
+        }
+        return { action: 'reorder-before', targetEl: item };
+      }
+    }
+
+    // Gap / beyond last element
+    let lastNonDraggedEl: Element | null = null;
+    for (const item of layoutEls) {
+      const el = item as HTMLElement;
+      const elId = el.dataset.categoryId || el.dataset.groupId;
+      if (elId === dragId) continue;
+      const rect = item.getBoundingClientRect();
+      if (clientY < rect.top) return { action: 'reorder-before', targetEl: item };
+      lastNonDraggedEl = item;
+    }
+
+    if (lastNonDraggedEl) return { action: 'reorder-after-item', targetEl: lastNonDraggedEl };
+    return { action: 'reorder-after' };
+  }
+
+  // -------------------------------------------------------------------
+  // Drop execution — bookmark
+  // -------------------------------------------------------------------
+
+  private executeBookmarkDrop(_x: number, _y: number): void {
+    const bkData = this.dragData as BookmarkDragData;
+    const renderCb = this.renderCallback!;
+
+    if (this.gridDropState) {
+      // Drop onto a specific position between cards
+      const { categoryId: targetCatId, bookmarkId: targetBkId, before } = this.gridDropState;
+      if (bkData.bookmarkId !== targetBkId) {
+        performBookmarkDrop(
+          { categoryId: bkData.categoryId, bookmarkId: bkData.bookmarkId, index: bkData.index },
+          targetCatId, targetBkId, before, renderCb,
+        );
+      }
+      return;
+    }
+
+    // Check if over a category drop target (cross-category append)
+    const el = document.elementFromPoint(this.currentX, this.currentY);
+    if (el) {
+      const catEl = el.closest('.category, .tab-panel') as HTMLElement | null;
+      if (catEl) {
+        const targetCatId = catEl.dataset.categoryId || catEl.dataset.tabPanelId;
+        if (targetCatId && targetCatId !== bkData.categoryId) {
+          this.executeCategoryAppend(bkData, targetCatId, renderCb);
+        }
+      }
+    }
+  }
+
+  /** Append a bookmark to the end of a different category. */
+  private executeCategoryAppend(
+    bkData: BookmarkDragData,
+    targetCategoryId: string,
+    renderCallback: () => void,
+  ): void {
+    const categories = getCategories();
+
+    if (isConvexMode()) {
+      const sourceCategory = categories.find((c) => c.id === bkData.categoryId);
+      const targetCategory = categories.find((c) => c.id === targetCategoryId);
+      if (!sourceCategory || !targetCategory) return;
+
+      const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === bkData.bookmarkId);
+      const oldOrder = sourceIndex !== -1 ? (sourceCategory.bookmarks[sourceIndex].order ?? 0) : 0;
+      const sourceCatId = bkData.categoryId;
+      const bkId = bkData.bookmarkId;
+
+      if (sourceIndex !== -1) {
+        const [moved] = sourceCategory.bookmarks.splice(sourceIndex, 1);
+        targetCategory.bookmarks.push(moved);
+        renderCallback();
+      }
+
+      const lastOrder = targetCategory.bookmarks.length > 0
+        ? Math.max(...targetCategory.bookmarks.map((b) => b.order ?? 0))
+        : 0;
+      const newOrder = lastOrder + 1;
+      reorderBookmark(bkId, newOrder, targetCategoryId);
+      if (!isUndoing()) {
+        pushUndo({
+          undo: () => reorderBookmark(bkId, oldOrder, sourceCatId),
+          redo: () => reorderBookmark(bkId, newOrder, targetCategoryId),
+        });
+      }
+    } else {
+      const sourceCategory = categories.find((c) => c.id === bkData.categoryId);
+      const targetCategory = categories.find((c) => c.id === targetCategoryId);
+      if (!sourceCategory || !targetCategory) return;
+
+      const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === bkData.bookmarkId);
+      if (sourceIndex !== -1) {
+        const bkId = bkData.bookmarkId;
+        const srcCatId = bkData.categoryId;
+        const origIdx = sourceIndex;
+        const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
+        targetCategory.bookmarks.push(movedBookmark);
+        if (!isUndoing()) {
+          const tgtCatId = targetCategoryId;
+          pushUndo({
+            undo: () => moveBookmarkLocal(bkId, tgtCatId, srcCatId, origIdx, renderCallback),
+            redo: () => moveBookmarkLocal(bkId, srcCatId, tgtCatId, targetCategory.bookmarks.length - 1, renderCallback),
+          });
+        }
+        saveData();
+        renderCallback();
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Drop execution — layout (category/tabGroup reorder, group, merge)
+  // -------------------------------------------------------------------
+
+  private executeLayoutDrop(clientX: number, clientY: number): void {
+    const layoutData = this.dragData as LayoutDragData;
+    const container = document.getElementById('categories-container');
+    if (!container) return;
+
+    // Check tab reorder first: was a tab-drop-indicator visible?
+    const tabIndicator = document.querySelector('.tab-drop-indicator');
+    if (tabIndicator && layoutData.kind === 'category') {
+      this.executeTabDrop(clientX, clientY, layoutData);
+      return;
+    }
+
+    const zone = this.detectDropZone(clientX, clientY, container);
+    if (!zone) return;
+
+    if (zone.action === 'group' && layoutData.kind === 'category') {
+      createTabGroup('Tab Group', [zone.targetCategoryId, layoutData.id]);
+      return;
+    }
+
+    if (zone.action === 'add-to-group') {
+      if (layoutData.kind === 'category') {
+        setCategoryGroup(layoutData.id, zone.targetGroupId);
+      } else if (layoutData.kind === 'tabGroup') {
+        mergeTabGroups(layoutData.id, zone.targetGroupId);
+      }
+      return;
+    }
+
+    if (zone.action === 'absorb-category' && layoutData.kind === 'tabGroup') {
+      setCategoryGroup(zone.targetCategoryId, layoutData.id);
+      return;
+    }
+
+    // Reorder
+    const items = getLayoutItems();
+    let targetIndex = items.length;
+    if (zone.action === 'reorder-before') {
+      const targetElId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
+      targetIndex = items.findIndex((item) => {
+        const id = item.type === 'category' ? item.category.id : item.group.id;
+        return id === targetElId;
+      });
+      if (targetIndex === -1) targetIndex = items.length;
+    } else if (zone.action === 'reorder-after-item') {
+      const targetElId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
+      const idx = items.findIndex((item) => {
+        const id = item.type === 'category' ? item.category.id : item.group.id;
+        return id === targetElId;
+      });
+      targetIndex = idx === -1 ? items.length : idx + 1;
+    }
+
+    const sourceIndex = items.findIndex((item) => {
+      const id = item.type === 'category' ? item.category.id : item.group.id;
+      return id === layoutData.id;
+    });
+
+    // Category nested inside a tab group — ungroup with positioned order
+    if (sourceIndex === -1 && layoutData.kind === 'category') {
+      const orderList = items.map((item) =>
+        item.type === 'category' ? (item.category.order ?? 0) : item.group.order
+      );
+      const prev = targetIndex > 0 ? orderList[targetIndex - 1] : 0;
+      const next = targetIndex < orderList.length ? orderList[targetIndex] : prev + 2;
+      const newOrder = (prev + next) / 2;
+      setCategoryGroup(layoutData.id, null, newOrder);
+      return;
+    }
+    if (sourceIndex === -1) return;
+    if (sourceIndex === targetIndex || sourceIndex === targetIndex - 1) return;
+
+    const orderList = items.map((item) =>
+      item.type === 'category' ? (item.category.order ?? 0) : item.group.order
+    );
+
+    const withoutDragged = orderList.filter((_, i) => i !== sourceIndex);
+    const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    const prev = adjustedTarget > 0 ? withoutDragged[adjustedTarget - 1] : 0;
+    const next = adjustedTarget < withoutDragged.length ? withoutDragged[adjustedTarget] : prev + 2;
+    const newOrder = (prev + next) / 2;
+
+    const oldOrder = orderList[sourceIndex];
+    if (layoutData.kind === 'category') {
+      reorderCategory(layoutData.id, newOrder);
+    } else {
+      reorderTabGroup(layoutData.id, newOrder);
+    }
+    if (!isUndoing()) {
+      const itemId = layoutData.id;
+      const itemType = layoutData.kind;
+      pushUndo({
+        undo: () => { if (itemType === 'category') reorderCategory(itemId, oldOrder); else reorderTabGroup(itemId, oldOrder); },
+        redo: () => { if (itemType === 'category') reorderCategory(itemId, newOrder); else reorderTabGroup(itemId, newOrder); },
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Tab reorder / cross-group drop
+  // -------------------------------------------------------------------
+
+  private executeTabDrop(clientX: number, clientY: number, layoutData: LayoutDragData): void {
+    // Find which tab group header the pointer is over
+    const container = document.getElementById('categories-container');
+    if (!container) return;
+
+    const headers = container.querySelectorAll<HTMLElement>('.tab-group-header');
+    for (const header of headers) {
+      const rect = header.getBoundingClientRect();
+      const TOLERANCE = 12;
+      if (clientY >= rect.top - TOLERANCE && clientY <= rect.bottom + TOLERANCE
+          && clientX >= rect.left && clientX <= rect.right) {
+        const groupEl = header.closest('.tab-group') as HTMLElement;
+        if (!groupEl) continue;
+        const groupId = groupEl.dataset.groupId!;
+
+        const tabs = Array.from(groupEl.querySelectorAll<HTMLElement>('.tab'));
+        let nearestTab: HTMLElement | null = null;
+        let nearestDist = Infinity;
+        for (const tab of tabs) {
+          const tabRect = tab.getBoundingClientRect();
+          const centerX = tabRect.left + tabRect.width / 2;
+          const dist = Math.abs(clientX - centerX);
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestTab = tab;
+          }
+        }
+        if (!nearestTab) return;
+
+        const targetCategoryId = nearestTab.dataset.tabCategoryId!;
+        if (targetCategoryId === layoutData.id) return;
+
+        const tabRect = nearestTab.getBoundingClientRect();
+        const isLeftHalf = clientX < tabRect.left + tabRect.width / 2;
+
+        // Get group categories for midpoint computation
+        const allCategories = getCategories();
+        const groupCategories = allCategories
+          .filter((c) => c.groupId === groupId)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+        const draggedInGroup = groupCategories.some((c) => c.id === layoutData.id);
+
+        if (draggedInGroup) {
+          const filtered = groupCategories.filter((c) => c.id !== layoutData.id);
+          const targetIndex = filtered.findIndex((c) => c.id === targetCategoryId);
+          const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
+          const newOrder = computeMidpoint(filtered, insertIndex);
+          reorderCategory(layoutData.id, newOrder);
+        } else {
+          const targetIndex = groupCategories.findIndex((c) => c.id === targetCategoryId);
+          const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
+          const newOrder = computeMidpoint(groupCategories, insertIndex);
+          setCategoryGroup(layoutData.id, groupId, newOrder);
+        }
+        return;
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Auto-scroll
+  // -------------------------------------------------------------------
+
+  private startAutoScroll(): void {
+    const scroll = () => {
+      if (!this.isDragging) return;
+      const EDGE = 60;
+      const y = this.currentY;
+      const vh = window.innerHeight;
+
+      if (y < EDGE) {
+        const speed = ((EDGE - y) / EDGE) * 12;
+        window.scrollBy(0, -speed);
+      } else if (y > vh - EDGE) {
+        const speed = ((y - (vh - EDGE)) / EDGE) * 12;
+        window.scrollBy(0, speed);
+      }
+
+      this.scrollRAF = requestAnimationFrame(scroll);
+    };
+    this.scrollRAF = requestAnimationFrame(scroll);
+  }
+
+  private stopAutoScroll(): void {
+    if (this.scrollRAF !== null) {
+      cancelAnimationFrame(this.scrollRAF);
+      this.scrollRAF = null;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Core bookmark drop logic (kept intact from original)
+// ---------------------------------------------------------------------------
+
 function performBookmarkDrop(
   claimed: { categoryId: string; bookmarkId: string; index: number },
   targetCategoryId: string,
@@ -107,7 +983,6 @@ function performBookmarkDrop(
 
   if (isConvexMode()) {
     if (claimed.categoryId === targetCategoryId) {
-      // Same category — reorder
       const category = categories.find((c) => c.id === targetCategoryId);
       if (!category) return;
 
@@ -116,13 +991,11 @@ function performBookmarkDrop(
       const sourceIndex = category.bookmarks.findIndex((b) => b.id === claimed.bookmarkId);
       const oldOrder = sourceIndex !== -1 ? (category.bookmarks[sourceIndex].order ?? 0) : 0;
 
-      // Compute insertion index in the list WITHOUT the dragged item
       const filtered = category.bookmarks.filter((b) => b.id !== claimed.bookmarkId);
       const filteredTargetIndex = filtered.findIndex((b) => b.id === targetBookmarkId);
       const insertIndex = dropBefore ? filteredTargetIndex : filteredTargetIndex + 1;
       const newOrder = computeMidpoint(filtered, insertIndex);
 
-      // Optimistic splice for instant feedback
       if (sourceIndex !== -1) {
         const [moved] = category.bookmarks.splice(sourceIndex, 1);
         const adjustedInsert = dropBefore
@@ -141,7 +1014,6 @@ function performBookmarkDrop(
         });
       }
     } else {
-      // Cross-category move
       const sourceCategory = categories.find((c) => c.id === claimed.categoryId);
       const targetCategory = categories.find((c) => c.id === targetCategoryId);
       if (!sourceCategory || !targetCategory) return;
@@ -155,7 +1027,6 @@ function performBookmarkDrop(
       const insertIndex = dropBefore ? targetIndex : targetIndex + 1;
       const newOrder = computeMidpoint(targetCategory.bookmarks, insertIndex);
 
-      // Optimistic splice
       if (sourceIndex !== -1) {
         const [moved] = sourceCategory.bookmarks.splice(sourceIndex, 1);
         targetCategory.bookmarks.splice(insertIndex, 0, moved);
@@ -172,7 +1043,6 @@ function performBookmarkDrop(
       }
     }
   } else {
-    // Local splice-based reorder
     if (claimed.categoryId === targetCategoryId) {
       const category = categories.find((c) => c.id === targetCategoryId);
       if (!category) return;
@@ -183,7 +1053,6 @@ function performBookmarkDrop(
       if (sourceIndex !== -1 && rawTargetIndex !== -1) {
         const beforeIds = category.bookmarks.map((b) => b.id);
         const [movedBookmark] = category.bookmarks.splice(sourceIndex, 1);
-        // After splice, compute correct insert position
         const adjustedInsert = dropBefore
           ? (sourceIndex < rawTargetIndex ? rawTargetIndex - 1 : rawTargetIndex)
           : (sourceIndex < rawTargetIndex ? rawTargetIndex : rawTargetIndex + 1);
@@ -202,7 +1071,6 @@ function performBookmarkDrop(
     } else {
       const sourceCategory = categories.find((c) => c.id === claimed.categoryId);
       const targetCategory = categories.find((c) => c.id === targetCategoryId);
-
       if (!sourceCategory || !targetCategory) return;
 
       const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === claimed.bookmarkId);
@@ -229,696 +1097,13 @@ function performBookmarkDrop(
   }
 }
 
-export function handleDrop(e: DragEvent, renderCallback: () => void): void {
-  if (!draggedBookmark) return; // Not a bookmark drag — let event bubble for layout handling
-  if (!_gridDropState) return; // No indicator — nothing to drop on
-
-  e.stopPropagation();
-  e.preventDefault();
-
-  const { categoryId: targetCategoryId, bookmarkId: targetBookmarkId, before: dropBefore } = _gridDropState;
-
-  // Claim the drag — prevents category-level handler from processing the same drop
-  const claimed = { ...draggedBookmark };
-  draggedBookmark = null;
-  _gridDropState = null;
-
-  // Clean up indicator
-  document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
-
-  if (claimed.bookmarkId === targetBookmarkId) return;
-
-  performBookmarkDrop(claimed, targetCategoryId, targetBookmarkId, dropBefore, renderCallback);
-}
-
-// --- Grid-level bookmark drag handlers (covers cards + gap dead zones) ---
-
-export function handleGridDragOver(e: DragEvent): void {
-  if (draggedLayoutItem) return; // Layout drag — let event bubble
-  if (!draggedBookmark) return;
-  e.preventDefault();
-  e.dataTransfer!.dropEffect = 'move';
-
-  const grid = e.currentTarget as HTMLElement;
-
-  // Clean previous indicator
-  grid.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
-  _gridDropState = null;
-
-  // Get all non-dragged bookmark cards (exclude add-bookmark and the dragged card)
-  const cards = Array.from(grid.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)'))
-    .filter((c) => c.dataset.bookmarkId !== draggedBookmark!.bookmarkId);
-  if (cards.length === 0) return;
-
-  // Group cards by row (cards with similar top position)
-  const rows: { top: number; bottom: number; cards: HTMLElement[] }[] = [];
-  for (const card of cards) {
-    const rect = card.getBoundingClientRect();
-    const row = rows.find((r) => Math.abs(r.top - rect.top) < rect.height / 2);
-    if (row) {
-      row.cards.push(card);
-      row.bottom = Math.max(row.bottom, rect.bottom);
-    } else {
-      rows.push({ top: rect.top, bottom: rect.bottom, cards: [card] });
-    }
-  }
-  rows.sort((a, b) => a.top - b.top);
-
-  // Find the row the cursor is on (or nearest)
-  let targetRow = rows[0];
-  let minRowDist = Infinity;
-  for (const row of rows) {
-    if (e.clientY >= row.top && e.clientY <= row.bottom) {
-      targetRow = row;
-      minRowDist = 0;
-      break;
-    }
-    const dist = e.clientY < row.top ? row.top - e.clientY : e.clientY - row.bottom;
-    if (dist < minRowDist) {
-      minRowDist = dist;
-      targetRow = row;
-    }
-  }
-
-  // Sort cards left-to-right in the target row
-  targetRow.cards.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
-
-  // Find nearest card by horizontal distance to center
-  let nearestCard: HTMLElement = targetRow.cards[0];
-  let nearestDist = Infinity;
-  for (const card of targetRow.cards) {
-    const rect = card.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const dist = Math.abs(e.clientX - centerX);
-    if (dist < nearestDist) {
-      nearestDist = dist;
-      nearestCard = card;
-    }
-  }
-
-  const cardRect = nearestCard.getBoundingClientRect();
-  const before = e.clientX < cardRect.left + cardRect.width / 2;
-  const idx = targetRow.cards.indexOf(nearestCard);
-
-  // Suppress indicator at origin spot — dropping here would be a no-op
-  if (draggedBookmark.categoryId === nearestCard.dataset.categoryId) {
-    const cat = getCategories().find((c) => c.id === draggedBookmark!.categoryId);
-    if (cat) {
-      const dragIdx = cat.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
-      const targetIdx = cat.bookmarks.findIndex((b) => b.id === nearestCard.dataset.bookmarkId);
-      if ((before && targetIdx === dragIdx + 1) || (!before && targetIdx === dragIdx - 1)) {
-        return;
-      }
-    }
-  }
-
-  // Position a floating indicator at the gap center between adjacent cards
-  const gridRect = grid.getBoundingClientRect();
-  const indicator = document.createElement('div');
-  indicator.className = 'card-drop-indicator';
-
-  let indicatorX: number;
-  if (before) {
-    if (idx > 0) {
-      const prevRect = targetRow.cards[idx - 1].getBoundingClientRect();
-      indicatorX = (prevRect.right + cardRect.left) / 2;
-    } else {
-      indicatorX = cardRect.left; // First card — flush to left edge
-    }
-  } else {
-    if (idx < targetRow.cards.length - 1) {
-      const nextRect = targetRow.cards[idx + 1].getBoundingClientRect();
-      indicatorX = (cardRect.right + nextRect.left) / 2;
-    } else {
-      indicatorX = cardRect.right; // Last card — flush to right edge
-    }
-  }
-
-  indicator.style.left = `${indicatorX - gridRect.left - 2}px`;
-  indicator.style.top = `${cardRect.top - gridRect.top}px`;
-  indicator.style.height = `${cardRect.height}px`;
-
-  grid.appendChild(indicator);
-
-  _gridDropState = {
-    categoryId: nearestCard.dataset.categoryId!,
-    bookmarkId: nearestCard.dataset.bookmarkId!,
-    before,
-  };
-}
-
-export function handleGridDrop(e: DragEvent, renderCallback: () => void): void {
-  if (!draggedBookmark || !_gridDropState) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  const { categoryId: targetCategoryId, bookmarkId: targetBookmarkId, before: dropBefore } = _gridDropState;
-
-  const claimed = { ...draggedBookmark };
-  draggedBookmark = null;
-  _gridDropState = null;
-
-  // Clean up indicator
-  document.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
-
-  if (claimed.bookmarkId === targetBookmarkId) return;
-
-  performBookmarkDrop(claimed, targetCategoryId, targetBookmarkId, dropBefore, renderCallback);
-}
-
-export function handleGridDragLeave(e: DragEvent): void {
-  const grid = e.currentTarget as HTMLElement;
-  const relatedTarget = e.relatedTarget as Node | null;
-  // Only clear if cursor actually left the grid (not just moved to a child)
-  if (relatedTarget && grid.contains(relatedTarget)) return;
-  grid.querySelectorAll('.card-drop-indicator').forEach((el) => el.remove());
-  _gridDropState = null;
-}
-
-export function handleCategoryDragOver(e: DragEvent): void {
-  if (!draggedBookmark) return;
-
-  const categoryId = (e.currentTarget as HTMLElement).dataset.categoryId;
-  if (categoryId === draggedBookmark.categoryId) return;
-
-  e.preventDefault();
-  (e.currentTarget as HTMLElement).classList.add('drop-target');
-}
-
-export function handleCategoryDragLeave(e: DragEvent): void {
-  const relatedTarget = e.relatedTarget as Node | null;
-  if (relatedTarget && (e.currentTarget as HTMLElement).contains(relatedTarget)) {
-    return;
-  }
-  (e.currentTarget as HTMLElement).classList.remove('drop-target');
-}
-
-export function handleCategoryDrop(e: DragEvent, renderCallback: () => void): void {
-  if (!draggedBookmark) return;
-
-  const targetCategoryId = (e.currentTarget as HTMLElement).dataset.categoryId!;
-  (e.currentTarget as HTMLElement).classList.remove('drop-target');
-  executeCategoryDrop(e, targetCategoryId, renderCallback);
-}
-
-/**
- * Execute a bookmark drop into a category. Separated from handleCategoryDrop so tab-panel
- * handlers can call it directly with a known categoryId, without mutating the event object.
- */
-export function executeCategoryDrop(e: DragEvent, targetCategoryId: string, renderCallback: () => void): void {
-  if (!draggedBookmark) return;
-  if (targetCategoryId === draggedBookmark.categoryId) return;
-
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  const categories = getCategories();
-
-  if (isConvexMode()) {
-    const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
-    const targetCategory = categories.find((c) => c.id === targetCategoryId);
-    if (!sourceCategory || !targetCategory) return;
-
-    // Capture before state
-    const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
-    const oldOrder = sourceIndex !== -1 ? (sourceCategory.bookmarks[sourceIndex].order ?? 0) : 0;
-    const sourceCatId = draggedBookmark!.categoryId;
-    const bkId = draggedBookmark.bookmarkId;
-
-    // Local optimistic splice
-    if (sourceIndex !== -1) {
-      const [moved] = sourceCategory.bookmarks.splice(sourceIndex, 1);
-      targetCategory.bookmarks.push(moved);
-      renderCallback();
-    }
-
-    // Compute order: after last bookmark in target
-    const lastOrder = targetCategory.bookmarks.length > 0
-      ? Math.max(...targetCategory.bookmarks.map((b) => b.order ?? 0))
-      : 0;
-    const newOrder = lastOrder + 1;
-    reorderBookmark(bkId, newOrder, targetCategoryId);
-    if (!isUndoing()) {
-      pushUndo({
-        undo: () => reorderBookmark(bkId, oldOrder, sourceCatId),
-        redo: () => reorderBookmark(bkId, newOrder, targetCategoryId),
-      });
-    }
-  } else {
-    const sourceCategory = categories.find((c) => c.id === draggedBookmark!.categoryId);
-    const targetCategory = categories.find((c) => c.id === targetCategoryId);
-
-    if (!sourceCategory || !targetCategory) return;
-
-    const sourceIndex = sourceCategory.bookmarks.findIndex((b) => b.id === draggedBookmark!.bookmarkId);
-
-    if (sourceIndex !== -1) {
-      const bkId = draggedBookmark!.bookmarkId;
-      const srcCatId = draggedBookmark!.categoryId;
-      const origIdx = sourceIndex;
-      const [movedBookmark] = sourceCategory.bookmarks.splice(sourceIndex, 1);
-      targetCategory.bookmarks.push(movedBookmark);
-      if (!isUndoing()) {
-        const tgtCatId = targetCategoryId;
-        pushUndo({
-          undo: () => moveBookmarkLocal(bkId, tgtCatId, srcCatId, origIdx, renderCallback),
-          redo: () => moveBookmarkLocal(bkId, srcCatId, tgtCatId, targetCategory.bookmarks.length - 1, renderCallback),
-        });
-      }
-      saveData();
-      renderCallback();
-    }
-  }
-}
-
-// --- Category reorder handlers ---
-
-export function isDraggingLayoutItem(): boolean {
-  return draggedLayoutItem !== null;
-}
-
-export function getDragBookmarkState(): { categoryId: string; bookmarkId: string } | null {
-  return draggedBookmark;
-}
-
-export function handleCategoryHeaderDragStart(e: DragEvent): void {
-  const header = (e.currentTarget as HTMLElement).closest('.category') as HTMLElement;
-  if (!header) return;
-  const categoryId = header.dataset.categoryId!;
-  draggedLayoutItem = { type: 'category', id: categoryId };
-  header.classList.add('dragging-category');
-  e.dataTransfer!.effectAllowed = 'move';
-  e.dataTransfer!.setData('text/plain', ''); // Required for Firefox
-}
-
-export function handleTabGroupHeaderDragStart(e: DragEvent): void {
-  const groupEl = (e.currentTarget as HTMLElement).closest('.tab-group') as HTMLElement;
-  if (!groupEl) return;
-  draggedLayoutItem = { type: 'tabGroup', id: groupEl.dataset.groupId! };
-  groupEl.classList.add('dragging-category');
-  e.dataTransfer!.effectAllowed = 'move';
-  e.dataTransfer!.setData('text/plain', '');
-}
-
-export function handleCategoryHeaderDragEnd(e: DragEvent): void {
-  draggedLayoutItem = null;
-  document.querySelectorAll('.category').forEach((cat) => {
-    cat.classList.remove('dragging-category');
-  });
-  document.querySelectorAll('.tab-group').forEach((g) => {
-    g.classList.remove('dragging-category');
-  });
-  document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
-  document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
-}
-
-// Drop zone detection result
-type DropZone =
-  | { action: 'reorder-before'; targetEl: Element }
-  | { action: 'reorder-after' }
-  | { action: 'reorder-after-item'; targetEl: Element }
-  | { action: 'group'; targetCategoryId: string; targetEl: HTMLElement }
-  | { action: 'add-to-group'; targetGroupId: string; targetEl: HTMLElement }
-  | { action: 'absorb-category'; targetCategoryId: string; groupId: string; targetEl: HTMLElement }
-  | null;
-
-function detectDropZone(e: DragEvent, container: HTMLElement): DropZone {
-  const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
-  if (layoutEls.length === 0) return null;
-
-  const dragId = draggedLayoutItem!.id;
-  const dragType = draggedLayoutItem!.type;
-
-  for (const item of layoutEls) {
-    const rect = item.getBoundingClientRect();
-    const el = item as HTMLElement;
-    const elId = el.dataset.categoryId || el.dataset.groupId;
-    if (elId === dragId) continue;
-
-    if (e.clientY < rect.top || e.clientY > rect.bottom) continue;
-
-    const relativeY = (e.clientY - rect.top) / rect.height;
-
-    if (el.classList.contains('tab-group')) {
-      // Tab group zones: top 30% = before, middle 40% = add/merge, bottom 30% = after
-      if (relativeY < 0.3) return { action: 'reorder-before', targetEl: item };
-      if (relativeY > 0.7) return { action: 'reorder-after-item', targetEl: item };
-      // Center zone: add category or merge groups
-      const groupId = el.dataset.groupId!;
-      if (dragType === 'category') {
-        const categories = getCategories();
-        const draggedCat = categories.find((c) => c.id === dragId);
-        if (draggedCat?.groupId === groupId) return { action: 'reorder-after-item', targetEl: item };
-        return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
-      }
-      if (dragType === 'tabGroup') {
-        return { action: 'add-to-group', targetGroupId: groupId, targetEl: el };
-      }
-    }
-
-    if (el.classList.contains('category')) {
-      // Category zones: top 40% = before, middle 20% = group, bottom 40% = after
-      if (relativeY < 0.4) return { action: 'reorder-before', targetEl: item };
-      if (relativeY > 0.6) return { action: 'reorder-after-item', targetEl: item };
-      // Center zone: create group (only for category-on-category)
-      if (dragType === 'category') {
-        return { action: 'group', targetCategoryId: el.dataset.categoryId!, targetEl: el };
-      }
-      // Tab group dragged onto category center — absorb category into group
-      if (dragType === 'tabGroup') {
-        return { action: 'absorb-category', targetCategoryId: el.dataset.categoryId!, groupId: dragId, targetEl: el };
-      }
-      return { action: 'reorder-before', targetEl: item };
-    }
-  }
-
-  // Cursor is in a gap between elements (margin area) or beyond the last element.
-  // Find the insertion point by scanning element positions.
-  let lastNonDraggedEl: Element | null = null;
-  for (const item of layoutEls) {
-    const el = item as HTMLElement;
-    const elId = el.dataset.categoryId || el.dataset.groupId;
-    if (elId === dragId) continue;
-
-    const rect = item.getBoundingClientRect();
-    if (e.clientY < rect.top) {
-      // Cursor is above this element — insert before it
-      return { action: 'reorder-before', targetEl: item };
-    }
-    lastNonDraggedEl = item;
-  }
-
-  // Cursor is below all non-dragged elements
-  if (lastNonDraggedEl) {
-    return { action: 'reorder-after-item', targetEl: lastNonDraggedEl };
-  }
-
-  return { action: 'reorder-after' };
-}
-
-export function handleLayoutDragOver(e: DragEvent): void {
-  if (!draggedLayoutItem) return;
-  e.preventDefault();
-  e.dataTransfer!.dropEffect = 'move';
-
-  const container = document.getElementById('categories-container');
-  if (!container) return;
-
-  // Clean up visual feedback (both layout and tab-reorder indicators are mutually exclusive)
-  container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
-  container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
-  document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
-
-  // Extended tab-reorder zone: if cursor is near ANY group's header, show
-  // tab reorder indicators instead of layout indicators (easier to hit)
-  if (draggedLayoutItem.type === 'category') {
-    const TOLERANCE = 12;
-    const headers = container.querySelectorAll<HTMLElement>('.tab-group-header');
-    for (const header of headers) {
-      const rect = header.getBoundingClientRect();
-      if (e.clientY >= rect.top - TOLERANCE && e.clientY <= rect.bottom + TOLERANCE
-          && e.clientX >= rect.left && e.clientX <= rect.right) {
-        const groupEl = header.closest('.tab-group')!;
-        // Find nearest tab by horizontal position
-        const tabs = Array.from(groupEl.querySelectorAll<HTMLElement>('.tab'));
-        let nearestTab: HTMLElement | null = null;
-        let nearestDist = Infinity;
-        for (const tab of tabs) {
-          const tabRect = tab.getBoundingClientRect();
-          const centerX = tabRect.left + tabRect.width / 2;
-          const dist = Math.abs(e.clientX - centerX);
-          if (dist < nearestDist) {
-            nearestDist = dist;
-            nearestTab = tab;
-          }
-        }
-        if (nearestTab && nearestTab.dataset.tabCategoryId !== draggedLayoutItem!.id) {
-          const tabRect = nearestTab.getBoundingClientRect();
-          const isLeftHalf = e.clientX < tabRect.left + tabRect.width / 2;
-          const indicator = document.createElement('div');
-          indicator.className = 'tab-drop-indicator';
-          if (isLeftHalf) {
-            nearestTab.parentNode!.insertBefore(indicator, nearestTab);
-          } else {
-            nearestTab.parentNode!.insertBefore(indicator, nearestTab.nextSibling);
-          }
-        }
-        return;
-      }
-    }
-  }
-
-  const zone = detectDropZone(e, container);
-  if (!zone) return;
-
-  if (zone.action === 'reorder-before') {
-    // Don't show indicator right before or after the dragged item
-    const prev = zone.targetEl.previousElementSibling as HTMLElement | null;
-    const prevId = prev?.dataset.categoryId || prev?.dataset.groupId;
-    if (prevId === draggedLayoutItem.id) return;
-
-    const indicator = document.createElement('div');
-    indicator.className = 'layout-drop-indicator';
-    container.insertBefore(indicator, zone.targetEl);
-  } else if (zone.action === 'reorder-after-item') {
-    // Don't show indicator right after the dragged item
-    const next = zone.targetEl.nextElementSibling as HTMLElement | null;
-    const nextId = next?.dataset.categoryId || next?.dataset.groupId;
-    if (nextId === draggedLayoutItem.id) return;
-    const targetId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
-    if (targetId === draggedLayoutItem.id) return;
-
-    const indicator = document.createElement('div');
-    indicator.className = 'layout-drop-indicator';
-    container.insertBefore(indicator, zone.targetEl.nextSibling);
-  } else if (zone.action === 'reorder-after') {
-    const layoutEls = Array.from(container.querySelectorAll(':scope > .category, :scope > .tab-group'));
-    const last = layoutEls[layoutEls.length - 1] as HTMLElement;
-    const lastId = last?.dataset.categoryId || last?.dataset.groupId;
-    if (lastId === draggedLayoutItem.id) return;
-
-    const indicator = document.createElement('div');
-    indicator.className = 'layout-drop-indicator';
-    container.appendChild(indicator);
-  } else if (zone.action === 'group') {
-    zone.targetEl.classList.add('group-drop-target');
-  } else if (zone.action === 'add-to-group') {
-    zone.targetEl.classList.add('group-drop-target');
-  } else if (zone.action === 'absorb-category') {
-    zone.targetEl.classList.add('group-drop-target');
-  }
-}
-
-export function handleLayoutDrop(e: DragEvent, renderCallback: () => void): void {
-  if (!draggedLayoutItem) return;
-  e.preventDefault();
-
-  const container = document.getElementById('categories-container');
-  if (!container) { draggedLayoutItem = null; return; }
-  container.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
-  container.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
-
-  const zone = detectDropZone(e, container);
-  if (!zone) { draggedLayoutItem = null; return; }
-
-  if (zone.action === 'group' && draggedLayoutItem.type === 'category') {
-    // Create new tab group from two categories
-    const name = 'Tab Group';
-    createTabGroup(name, [zone.targetCategoryId, draggedLayoutItem.id]);
-    draggedLayoutItem = null;
-    return;
-  }
-
-  if (zone.action === 'add-to-group') {
-    if (draggedLayoutItem.type === 'category') {
-      // Add category to existing tab group
-      setCategoryGroup(draggedLayoutItem.id, zone.targetGroupId);
-    } else if (draggedLayoutItem.type === 'tabGroup') {
-      // Merge two tab groups
-      mergeTabGroups(draggedLayoutItem.id, zone.targetGroupId);
-    }
-    draggedLayoutItem = null;
-    return;
-  }
-
-  if (zone.action === 'absorb-category' && draggedLayoutItem.type === 'tabGroup') {
-    // Tab group dragged onto category — add category into the dragged group
-    setCategoryGroup(zone.targetCategoryId, draggedLayoutItem.id);
-    draggedLayoutItem = null;
-    return;
-  }
-
-  // Reorder logic — compute target index from zone
-  const items = getLayoutItems();
-
-  let targetIndex = items.length;
-  if (zone.action === 'reorder-before') {
-    const targetElId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
-    targetIndex = items.findIndex((item) => {
-      const id = item.type === 'category' ? item.category.id : item.group.id;
-      return id === targetElId;
-    });
-    if (targetIndex === -1) targetIndex = items.length;
-  } else if (zone.action === 'reorder-after-item') {
-    const targetElId = (zone.targetEl as HTMLElement).dataset.categoryId || (zone.targetEl as HTMLElement).dataset.groupId;
-    const idx = items.findIndex((item) => {
-      const id = item.type === 'category' ? item.category.id : item.group.id;
-      return id === targetElId;
-    });
-    targetIndex = idx === -1 ? items.length : idx + 1;
-  }
-
-  const sourceIndex = items.findIndex((item) => {
-    const id = item.type === 'category' ? item.category.id : item.group.id;
-    return id === draggedLayoutItem!.id;
-  });
-
-  // Category is nested inside a tab group — ungroup it with positioned order
-  if (sourceIndex === -1 && draggedLayoutItem.type === 'category') {
-    // Compute the target order from the layout items
-    const orderList = items.map((item) =>
-      item.type === 'category' ? (item.category.order ?? 0) : item.group.order
-    );
-    const prev = targetIndex > 0 ? orderList[targetIndex - 1] : 0;
-    const next = targetIndex < orderList.length ? orderList[targetIndex] : prev + 2;
-    const newOrder = (prev + next) / 2;
-    setCategoryGroup(draggedLayoutItem.id, null, newOrder);
-    draggedLayoutItem = null;
-    return;
-  }
-  if (sourceIndex === -1) { draggedLayoutItem = null; return; }
-  if (sourceIndex === targetIndex || sourceIndex === targetIndex - 1) { draggedLayoutItem = null; return; }
-
-  // Build order list for midpoint computation
-  const orderList = items.map((item) =>
-    item.type === 'category' ? (item.category.order ?? 0) : item.group.order
-  );
-
-  const withoutDragged = orderList.filter((_, i) => i !== sourceIndex);
-  const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
-  const prev = adjustedTarget > 0 ? withoutDragged[adjustedTarget - 1] : 0;
-  const next = adjustedTarget < withoutDragged.length
-    ? withoutDragged[adjustedTarget]
-    : prev + 2;
-  const newOrder = (prev + next) / 2;
-
-  const oldOrder = orderList[sourceIndex];
-  if (draggedLayoutItem.type === 'category') {
-    reorderCategory(draggedLayoutItem.id, newOrder);
-  } else {
-    reorderTabGroup(draggedLayoutItem.id, newOrder);
-  }
-  if (!isUndoing()) {
-    const itemId = draggedLayoutItem.id;
-    const itemType = draggedLayoutItem.type;
-    pushUndo({
-      undo: () => { if (itemType === 'category') reorderCategory(itemId, oldOrder); else reorderTabGroup(itemId, oldOrder); },
-      redo: () => { if (itemType === 'category') reorderCategory(itemId, newOrder); else reorderTabGroup(itemId, newOrder); },
-    });
-  }
-
-  // No renderCallback() here — Convex subscription will re-render with the correct new order.
-  // Calling it now would re-render with stale data (old order) and replay fadeSlide animation.
-  draggedLayoutItem = null;
-}
-
-// --- Tab ungroup: drag a tab out of the tab bar ---
-export function handleTabUngroupDragStart(e: DragEvent, categoryId: string): void {
-  // Ensure tab drags can't be misclassified as bookmark drags.
-  draggedBookmark = null;
-  draggedElement = null;
-  draggedLayoutItem = { type: 'category', id: categoryId };
-  // Dim the dragged tab
-  const tab = document.querySelector(`[data-tab-category-id="${categoryId}"]`) as HTMLElement | null;
-  if (tab) tab.classList.add('dragging-tab');
-  e.dataTransfer!.effectAllowed = 'move';
-  e.dataTransfer!.setData('text/plain', '');
-}
-
-export function handleTabUngroupDragEnd(): void {
-  draggedLayoutItem = null;
-  document.querySelectorAll('.dragging-category').forEach((el) => el.classList.remove('dragging-category'));
-  document.querySelectorAll('.dragging-tab').forEach((el) => el.classList.remove('dragging-tab'));
-  document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
-  document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
-  document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
-}
-
-// --- Tab reorder within a tab group ---
-
-export function handleTabReorderDragOver(e: DragEvent): void {
-  if (!draggedLayoutItem || draggedLayoutItem.type !== 'category') return;
-  const targetTab = e.currentTarget as HTMLElement;
-  const targetCategoryId = targetTab.dataset.tabCategoryId;
-  if (!targetCategoryId || targetCategoryId === draggedLayoutItem.id) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-  e.dataTransfer!.dropEffect = 'move';
-
-  // Clean up layout indicators — tab bar takes priority
-  document.querySelectorAll('.layout-drop-indicator').forEach((el) => el.remove());
-  document.querySelectorAll('.group-drop-target').forEach((el) => el.classList.remove('group-drop-target'));
-
-  // Clean up ALL tab indicators (may have moved from another bar)
-  document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
-
-  // Determine left/right half for indicator placement
-  const rect = targetTab.getBoundingClientRect();
-  const isLeftHalf = e.clientX < rect.left + rect.width / 2;
-
-  const indicator = document.createElement('div');
-  indicator.className = 'tab-drop-indicator';
-  if (isLeftHalf) {
-    targetTab.parentNode!.insertBefore(indicator, targetTab);
-  } else {
-    targetTab.parentNode!.insertBefore(indicator, targetTab.nextSibling);
-  }
-}
-
-export function handleTabReorderDragLeave(_e: DragEvent): void {
-  // Indicators persist until another tab is hovered or drag ends — prevents flicker
-}
-
-export function handleTabReorderDrop(
-  e: DragEvent,
-  groupCategories: { id: string; order?: number }[],
-): void {
-  if (!draggedLayoutItem || draggedLayoutItem.type !== 'category') return;
-  const targetTab = e.currentTarget as HTMLElement;
-  const targetCategoryId = targetTab.dataset.tabCategoryId!;
-  const targetGroupId = targetTab.dataset.groupId!;
-
-  // Clean up indicators
-  document.querySelectorAll('.tab-drop-indicator').forEach((el) => el.remove());
-
-  if (targetCategoryId === draggedLayoutItem.id) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  // Determine insertion side from cursor position
-  const rect = targetTab.getBoundingClientRect();
-  const isLeftHalf = e.clientX < rect.left + rect.width / 2;
-
-  const draggedInGroup = groupCategories.some((c) => c.id === draggedLayoutItem!.id);
-
-  if (draggedInGroup) {
-    // Within-group reorder
-    const filtered = groupCategories.filter((c) => c.id !== draggedLayoutItem!.id);
-    const targetIndex = filtered.findIndex((c) => c.id === targetCategoryId);
-    const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
-    const newOrder = computeMidpoint(filtered, insertIndex);
-    reorderCategory(draggedLayoutItem.id, newOrder);
-  } else {
-    // Cross-group move: add tab to this group at the target position
-    const targetIndex = groupCategories.findIndex((c) => c.id === targetCategoryId);
-    const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
-    const newOrder = computeMidpoint(groupCategories, insertIndex);
-    setCategoryGroup(draggedLayoutItem.id, targetGroupId, newOrder);
-  }
-
-  draggedLayoutItem = null;
+// ---------------------------------------------------------------------------
+// Singleton + exports
+// ---------------------------------------------------------------------------
+
+export const dragController = new DragController();
+
+/** Call once after first render. */
+export function initDragListeners(renderCallback: () => void): void {
+  dragController.init(renderCallback);
 }

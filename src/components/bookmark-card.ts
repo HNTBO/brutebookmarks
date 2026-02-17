@@ -1,3 +1,5 @@
+import { dragController } from '../features/drag-drop';
+
 export function handleCardMouseMove(e: MouseEvent): void {
   const card = e.currentTarget as HTMLElement;
   const rect = card.getBoundingClientRect();
@@ -54,40 +56,86 @@ export function consumeLongPressGuard(): boolean {
     longPressClickGuard = false;
     return true;
   }
+  // Also check drag controller click guard (post-desktop-drag)
+  if (dragController.consumeClickGuard()) {
+    return true;
+  }
   return false;
 }
 
+/**
+ * Unified pointer handler for bookmark cards.
+ * - Mobile (touch): 500ms long-press → if finger moves > 5px → drag mode; if lifts → context menu
+ * - Desktop (mouse): pointerdown + 5px move → immediate drag (no 500ms wait)
+ */
 export function initLongPress(card: HTMLElement): void {
   let timer: number | null = null;
   let startX = 0;
   let startY = 0;
-  let activated = false;
+  let activated = false;     // long-press timer fired
+  let dragStarted = false;   // drag has been initiated
+  let savedEvent: PointerEvent | null = null;
 
   card.addEventListener('pointerdown', (e: PointerEvent) => {
-    // Only primary pointer (finger / left mouse)
     if (e.button !== 0) return;
+    if (!e.isPrimary) return;
     startX = e.clientX;
     startY = e.clientY;
     activated = false;
+    dragStarted = false;
+    savedEvent = e;
 
-    timer = window.setTimeout(() => {
-      activated = true;
-      card.classList.add('long-press-active');
-      // Haptic feedback (Android; no-op on iOS / desktop)
-      try { navigator.vibrate?.(50); } catch { /* ignored */ }
-    }, 500);
+    if (e.pointerType === 'mouse') {
+      // Desktop: no long-press timer — drag starts on move
+      timer = null;
+    } else {
+      // Touch: start 500ms timer for long-press activation
+      timer = window.setTimeout(() => {
+        timer = null;
+        activated = true;
+        card.classList.add('long-press-active');
+        try { navigator.vibrate?.(50); } catch { /* ignored */ }
+      }, 500);
+    }
   });
 
   card.addEventListener('pointermove', (e: PointerEvent) => {
-    if (timer === null) return;
+    if (!e.isPrimary) return;
+    if (dragStarted) return; // already handed off to DragController
+
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    if (Math.sqrt(dx * dx + dy * dy) > 10) {
-      clearTimeout(timer);
-      timer = null;
-      if (activated) {
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (e.pointerType === 'mouse') {
+      // Desktop: 5px move threshold → immediate drag
+      if (dist > 5 && savedEvent && !dragController.active) {
+        dragStarted = true;
         card.classList.remove('long-press-active');
+        dragController.startDrag(e, {
+          kind: 'bookmark',
+          categoryId: card.dataset.categoryId!,
+          bookmarkId: card.dataset.bookmarkId!,
+          index: parseInt(card.dataset.index!),
+        }, card);
+      }
+    } else {
+      // Touch: if timer still running and moved too far, cancel long-press
+      if (timer !== null && dist > 10) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      // Touch: if activated (long-press fired) and moved > 5px → start drag
+      if (activated && dist > 5 && !dragController.active) {
+        dragStarted = true;
         activated = false;
+        card.classList.remove('long-press-active');
+        dragController.startDrag(e, {
+          kind: 'bookmark',
+          categoryId: card.dataset.categoryId!,
+          bookmarkId: card.dataset.bookmarkId!,
+          index: parseInt(card.dataset.index!),
+        }, card);
       }
     }
   });
@@ -97,21 +145,22 @@ export function initLongPress(card: HTMLElement): void {
       clearTimeout(timer);
       timer = null;
     }
+    savedEvent = null;
+
+    if (dragStarted) return; // DragController handles pointerup
+
     if (!activated) return;
     activated = false;
     card.classList.remove('long-press-active');
 
-    // Prevent the click handler from opening the URL
+    // Long-press + lift = context menu (mobile)
     longPressClickGuard = true;
-    // Clear guard after a tick in case click doesn't fire
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { longPressClickGuard = false; });
     });
 
-    // Dismiss any existing menu first
     dismissContextMenu();
 
-    // Show context menu
     const categoryId = card.dataset.categoryId!;
     const bookmarkId = card.dataset.bookmarkId!;
     showContextMenu(e.clientX, e.clientY, categoryId, bookmarkId);
@@ -122,6 +171,7 @@ export function initLongPress(card: HTMLElement): void {
       clearTimeout(timer);
       timer = null;
     }
+    savedEvent = null;
     if (activated) {
       card.classList.remove('long-press-active');
       activated = false;

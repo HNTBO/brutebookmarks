@@ -1,40 +1,16 @@
 import { getCategories, getLayoutItems } from '../data/store';
-import type { Category, TabGroup, LayoutItem } from '../types';
+import type { Category, TabGroup } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
 import { handleCardMouseMove, handleCardMouseLeave, initLongPress, initGridLongPress, consumeLongPressGuard } from './bookmark-card';
-import {
-  handleDragStart,
-  handleDragEnd,
-  handleDragOver,
-  handleDrop,
-  handleGridDragOver,
-  handleGridDrop,
-  handleGridDragLeave,
-  handleCategoryDragOver,
-  handleCategoryDragLeave,
-  handleCategoryDrop,
-  executeCategoryDrop,
-  handleCategoryHeaderDragStart,
-  handleCategoryHeaderDragEnd,
-  handleTabGroupHeaderDragStart,
-  handleLayoutDragOver,
-  handleLayoutDrop,
-  handleTabUngroupDragStart,
-  handleTabUngroupDragEnd,
-  handleTabReorderDragOver,
-  handleTabReorderDragLeave,
-  handleTabReorderDrop,
-  isDraggingLayoutItem,
-  getDragBookmarkState,
-} from '../features/drag-drop';
+import { dragController, initDragListeners } from '../features/drag-drop';
 
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
 
-// Guard: attach container-level drag listeners only once
-let containerListenersAttached = false;
+// Guard: init drag listeners only once
+let dragListenersInitialized = false;
 
 function getActiveTabId(group: TabGroup): string {
   const stored = activeTabPerGroup.get(group.id);
@@ -68,6 +44,8 @@ function initTabSwipe(
   let tracking = false;
 
   contentEl.addEventListener('pointerdown', (e: PointerEvent) => {
+    // Don't start swipe tracking if a drag is in progress
+    if (dragController.active) return;
     startX = e.clientX;
     startY = e.clientY;
     tracking = true;
@@ -75,6 +53,7 @@ function initTabSwipe(
 
   contentEl.addEventListener('pointermove', (e: PointerEvent) => {
     if (!tracking) return;
+    if (dragController.active) { tracking = false; return; }
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     // Vertical scroll intent — cancel swipe tracking
@@ -112,7 +91,6 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
         .map(
           (bookmark, index) => `
         <div class="bookmark-card ${!showCardNames ? 'hide-title' : ''}"
-             draggable="true"
              data-bookmark-id="${escapeHtml(bookmark.id)}"
              data-category-id="${escapeHtml(category.id)}"
              data-index="${index}"
@@ -148,10 +126,7 @@ function wireBookmarkCards(el: HTMLElement): void {
 
   const bookmarkCards = el.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)');
   bookmarkCards.forEach((card) => {
-    card.addEventListener('dragstart', handleDragStart as EventListener);
-    card.addEventListener('dragend', handleDragEnd as EventListener);
-    card.addEventListener('dragover', handleDragOver as EventListener);
-    card.addEventListener('drop', ((e: DragEvent) => handleDrop(e, renderCategories)) as EventListener);
+    // Pointer events: long-press (mobile) / immediate drag (desktop) handled in initLongPress
     card.addEventListener('mousemove', handleCardMouseMove as EventListener);
     card.addEventListener('mouseleave', handleCardMouseLeave as EventListener);
     initLongPress(card);
@@ -165,16 +140,71 @@ function wireBookmarkCards(el: HTMLElement): void {
     });
   });
 
-  // Grid-level drag handlers for continuous drop zones (covers gaps between cards)
+  // Long-press grid background → undo/redo (mobile only)
   const grids = el.querySelectorAll<HTMLElement>('.bookmarks-grid');
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
   grids.forEach((grid) => {
-    grid.addEventListener('dragover', handleGridDragOver as EventListener);
-    grid.addEventListener('drop', ((e: DragEvent) => handleGridDrop(e, renderCategories)) as EventListener);
-    grid.addEventListener('dragleave', handleGridDragLeave as EventListener);
-    // Long-press grid background → undo/redo (mobile only)
     if (isMobile) initGridLongPress(grid);
   });
+}
+
+/** Wire pointer-based drag on a drag handle (category/tab-group header). */
+function initHandleDrag(
+  handle: HTMLElement,
+  getDragData: () => { kind: 'category' | 'tabGroup'; id: string },
+): void {
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  handle.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.button !== 0 || !e.isPrimary) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    tracking = true;
+  });
+
+  handle.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!tracking || !e.isPrimary) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.sqrt(dx * dx + dy * dy) > 5 && !dragController.active) {
+      tracking = false;
+      const data = getDragData();
+      dragController.startDrag(e, data, handle);
+    }
+  });
+
+  handle.addEventListener('pointerup', () => { tracking = false; });
+  handle.addEventListener('pointercancel', () => { tracking = false; });
+}
+
+/** Wire pointer-based drag on a tab (for reorder/ungroup). */
+function initTabDrag(tab: HTMLElement): void {
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  tab.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.button !== 0 || !e.isPrimary) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    tracking = true;
+  });
+
+  tab.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!tracking || !e.isPrimary) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.sqrt(dx * dx + dy * dy) > 5 && !dragController.active) {
+      tracking = false;
+      const categoryId = tab.dataset.tabCategoryId!;
+      dragController.startDrag(e, { kind: 'category', id: categoryId }, tab);
+    }
+  });
+
+  tab.addEventListener('pointerup', () => { tracking = false; });
+  tab.addEventListener('pointercancel', () => { tracking = false; });
 }
 
 function renderSingleCategory(category: Category, currentCardSize: number, showCardNames: boolean): HTMLElement {
@@ -182,7 +212,7 @@ function renderSingleCategory(category: Category, currentCardSize: number, showC
   categoryEl.className = 'category';
   categoryEl.dataset.categoryId = category.id;
   categoryEl.innerHTML = `
-    <div class="category-header" draggable="true">
+    <div class="category-header">
       <div class="category-drag-handle" title="Drag to reorder">⠿</div>
       <div class="tab-bar">
         <div class="category-title">
@@ -196,15 +226,9 @@ function renderSingleCategory(category: Category, currentCardSize: number, showC
 
   wireBookmarkCards(categoryEl);
 
-  // Bookmark → category drop
-  categoryEl.addEventListener('dragover', handleCategoryDragOver as EventListener);
-  categoryEl.addEventListener('dragleave', handleCategoryDragLeave as EventListener);
-  categoryEl.addEventListener('drop', ((e: DragEvent) => handleCategoryDrop(e, renderCategories)) as EventListener);
-
-  // Category header drag (reorder)
-  const header = categoryEl.querySelector('.category-header') as HTMLElement;
-  header.addEventListener('dragstart', handleCategoryHeaderDragStart as EventListener);
-  header.addEventListener('dragend', handleCategoryHeaderDragEnd as EventListener);
+  // Category header drag handle → pointer-based drag
+  const handle = categoryEl.querySelector('.category-drag-handle') as HTMLElement;
+  initHandleDrag(handle, () => ({ kind: 'category', id: category.id }));
 
   return categoryEl;
 }
@@ -329,6 +353,10 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
 
   wireBookmarkCards(groupEl);
 
+  // Drag handle for the group header
+  const handle = groupEl.querySelector('.category-drag-handle') as HTMLElement;
+  initHandleDrag(handle, () => ({ kind: 'tabGroup', id: group.id }));
+
   return groupEl;
 }
 
@@ -340,7 +368,7 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
   const activeTabId = getActiveTabId(group);
 
   groupEl.innerHTML = `
-    <div class="tab-group-header" draggable="true">
+    <div class="tab-group-header">
       <div class="category-drag-handle" title="Drag to reorder">⠿</div>
       <div class="tab-bar">
         ${group.categories
@@ -349,7 +377,6 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
           <div class="tab ${cat.id === activeTabId ? 'tab-active' : ''}"
                role="button"
                tabindex="0"
-               draggable="true"
                data-tab-category-id="${escapeHtml(cat.id)}"
                data-group-id="${escapeHtml(group.id)}">
             ${escapeHtml(cat.name)}
@@ -374,17 +401,6 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
     </div>
   `;
 
-  // Hover-to-switch timer for bookmark drags (one per group)
-  let hoverTimer: number | null = null;
-
-  function clearHoverState(): void {
-    if (hoverTimer !== null) {
-      clearTimeout(hoverTimer);
-      hoverTimer = null;
-    }
-    groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-drag-hover'));
-  }
-
   function switchToTab(catId: string): void {
     activeTabPerGroup.set(group.id, catId);
     groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
@@ -393,118 +409,20 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
     groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
   }
 
-  // Wire tab clicks and drag-out-to-ungroup
+  // Wire tab clicks and pointer-based drag for reorder/ungroup
   groupEl.querySelectorAll<HTMLElement>('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      const catId = tab.dataset.tabCategoryId!;
-      switchToTab(catId);
+      switchToTab(tab.dataset.tabCategoryId!);
     });
-
-    // Drag tab out of group to ungroup, or reorder within group
-    tab.addEventListener('dragstart', (e: DragEvent) => {
-      e.stopPropagation(); // Don't trigger group header drag
-      handleTabUngroupDragStart(e, tab.dataset.tabCategoryId!);
-    });
-    tab.addEventListener('dragend', () => {
-      handleTabUngroupDragEnd();
-      clearHoverState();
-    });
-
-    // Tab reorder within group
-    tab.addEventListener('dragover', handleTabReorderDragOver as EventListener);
-    tab.addEventListener('dragleave', handleTabReorderDragLeave as EventListener);
-    tab.addEventListener('drop', ((e: DragEvent) => {
-      handleTabReorderDrop(e, group.categories);
-    }) as EventListener);
-
-    // Allow bookmark drops directly on tabs (places bookmark at end of that category)
-    tab.addEventListener('dragover', ((e: DragEvent) => {
-      if (!getDragBookmarkState()) return;
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer!.dropEffect = 'move';
-    }) as EventListener);
-
-    // Bookmark drag → tab hover-to-switch
-    tab.addEventListener('dragenter', ((e: DragEvent) => {
-      const dragState = getDragBookmarkState();
-      if (!dragState) return; // Not a bookmark drag — ignore
-      if (tab.classList.contains('tab-active')) return; // Already active
-
-      e.preventDefault();
-      clearHoverState();
-      tab.classList.add('tab-drag-hover');
-
-      const catId = tab.dataset.tabCategoryId!;
-      hoverTimer = window.setTimeout(() => {
-        tab.classList.remove('tab-drag-hover');
-        switchToTab(catId);
-        hoverTimer = null;
-      }, 400);
-    }) as EventListener);
-
-    tab.addEventListener('dragleave', ((e: DragEvent) => {
-      if (!getDragBookmarkState()) return;
-      const related = e.relatedTarget as Node | null;
-      if (related && tab.contains(related)) return; // Child element flicker
-      tab.classList.remove('tab-drag-hover');
-      if (hoverTimer !== null) {
-        clearTimeout(hoverTimer);
-        hoverTimer = null;
-      }
-    }) as EventListener);
-
-    tab.addEventListener('drop', ((e: DragEvent) => {
-      const dragState = getDragBookmarkState();
-      if (!dragState) return; // Not a bookmark drag — let tab reorder handler run
-      clearHoverState();
-      const catId = tab.dataset.tabCategoryId!;
-      switchToTab(catId);
-      executeCategoryDrop(e, catId, renderCategories);
-    }) as EventListener);
+    initTabDrag(tab);
   });
-
-  // Clean up hover state when any drag ends (Esc, drop outside, etc.)
-  groupEl.addEventListener('dragend', () => clearHoverState(), true);
 
   // Wire bookmark cards in all panels
   wireBookmarkCards(groupEl);
 
-  // Category-level drop (bookmark → tab group)
-  // IMPORTANT: These handlers must NOT mutate the event object (e.g. via Object.assign)
-  // because the event bubbles to the container's layout drag handler which reads e.currentTarget.
-  groupEl.querySelectorAll<HTMLElement>('.tab-panel').forEach((panel) => {
-    const catId = panel.dataset.tabPanelId!;
-
-    panel.addEventListener('dragover', ((e: DragEvent) => {
-      // Skip layout drags — let them bubble to container cleanly
-      if (isDraggingLayoutItem()) return;
-      // Inline the category dragover logic without mutating the event
-      const dragState = getDragBookmarkState();
-      if (!dragState) return;
-      if (catId === dragState.categoryId) return;
-      e.preventDefault();
-      panel.classList.add('drop-target');
-    }) as EventListener);
-
-    panel.addEventListener('dragleave', ((e: DragEvent) => {
-      const relatedTarget = e.relatedTarget as Node | null;
-      if (relatedTarget && panel.contains(relatedTarget)) return;
-      panel.classList.remove('drop-target');
-    }) as EventListener);
-
-    panel.addEventListener('drop', ((e: DragEvent) => {
-      // Skip layout drags — let them bubble to container cleanly
-      if (isDraggingLayoutItem()) return;
-      panel.classList.remove('drop-target');
-      executeCategoryDrop(e, catId, renderCategories);
-    }) as EventListener);
-  });
-
-  // Group header drag (reorder groups)
-  const header = groupEl.querySelector('.tab-group-header') as HTMLElement;
-  header.addEventListener('dragstart', handleTabGroupHeaderDragStart as EventListener);
-  header.addEventListener('dragend', handleCategoryHeaderDragEnd as EventListener);
+  // Group header drag handle
+  const handle = groupEl.querySelector('.category-drag-handle') as HTMLElement;
+  initHandleDrag(handle, () => ({ kind: 'tabGroup', id: group.id }));
 
   return groupEl;
 }
@@ -544,12 +462,10 @@ export function renderCategories(): void {
     }
   });
 
-  // Document-level layout drag handlers — extend drop zone beyond the container
-  // (allows dropping when cursor is above the container, e.g. in header area)
-  if (!containerListenersAttached) {
-    document.addEventListener('dragover', handleLayoutDragOver as EventListener);
-    document.addEventListener('drop', ((e: DragEvent) => handleLayoutDrop(e, renderCategories)) as EventListener);
-    containerListenersAttached = true;
+  // Initialize drag controller once
+  if (!dragListenersInitialized) {
+    initDragListeners(renderCategories);
+    dragListenersInitialized = true;
   }
 
   // After initial render, suppress fadeSlide animation on subsequent re-renders

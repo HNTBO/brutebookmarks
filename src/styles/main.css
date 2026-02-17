@@ -1568,9 +1568,28 @@ footer {
 }
 
 /* Drag and drop styles */
-.bookmark-card.dragging {
-    opacity: 0.5;
-    cursor: grabbing;
+
+/* Drag proxy — cloned element following pointer */
+.drag-proxy {
+    position: fixed;
+    pointer-events: none;
+    z-index: 10000;
+    opacity: 0.85;
+    transform: scale(0.92);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transition: opacity 0.1s ease;
+    -webkit-touch-callout: none;
+}
+
+/* Suppress scroll/select during drag */
+body.dragging {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Source element dimmed while dragging */
+.drag-source-active {
+    opacity: 0.3 !important;
 }
 
 .bookmark-card.drag-over {
@@ -1590,6 +1609,7 @@ footer {
 
 .bookmark-card:not(.add-bookmark) {
     cursor: grab;
+    -webkit-touch-callout: none;
 }
 
 .bookmark-card:not(.add-bookmark):active {
@@ -1786,13 +1806,28 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     box-shadow: 0 0 16px var(--accent-glow);
 }
 
-/* Draggable tabs */
-.tab[draggable="true"] {
+/* Draggable tabs (pointer events) */
+.tab {
     cursor: grab;
+    -webkit-touch-callout: none;
 }
 
-.tab[draggable="true"]:active {
+.tab:active {
     cursor: grabbing;
+}
+
+/* Mobile: drag handles always visible (easier to discover) */
+@media (max-width: 768px) {
+    .category-drag-handle {
+        opacity: 0.5;
+    }
+}
+
+/* Drop target for tab-panel (bookmark cross-category) */
+.tab-panel.drop-target .bookmarks-grid {
+    outline: 2px dashed var(--accent);
+    outline-offset: 4px;
+    background: var(--accent-glow);
 }
 
 /* Welcome Gate */
