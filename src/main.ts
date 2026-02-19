@@ -4,8 +4,8 @@ import { initializeData, setRenderCallback, setPreferencesCallback, setPreferenc
 import { renderCategories } from './components/categories';
 import { dragController } from './features/drag-drop';
 import { initSizeController } from './components/header';
-import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
-import { initCategoryModal, openAddCategoryModal, openEditCategoryModal } from './components/modals/category-modal';
+import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark, closeBookmarkModal } from './components/modals/bookmark-modal';
+import { initCategoryModal, openAddCategoryModal, openEditCategoryModal, closeCategoryModal } from './components/modals/category-modal';
 import { initSettingsModal, openSettingsModal, closeSettingsModal } from './components/modals/settings-modal';
 import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis, setActiveIconButton } from './components/icon-picker';
@@ -168,9 +168,16 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (e.key === 'Escape') {
-    document.querySelectorAll('.modal.active').forEach((modal) => {
-      modal.classList.remove('active');
-    });
+    // Route through proper close functions so cleanup/promise resolution runs.
+    // Confirm-modal handles its own Escape internally (keydown on the modal element).
+    const bookmarkModal = document.getElementById('bookmark-modal');
+    const categoryModal = document.getElementById('category-modal');
+    const settingsModal = document.getElementById('settings-modal');
+    const helpModal = document.getElementById('help-modal');
+    if (bookmarkModal?.classList.contains('active')) closeBookmarkModal();
+    if (categoryModal?.classList.contains('active')) closeCategoryModal();
+    if (settingsModal?.classList.contains('active')) closeSettingsModal();
+    if (helpModal?.classList.contains('active')) helpModal.classList.remove('active');
   }
 });
 

@@ -456,30 +456,30 @@ export function initSettingsModal(): void {
   document.getElementById('help-modal-close')!.addEventListener('click', () => {
     document.getElementById('help-modal')!.classList.remove('active');
   });
-  // Backdrop close for help modal
+  // Backdrop close for help modal (pointer events for mouse/touch/pen parity)
   const helpModal = document.getElementById('help-modal')!;
-  let helpMouseDownOnBackdrop = false;
-  helpModal.addEventListener('mousedown', (e) => {
-    helpMouseDownOnBackdrop = e.target === helpModal;
+  let helpPointerDownOnBackdrop = false;
+  helpModal.addEventListener('pointerdown', (e) => {
+    helpPointerDownOnBackdrop = e.target === helpModal;
   });
-  helpModal.addEventListener('mouseup', (e) => {
-    if (helpMouseDownOnBackdrop && e.target === helpModal) {
+  helpModal.addEventListener('pointerup', (e) => {
+    if (helpPointerDownOnBackdrop && e.target === helpModal) {
       helpModal.classList.remove('active');
     }
-    helpMouseDownOnBackdrop = false;
+    helpPointerDownOnBackdrop = false;
   });
 
-  // Backdrop close for settings
-  let mouseDownOnBackdrop = false;
+  // Backdrop close for settings (pointer events for mouse/touch/pen parity)
+  let pointerDownOnBackdrop = false;
   const modal = document.getElementById('settings-modal')!;
-  modal.addEventListener('mousedown', (e) => {
-    mouseDownOnBackdrop = e.target === modal;
+  modal.addEventListener('pointerdown', (e) => {
+    pointerDownOnBackdrop = e.target === modal;
   });
-  modal.addEventListener('mouseup', (e) => {
-    if (!settingsBusy && mouseDownOnBackdrop && e.target === modal) {
+  modal.addEventListener('pointerup', (e) => {
+    if (!settingsBusy && pointerDownOnBackdrop && e.target === modal) {
       closeSettingsModal();
     }
-    mouseDownOnBackdrop = false;
+    pointerDownOnBackdrop = false;
   });
 
   // Mobile swipe-down to dismiss

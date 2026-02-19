@@ -129,20 +129,20 @@ export function initConfirmModal(): void {
     }
   });
 
-  // Backdrop → null (dismiss)
-  let mouseDownOnBackdrop = false;
-  els.modal.addEventListener('mousedown', (e) => {
-    mouseDownOnBackdrop = e.target === els.modal;
+  // Backdrop → null (dismiss; pointer events for mouse/touch/pen parity)
+  let pointerDownOnBackdrop = false;
+  els.modal.addEventListener('pointerdown', (e) => {
+    pointerDownOnBackdrop = e.target === els.modal;
   });
-  els.modal.addEventListener('mouseup', (e) => {
-    if (mouseDownOnBackdrop && e.target === els.modal) {
+  els.modal.addEventListener('pointerup', (e) => {
+    if (pointerDownOnBackdrop && e.target === els.modal) {
       if (_promptResolve) {
         closePrompt(null);
       } else {
         close(null);
       }
     }
-    mouseDownOnBackdrop = false;
+    pointerDownOnBackdrop = false;
   });
 
   // Mobile swipe-down to dismiss

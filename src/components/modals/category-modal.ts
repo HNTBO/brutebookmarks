@@ -116,17 +116,17 @@ export function initCategoryModal(): void {
   document.getElementById('category-form')!.addEventListener('submit', saveCategory);
   document.getElementById('delete-category-btn')!.addEventListener('click', deleteCategoryFromModal);
 
-  // Backdrop click
-  let mouseDownOnBackdrop = false;
+  // Backdrop click (pointer events for mouse/touch/pen parity)
   const modal = document.getElementById('category-modal')!;
-  modal.addEventListener('mousedown', (e) => {
-    mouseDownOnBackdrop = e.target === modal;
+  let pointerDownOnBackdrop = false;
+  modal.addEventListener('pointerdown', (e) => {
+    pointerDownOnBackdrop = e.target === modal;
   });
-  modal.addEventListener('mouseup', (e) => {
-    if (mouseDownOnBackdrop && e.target === modal) {
+  modal.addEventListener('pointerup', (e) => {
+    if (pointerDownOnBackdrop && e.target === modal) {
       closeCategoryModal();
     }
-    mouseDownOnBackdrop = false;
+    pointerDownOnBackdrop = false;
   });
 
   // Mobile swipe-down to dismiss

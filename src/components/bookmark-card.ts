@@ -1,6 +1,10 @@
 import { dragController } from '../features/drag-drop';
+import { LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
 
-export function handleCardMouseMove(e: MouseEvent): void {
+export function handleCardPointerMove(e: PointerEvent): void {
+  // Proximity hover only makes sense for mouse/pen — skip touch
+  if (e.pointerType === 'touch') return;
+
   const card = e.currentTarget as HTMLElement;
   const rect = card.getBoundingClientRect();
 
@@ -25,7 +29,9 @@ export function handleCardMouseMove(e: MouseEvent): void {
   }
 }
 
-export function handleCardMouseLeave(e: MouseEvent): void {
+export function handleCardPointerLeave(e: PointerEvent): void {
+  if (e.pointerType === 'touch') return;
+
   const card = e.currentTarget as HTMLElement;
   const editBtn = card.querySelector<HTMLElement>('.edit-btn');
   const deleteBtn = card.querySelector<HTMLElement>('.delete-btn');
@@ -96,13 +102,13 @@ export function initLongPress(card: HTMLElement): void {
       // Desktop: no long-press timer — drag starts on move
       timer = null;
     } else {
-      // Touch: start 500ms timer for long-press activation
+      // Touch: start long-press timer
       timer = window.setTimeout(() => {
         timer = null;
         activated = true;
         card.classList.add('long-press-active');
         try { navigator.vibrate?.(50); } catch { /* ignored */ }
-      }, 500);
+      }, LONG_PRESS_DELAY);
     }
   });
 
@@ -115,8 +121,8 @@ export function initLongPress(card: HTMLElement): void {
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (e.pointerType === 'mouse') {
-      // Desktop: 5px move threshold → immediate drag
-      if (dist > 5 && savedEvent && !dragController.active) {
+      // Desktop: move threshold → immediate drag
+      if (dist > DRAG_THRESHOLD && savedEvent && !dragController.active) {
         dragStarted = true;
         card.classList.remove('long-press-active');
         dragController.startDrag(e, {
@@ -128,14 +134,14 @@ export function initLongPress(card: HTMLElement): void {
       }
     } else {
       // Touch: if timer still running and moved too far, cancel long-press
-      if (timer !== null && dist > 10) {
+      if (timer !== null && dist > LONG_PRESS_CANCEL_DISTANCE) {
         clearTimeout(timer);
         timer = null;
         // Release capture so browser can resume scrolling
         try { card.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
       }
-      // Touch: if activated (long-press fired) and moved > 5px → start drag
-      if (activated && dist > 5 && !dragController.active) {
+      // Touch: if activated (long-press fired) and moved past threshold → start drag
+      if (activated && dist > DRAG_THRESHOLD && !dragController.active) {
         dragStarted = true;
         activated = false;
         card.classList.remove('long-press-active');
@@ -203,7 +209,7 @@ export function initLongPress(card: HTMLElement): void {
       const touch = e.touches[0];
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-      if (Math.sqrt(dx * dx + dy * dy) <= 10) {
+      if (Math.sqrt(dx * dx + dy * dy) <= LONG_PRESS_CANCEL_DISTANCE) {
         e.preventDefault();
       }
     }
@@ -223,7 +229,7 @@ export function initGridLongPress(grid: HTMLElement): void {
   grid.addEventListener('pointerdown', (e: PointerEvent) => {
     // Only fire on grid background (gaps / empty area), not on cards
     if ((e.target as HTMLElement).closest('.bookmark-card')) return;
-    if (e.button !== 0) return;
+    if (e.button !== 0 || !e.isPrimary) return;
     startX = e.clientX;
     startY = e.clientY;
 
@@ -232,14 +238,14 @@ export function initGridLongPress(grid: HTMLElement): void {
       try { navigator.vibrate?.(50); } catch { /* ignored */ }
       dismissContextMenu();
       showUndoRedoMenu(e.clientX, e.clientY);
-    }, 500);
+    }, LONG_PRESS_DELAY);
   });
 
   grid.addEventListener('pointermove', (e: PointerEvent) => {
-    if (timer === null) return;
+    if (!e.isPrimary || timer === null) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    if (Math.sqrt(dx * dx + dy * dy) > 10) {
+    if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_CANCEL_DISTANCE) {
       clearTimeout(timer);
       timer = null;
     }
@@ -264,23 +270,24 @@ function wireSwipeToDismiss(menu: HTMLElement): void {
   let tracking = false;
 
   menu.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (!e.isPrimary) return;
     startX = e.clientX;
     tracking = true;
     menu.style.transition = 'none';
   });
 
   menu.addEventListener('pointermove', (e: PointerEvent) => {
-    if (!tracking) return;
+    if (!e.isPrimary || !tracking) return;
     const dx = e.clientX - startX;
     menu.style.transform = `translateX(${dx}px)`;
     menu.style.opacity = `${Math.max(0, 1 - Math.abs(dx) / 120)}`;
   });
 
   menu.addEventListener('pointerup', (e: PointerEvent) => {
-    if (!tracking) return;
+    if (!e.isPrimary || !tracking) return;
     tracking = false;
     const dx = e.clientX - startX;
-    if (Math.abs(dx) > 60) {
+    if (Math.abs(dx) > MENU_SWIPE_DISMISS) {
       // Swipe past threshold — slide out and dismiss
       const direction = dx > 0 ? 200 : -200;
       menu.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
@@ -295,8 +302,8 @@ function wireSwipeToDismiss(menu: HTMLElement): void {
     }
   });
 
-  menu.addEventListener('pointercancel', () => {
-    if (!tracking) return;
+  menu.addEventListener('pointercancel', (e: PointerEvent) => {
+    if (!e.isPrimary || !tracking) return;
     tracking = false;
     menu.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
     menu.style.transform = 'translateX(0)';

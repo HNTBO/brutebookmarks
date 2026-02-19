@@ -1,3 +1,5 @@
+import { MODAL_SWIPE_DISMISS } from './interaction-constants';
+
 /**
  * Wire swipe-down-to-dismiss on a mobile modal.
  *
@@ -92,7 +94,7 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): voi
 
     const dy = currentY - startY;
 
-    if (dy > 80) {
+    if (dy > MODAL_SWIPE_DISMISS) {
       // Dismiss — transition from current position to off-screen
       content.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
       content.style.transform = 'translateY(100%)';

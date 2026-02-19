@@ -11,6 +11,7 @@ import {
   mergeTabGroups,
 } from '../data/store';
 import { pushUndo, isUndoing } from './undo';
+import { HOVER_SWITCH_DELAY, CLICK_GUARD_TIMEOUT, AUTO_SCROLL_EDGE } from '../utils/interaction-constants';
 
 // ---------------------------------------------------------------------------
 // Helpers (kept from original — used by drop execution + undo)
@@ -305,7 +306,7 @@ class DragController {
     // Click guard for desktop (prevent URL open after drag)
     if (e.pointerType === 'mouse') {
       this.clickGuardActive = true;
-      setTimeout(() => { this.clickGuardActive = false; }, 100);
+      setTimeout(() => { this.clickGuardActive = false; }, CLICK_GUARD_TIMEOUT);
     }
 
     this.cleanup();
@@ -550,7 +551,7 @@ class DragController {
       }
       this.hoverSwitchTimer = null;
       this.hoverSwitchTabId = null;
-    }, 400);
+    }, HOVER_SWITCH_DELAY);
   }
 
   private clearHoverSwitch(): void {
@@ -974,7 +975,7 @@ class DragController {
   private startAutoScroll(): void {
     const scroll = () => {
       if (!this.isDragging) return;
-      const EDGE = 60;
+      const EDGE = AUTO_SCROLL_EDGE;
       const y = this.currentY;
       const vh = window.innerHeight;
 

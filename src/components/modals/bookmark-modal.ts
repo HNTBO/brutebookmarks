@@ -200,17 +200,17 @@ export function initBookmarkModal(): void {
     }
   });
 
-  // Backdrop click
-  let mouseDownOnBackdrop = false;
+  // Backdrop click (pointer events for mouse/touch/pen parity)
   const modal = document.getElementById('bookmark-modal')!;
-  modal.addEventListener('mousedown', (e) => {
-    mouseDownOnBackdrop = e.target === modal;
+  let pointerDownOnBackdrop = false;
+  modal.addEventListener('pointerdown', (e) => {
+    pointerDownOnBackdrop = e.target === modal;
   });
-  modal.addEventListener('mouseup', (e) => {
-    if (mouseDownOnBackdrop && e.target === modal) {
+  modal.addEventListener('pointerup', (e) => {
+    if (pointerDownOnBackdrop && e.target === modal) {
       closeBookmarkModal();
     }
-    mouseDownOnBackdrop = false;
+    pointerDownOnBackdrop = false;
   });
 
   // Mobile swipe-down to dismiss

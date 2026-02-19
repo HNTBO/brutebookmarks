@@ -3,8 +3,9 @@ import type { Category, TabGroup } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
-import { handleCardMouseMove, handleCardMouseLeave, initLongPress, initGridLongPress, consumeLongPressGuard } from './bookmark-card';
+import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initGridLongPress, consumeLongPressGuard } from './bookmark-card';
 import { dragController, initDragListeners } from '../features/drag-drop';
+import { DRAG_THRESHOLD, TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
 
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
@@ -44,6 +45,7 @@ function initTabSwipe(
   let tracking = false;
 
   contentEl.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (!e.isPrimary) return;
     // Don't start swipe tracking if a drag is in progress
     if (dragController.active) return;
     startX = e.clientX;
@@ -52,17 +54,17 @@ function initTabSwipe(
   });
 
   contentEl.addEventListener('pointermove', (e: PointerEvent) => {
-    if (!tracking) return;
+    if (!e.isPrimary || !tracking) return;
     if (dragController.active) { tracking = false; return; }
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     // Vertical scroll intent — cancel swipe tracking
-    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 15) {
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > TAB_SWIPE_VERTICAL_CANCEL) {
       tracking = false;
       return;
     }
     // Horizontal swipe threshold
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    if (Math.abs(dx) > TAB_SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
       tracking = false;
       const activeId = getActive();
       const idx = categories.findIndex((c) => c.id === activeId);
@@ -128,8 +130,8 @@ function wireBookmarkCards(el: HTMLElement): void {
   const bookmarkCards = el.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)');
   bookmarkCards.forEach((card) => {
     // Pointer events: long-press (mobile) / immediate drag (desktop) handled in initLongPress
-    card.addEventListener('mousemove', handleCardMouseMove as EventListener);
-    card.addEventListener('mouseleave', handleCardMouseLeave as EventListener);
+    card.addEventListener('pointermove', handleCardPointerMove);
+    card.addEventListener('pointerleave', handleCardPointerLeave);
     // Prevent native browser drag (img/link) from stealing pointer events
     card.addEventListener('dragstart', (e) => e.preventDefault());
     initLongPress(card);
@@ -177,7 +179,7 @@ function initHandleDrag(
     if (!tracking || !e.isPrimary) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    if (Math.sqrt(dx * dx + dy * dy) > 5 && !dragController.active) {
+    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD && !dragController.active) {
       tracking = false;
       const data = getDragData();
       dragController.startDrag(e, data, handle);
@@ -213,7 +215,7 @@ function initTabDrag(tab: HTMLElement): void {
     if (!tracking || !e.isPrimary) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    if (Math.sqrt(dx * dx + dy * dy) > 5 && !dragController.active) {
+    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD && !dragController.active) {
       tracking = false;
       const categoryId = tab.dataset.tabCategoryId!;
       dragController.startDrag(e, { kind: 'category', id: categoryId }, tab);
