@@ -27,6 +27,32 @@ const SEED_CATEGORIES = JSON.stringify([
   },
 ]);
 
+/** Seed data with a tab group (2 tabs inside a group + 1 standalone category). */
+const SEED_WITH_TAB_GROUP = JSON.stringify([
+  {
+    id: 'tg-cat-1', name: 'Tab One', order: 1, groupId: 'tg-1',
+    bookmarks: [
+      { id: 'tg-bm-1', title: 'Google', url: 'https://google.com', iconPath: null, order: 1 },
+    ],
+  },
+  {
+    id: 'tg-cat-2', name: 'Tab Two', order: 2, groupId: 'tg-1',
+    bookmarks: [
+      { id: 'tg-bm-2', title: 'GitHub', url: 'https://github.com', iconPath: null, order: 1 },
+    ],
+  },
+  {
+    id: 'tg-cat-3', name: 'Standalone', order: 3,
+    bookmarks: [
+      { id: 'tg-bm-3', title: 'Reddit', url: 'https://reddit.com', iconPath: null, order: 1 },
+    ],
+  },
+]);
+
+const SEED_TAB_GROUPS = JSON.stringify([
+  { id: 'tg-1', name: 'Test Group', order: 1 },
+]);
+
 /** Set app to local mode and navigate, waiting for categories to render. */
 async function setupLocalMode(page: Page): Promise<void> {
   // Set local mode + seed data before navigating so the welcome gate is skipped
@@ -37,6 +63,18 @@ async function setupLocalMode(page: Page): Promise<void> {
   await page.goto('/');
   // Wait for the app to render categories
   await page.waitForSelector('.category', { timeout: 10_000 });
+}
+
+/** Set app to local mode with tab group data. */
+async function setupWithTabGroups(page: Page): Promise<void> {
+  await page.addInitScript((args: { categories: string; groups: string }) => {
+    localStorage.setItem('appMode', 'local');
+    localStorage.setItem('speedDialData', args.categories);
+    localStorage.setItem('speedDialTabGroups', args.groups);
+  }, { categories: SEED_WITH_TAB_GROUP, groups: SEED_TAB_GROUPS });
+  await page.goto('/');
+  // Wait for the tab group to render
+  await page.waitForSelector('.tab-group', { timeout: 10_000 });
 }
 
 /** Get all bookmark cards currently visible. */
@@ -259,5 +297,141 @@ test.describe('Size controller', () => {
     if (boxAfter) {
       expect(boxAfter.x !== box.x || boxAfter.y !== box.y).toBeTruthy();
     }
+  });
+});
+
+// ── Phase 3+ interaction tests ──────────────────────────────────────
+
+test.describe('Tab group switching', () => {
+  test('clicking a tab switches the active panel', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const tabGroup = page.locator('.tab-group').first();
+    const tabs = tabGroup.locator('.tab');
+
+    // First tab should be active by default
+    await expect(tabs.first()).toHaveClass(/tab-active/);
+
+    // Click the second tab
+    await tabs.nth(1).click();
+
+    // Second tab should now be active, first should not
+    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
+    // The second panel should be visible
+    const secondPanel = tabGroup.locator('[data-tab-panel-id="tg-cat-2"]');
+    await expect(secondPanel).toHaveClass(/tab-panel-active/);
+  });
+
+  test('pressing Enter on a tab switches the active panel', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const tabGroup = page.locator('.tab-group').first();
+    const secondTab = tabGroup.locator('.tab').nth(1);
+
+    // Focus the second tab and press Enter
+    await secondTab.focus();
+    await page.keyboard.press('Enter');
+
+    await expect(secondTab).toHaveClass(/tab-active/);
+    const secondPanel = tabGroup.locator('[data-tab-panel-id="tg-cat-2"]');
+    await expect(secondPanel).toHaveClass(/tab-panel-active/);
+  });
+
+  test('pressing Space on a tab switches the active panel', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const tabGroup = page.locator('.tab-group').first();
+    const secondTab = tabGroup.locator('.tab').nth(1);
+
+    // Focus the second tab and press Space
+    await secondTab.focus();
+    await page.keyboard.press('Space');
+
+    await expect(secondTab).toHaveClass(/tab-active/);
+    const secondPanel = tabGroup.locator('[data-tab-panel-id="tg-cat-2"]');
+    await expect(secondPanel).toHaveClass(/tab-panel-active/);
+  });
+});
+
+test.describe('Drag cancel', () => {
+  test('pressing Escape during drag cancels without dropping', async ({ page }) => {
+    await setupLocalMode(page);
+
+    const cards = bookmarkCards(page);
+    const count = await cards.count();
+    if (count < 2) {
+      test.skip(true, 'Need at least 2 bookmarks to test drag');
+      return;
+    }
+
+    const firstCard = cards.first();
+    const firstTitle = await firstCard.locator('.bookmark-title').textContent();
+    const firstBox = await firstCard.boundingBox();
+    if (!firstBox) return;
+
+    const startX = firstBox.x + firstBox.width / 2;
+    const startY = firstBox.y + firstBox.height / 2;
+
+    // Start drag
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 10, startY, { steps: 3 });
+    await page.mouse.move(startX + 50, startY + 50, { steps: 5 });
+
+    const proxy = page.locator('.drag-proxy');
+    await expect(proxy).toBeVisible();
+
+    // Cancel with Escape
+    await page.keyboard.press('Escape');
+
+    // Proxy should be gone, no reorder happened
+    await expect(proxy).not.toBeVisible();
+    await expect(page.locator('body')).not.toHaveClass(/dragging/);
+
+    // First card should still be first
+    const firstCardAfter = bookmarkCards(page).first();
+    const titleAfter = await firstCardAfter.locator('.bookmark-title').textContent();
+    expect(titleAfter).toBe(firstTitle);
+
+    await page.mouse.up();
+  });
+});
+
+test.describe('Modal manager (Escape dismisses all)', () => {
+  test('Escape closes whichever modal is active', async ({ page }) => {
+    await setupLocalMode(page);
+
+    // Open category modal
+    await page.click('#add-category-btn');
+    await expect(page.locator('#category-modal')).toHaveClass(/active/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#category-modal')).not.toHaveClass(/active/);
+
+    // Open settings modal
+    await page.click('#settings-btn');
+    await expect(page.locator('#settings-modal')).toHaveClass(/active/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#settings-modal')).not.toHaveClass(/active/);
+
+    // Open bookmark modal
+    const addBtn = page.locator('.add-bookmark').first();
+    await addBtn.click();
+    await expect(page.locator('#bookmark-modal')).toHaveClass(/active/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#bookmark-modal')).not.toHaveClass(/active/);
+  });
+});
+
+test.describe('Keyboard shortcut: theme toggle', () => {
+  test('Alt+Shift+D toggles theme', async ({ page }) => {
+    await setupLocalMode(page);
+
+    const html = page.locator('html');
+    const themeBefore = await html.getAttribute('data-theme');
+
+    await page.keyboard.press('Alt+Shift+KeyD');
+
+    const themeAfter = await html.getAttribute('data-theme');
+    expect(themeAfter).not.toBe(themeBefore);
   });
 });
