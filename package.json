@@ -21,6 +21,7 @@
     "vite": "^7.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "emojilib": "^4.0.2",
     "unicode-emoji-json": "^0.8.0"
   }
