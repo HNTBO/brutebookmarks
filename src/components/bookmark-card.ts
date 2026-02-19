@@ -1,6 +1,21 @@
 import { dragController } from '../features/drag-drop';
 import { LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
 
+// Cache button element references per card to avoid repeated querySelector calls
+const btnCache = new WeakMap<HTMLElement, { edit: HTMLElement | null; delete: HTMLElement | null }>();
+
+function getCachedBtns(card: HTMLElement) {
+  let cached = btnCache.get(card);
+  if (!cached) {
+    cached = {
+      edit: card.querySelector<HTMLElement>('.edit-btn'),
+      delete: card.querySelector<HTMLElement>('.delete-btn'),
+    };
+    btnCache.set(card, cached);
+  }
+  return cached;
+}
+
 export function handleCardPointerMove(e: PointerEvent): void {
   // Proximity hover only makes sense for mouse/pen — skip touch
   if (e.pointerType === 'touch') return;
@@ -11,8 +26,7 @@ export function handleCardPointerMove(e: PointerEvent): void {
   // Proximity radius scales with card size (matches CSS % button sizing)
   const proximityRadius = Math.max(25, rect.width * 0.35);
 
-  const editBtn = card.querySelector<HTMLElement>('.edit-btn');
-  const deleteBtn = card.querySelector<HTMLElement>('.delete-btn');
+  const { edit: editBtn, delete: deleteBtn } = getCachedBtns(card);
 
   if (editBtn) {
     const br = editBtn.getBoundingClientRect();
@@ -33,8 +47,7 @@ export function handleCardPointerLeave(e: PointerEvent): void {
   if (e.pointerType === 'touch') return;
 
   const card = e.currentTarget as HTMLElement;
-  const editBtn = card.querySelector<HTMLElement>('.edit-btn');
-  const deleteBtn = card.querySelector<HTMLElement>('.delete-btn');
+  const { edit: editBtn, delete: deleteBtn } = getCachedBtns(card);
 
   if (editBtn) editBtn.classList.remove('visible');
   if (deleteBtn) deleteBtn.classList.remove('visible');
@@ -317,6 +330,7 @@ function wireSwipeToDismiss(menu: HTMLElement): void {
 }
 
 function showUndoRedoMenu(x: number, y: number): void {
+  dismissContextMenu(); // Ensure previous menu listeners are cleaned up
   const menu = document.createElement('div');
   menu.className = 'long-press-menu';
 
@@ -371,6 +385,7 @@ function showUndoRedoMenu(x: number, y: number): void {
 }
 
 function showContextMenu(x: number, y: number, categoryId: string, bookmarkId: string): void {
+  dismissContextMenu(); // Ensure previous menu listeners are cleaned up
   const menu = document.createElement('div');
   menu.className = 'long-press-menu';
 

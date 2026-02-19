@@ -90,6 +90,16 @@ export const fetchPageTitle = action({
 
       clearTimeout(timeout);
 
+      // Block redirects to private/internal hosts (SSRF protection)
+      if (response.url) {
+        try {
+          const finalHost = new URL(response.url).hostname;
+          if (isPrivateHost(finalHost)) {
+            return { title: domainFallback(url) };
+          }
+        } catch { /* ignore parse errors */ }
+      }
+
       if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
         return { title: domainFallback(url) };
       }

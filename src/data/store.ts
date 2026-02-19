@@ -392,6 +392,7 @@ async function promptSeedDefaults(): Promise<void> {
     // Subscriptions will fire and rebuild automatically
   } catch (error) {
     console.error('[Store] Seed defaults failed:', error);
+    await styledAlert('Failed to load sample bookmarks. Please try again.', 'Error');
   }
 }
 
@@ -447,7 +448,12 @@ export async function createCategory(name: string): Promise<string> {
   let newId: string;
   if (_convexActive) {
     const client = getConvexClient()!;
-    newId = await client.mutation(api.categories.create, { name });
+    try {
+      newId = await client.mutation(api.categories.create, { name });
+    } catch (err) {
+      console.error('[Store] createCategory failed:', err);
+      throw err;
+    }
   } else {
     newId = 'c' + Date.now();
     _categories.push({ id: newId, name, bookmarks: [] });
@@ -472,10 +478,15 @@ export async function updateCategory(id: string, name: string): Promise<void> {
   }
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.categories.update, {
-      id: id as Id<'categories'>,
-      name,
-    });
+    try {
+      await client.mutation(api.categories.update, {
+        id: id as Id<'categories'>,
+        name,
+      });
+    } catch (err) {
+      console.error('[Store] updateCategory failed:', err);
+      throw err;
+    }
   } else {
     const cat = _categories.find((c) => c.id === id);
     if (cat) cat.name = name;
@@ -500,9 +511,14 @@ export async function deleteCategory(id: string): Promise<void> {
   }
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.categories.remove, {
-      id: id as Id<'categories'>,
-    });
+    try {
+      await client.mutation(api.categories.remove, {
+        id: id as Id<'categories'>,
+      });
+    } catch (err) {
+      console.error('[Store] deleteCategory failed:', err);
+      throw err;
+    }
   } else {
     _categories = _categories.filter((c) => c.id !== id);
     saveData();
@@ -532,12 +548,17 @@ export async function createBookmark(
   let newId: string;
   if (_convexActive) {
     const client = getConvexClient()!;
-    newId = await client.mutation(api.bookmarks.create, {
-      categoryId: categoryId as Id<'categories'>,
-      title,
-      url,
-      iconPath: iconPath ?? undefined,
-    });
+    try {
+      newId = await client.mutation(api.bookmarks.create, {
+        categoryId: categoryId as Id<'categories'>,
+        title,
+        url,
+        iconPath: iconPath ?? undefined,
+      });
+    } catch (err) {
+      console.error('[Store] createBookmark failed:', err);
+      throw err;
+    }
   } else {
     newId = 'b' + Date.now();
     const cat = _categories.find((c) => c.id === categoryId);
@@ -582,13 +603,18 @@ export async function updateBookmark(
   }
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.bookmarks.update, {
-      id: id as Id<'bookmarks'>,
-      title,
-      url,
-      iconPath: iconPath ?? undefined,
-      categoryId: categoryId ? (categoryId as Id<'categories'>) : undefined,
-    });
+    try {
+      await client.mutation(api.bookmarks.update, {
+        id: id as Id<'bookmarks'>,
+        title,
+        url,
+        iconPath: iconPath ?? undefined,
+        categoryId: categoryId ? (categoryId as Id<'categories'>) : undefined,
+      });
+    } catch (err) {
+      console.error('[Store] updateBookmark failed:', err);
+      throw err;
+    }
   } else {
     let sourceCat: Category | undefined;
     let bookmark: Bookmark | undefined;
@@ -638,9 +664,14 @@ export async function deleteBookmarkById(id: string): Promise<void> {
   }
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.bookmarks.remove, {
-      id: id as Id<'bookmarks'>,
-    });
+    try {
+      await client.mutation(api.bookmarks.remove, {
+        id: id as Id<'bookmarks'>,
+      });
+    } catch (err) {
+      console.error('[Store] deleteBookmarkById failed:', err);
+      throw err;
+    }
   } else {
     for (const cat of _categories) {
       const idx = cat.bookmarks.findIndex((b) => b.id === id);
@@ -666,10 +697,15 @@ export async function deleteBookmarkById(id: string): Promise<void> {
 export async function reorderCategory(id: string, order: number): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.categories.reorder, {
-      id: id as Id<'categories'>,
-      order,
-    });
+    try {
+      await client.mutation(api.categories.reorder, {
+        id: id as Id<'categories'>,
+        order,
+      });
+    } catch (err) {
+      console.error('[Store] reorderCategory failed:', err);
+      throw err;
+    }
   } else {
     const cat = _categories.find((c) => c.id === id);
     if (cat) cat.order = order;
@@ -685,11 +721,16 @@ export async function reorderBookmark(
 ): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.bookmarks.reorder, {
-      id: id as Id<'bookmarks'>,
-      order,
-      categoryId: categoryId ? (categoryId as Id<'categories'>) : undefined,
-    });
+    try {
+      await client.mutation(api.bookmarks.reorder, {
+        id: id as Id<'bookmarks'>,
+        order,
+        categoryId: categoryId ? (categoryId as Id<'categories'>) : undefined,
+      });
+    } catch (err) {
+      console.error('[Store] reorderBookmark failed:', err);
+      throw err;
+    }
   }
   // Legacy reorder is handled inline in drag-drop.ts (splice-based)
 }
@@ -699,10 +740,15 @@ export async function reorderBookmark(
 export async function createTabGroup(name: string, categoryIds: string[]): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.tabGroups.createWithCategories, {
-      name,
-      categoryIds: categoryIds as Id<'categories'>[],
-    });
+    try {
+      await client.mutation(api.tabGroups.createWithCategories, {
+        name,
+        categoryIds: categoryIds as Id<'categories'>[],
+      });
+    } catch (err) {
+      console.error('[Store] createTabGroup failed:', err);
+      throw err;
+    }
   } else {
     const groupId = 'g' + Date.now();
     // Use the first category's order as the group order
@@ -721,9 +767,14 @@ export async function createTabGroup(name: string, categoryIds: string[]): Promi
 export async function deleteTabGroup(id: string): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.tabGroups.remove, {
-      id: id as Id<'tabGroups'>,
-    });
+    try {
+      await client.mutation(api.tabGroups.remove, {
+        id: id as Id<'tabGroups'>,
+      });
+    } catch (err) {
+      console.error('[Store] deleteTabGroup failed:', err);
+      throw err;
+    }
   } else {
     for (const cat of _categories) {
       if (cat.groupId === id) cat.groupId = undefined;
@@ -737,10 +788,15 @@ export async function deleteTabGroup(id: string): Promise<void> {
 export async function reorderTabGroup(id: string, order: number): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.tabGroups.reorder, {
-      id: id as Id<'tabGroups'>,
-      order,
-    });
+    try {
+      await client.mutation(api.tabGroups.reorder, {
+        id: id as Id<'tabGroups'>,
+        order,
+      });
+    } catch (err) {
+      console.error('[Store] reorderTabGroup failed:', err);
+      throw err;
+    }
   } else {
     const group = _localTabGroups.find((g) => g.id === id);
     if (group) group.order = order;
@@ -790,10 +846,15 @@ export async function setCategoryGroup(categoryId: string, groupId: string | nul
 export async function mergeTabGroups(sourceId: string, targetId: string): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.tabGroups.mergeInto, {
-      sourceId: sourceId as Id<'tabGroups'>,
-      targetId: targetId as Id<'tabGroups'>,
-    });
+    try {
+      await client.mutation(api.tabGroups.mergeInto, {
+        sourceId: sourceId as Id<'tabGroups'>,
+        targetId: targetId as Id<'tabGroups'>,
+      });
+    } catch (err) {
+      console.error('[Store] mergeTabGroups failed:', err);
+      throw err;
+    }
   } else {
     for (const cat of _categories) {
       if (cat.groupId === sourceId) cat.groupId = targetId;
@@ -807,10 +868,15 @@ export async function mergeTabGroups(sourceId: string, targetId: string): Promis
 export async function renameTabGroup(id: string, name: string): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.tabGroups.update, {
-      id: id as Id<'tabGroups'>,
-      name,
-    });
+    try {
+      await client.mutation(api.tabGroups.update, {
+        id: id as Id<'tabGroups'>,
+        name,
+      });
+    } catch (err) {
+      console.error('[Store] renameTabGroup failed:', err);
+      throw err;
+    }
   } else {
     const group = _localTabGroups.find((g) => g.id === id);
     if (group) group.name = name;
@@ -822,7 +888,12 @@ export async function renameTabGroup(id: string, name: string): Promise<void> {
 export async function eraseAllData(): Promise<void> {
   if (_convexActive) {
     const client = getConvexClient()!;
-    await client.mutation(api.bookmarks.eraseAll, {});
+    try {
+      await client.mutation(api.bookmarks.eraseAll, {});
+    } catch (err) {
+      console.error('[Store] eraseAllData failed:', err);
+      throw err;
+    }
   } else {
     _categories = [];
     saveData();
@@ -841,7 +912,12 @@ export async function importBulk(data: Category[]): Promise<void> {
         iconPath: b.iconPath ?? undefined,
       })),
     }));
-    await client.mutation(api.bookmarks.importBulk, { data: bulkData });
+    try {
+      await client.mutation(api.bookmarks.importBulk, { data: bulkData });
+    } catch (err) {
+      console.error('[Store] importBulk failed:', err);
+      throw err;
+    }
   } else {
     _categories = data;
     saveData();

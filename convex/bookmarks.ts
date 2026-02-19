@@ -1,7 +1,15 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
 
+const MAX_TITLE_LENGTH = 500;
+const MAX_URL_LENGTH = 2048;
+const MAX_NAME_LENGTH = 200;
+const MAX_ICON_PATH_LENGTH = 2048;
+
 function validateUrl(url: string): void {
+  if (url.length > MAX_URL_LENGTH) {
+    throw new Error(`URL exceeds maximum length of ${MAX_URL_LENGTH}`);
+  }
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -10,6 +18,19 @@ function validateUrl(url: string): void {
   } catch (e) {
     if (e instanceof Error && e.message.startsWith('Invalid URL scheme')) throw e;
     throw new Error('Invalid URL format');
+  }
+}
+
+function validateIconPath(iconPath: string): void {
+  if (iconPath.length > MAX_ICON_PATH_LENGTH) {
+    throw new Error('Icon path exceeds maximum length');
+  }
+  if (
+    !iconPath.startsWith('data:') &&
+    !iconPath.startsWith('http://') &&
+    !iconPath.startsWith('https://')
+  ) {
+    throw new Error('Invalid icon path: must be http, https, or data URI');
   }
 }
 
@@ -37,7 +58,9 @@ export const create = mutation({
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
 
+    if (title.length > MAX_TITLE_LENGTH) throw new Error('Title too long');
     validateUrl(url);
+    if (iconPath) validateIconPath(iconPath);
 
     // Verify category ownership
     const category = await ctx.db.get(categoryId);
@@ -76,7 +99,9 @@ export const update = mutation({
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
 
+    if (title.length > MAX_TITLE_LENGTH) throw new Error('Title too long');
     validateUrl(url);
+    if (iconPath) validateIconPath(iconPath);
 
     const bookmark = await ctx.db.get(id);
     if (!bookmark || bookmark.userId !== userId) {
@@ -176,10 +201,13 @@ export const importBulk = mutation({
       throw new Error(`Import exceeds maximum of 5000 bookmarks (got ${totalBookmarks})`);
     }
 
-    // Validate all URLs before inserting anything
+    // Validate all fields before inserting anything
     for (const cat of data) {
+      if (cat.name.length > MAX_NAME_LENGTH) throw new Error('Category name too long');
       for (const bk of cat.bookmarks) {
+        if (bk.title.length > MAX_TITLE_LENGTH) throw new Error('Bookmark title too long');
         validateUrl(bk.url);
+        if (bk.iconPath) validateIconPath(bk.iconPath);
       }
     }
 

@@ -11,7 +11,7 @@
  * it expires or the user disconnects.
  */
 
-const TOKEN_KEY = 'bb_auth_token';
+export const TOKEN_KEY = 'bb_auth_token';
 const APP_URL_KEY = 'bb_app_url';
 
 export async function getStoredToken(): Promise<string | null> {
@@ -32,10 +32,15 @@ export async function getAppUrl(): Promise<string> {
   return result[APP_URL_KEY] ?? 'https://brutebookmarks.com';
 }
 
-export async function storeAppUrl(url: string): Promise<void> {
-  await browser.storage.local.set({ [APP_URL_KEY]: url });
-}
-
 export function isConnected(token: string | null): boolean {
-  return token !== null && token.length > 0;
+  if (!token || token.length === 0) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }

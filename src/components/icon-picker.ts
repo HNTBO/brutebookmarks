@@ -260,8 +260,8 @@ export function searchEmojis(): void {
           (entry, index) => {
             const svgUrl = `${TWEMOJI_BASE}${entry.codepoint}.svg`;
             return `
-          <div class="icon-result" data-emoji-index="${index}" data-emoji-codepoint="${entry.codepoint}" data-emoji-keyword="${entry.keywords[0]}">
-            <img src="${svgUrl}" alt="${entry.emoji}">
+          <div class="icon-result" data-emoji-index="${index}" data-emoji-codepoint="${escapeHtml(entry.codepoint)}" data-emoji-keyword="${escapeHtml(entry.keywords[0])}">
+            <img src="${svgUrl}" alt="${escapeHtml(entry.emoji)}">
           </div>
         `;
           },

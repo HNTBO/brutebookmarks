@@ -132,7 +132,7 @@ export function parseNetscapeHTML(html: string): Category[] {
 
 /**
  * Parse JSON bookmark export (Brute Bookmarks native format).
- * Validates the structure matches Category[].
+ * Validates the structure matches Category[], enforces URL schemes and field lengths.
  */
 export function parseJSON(content: string): Category[] {
   const data = JSON.parse(content);
@@ -141,14 +141,30 @@ export function parseJSON(content: string): Category[] {
     throw new Error('Expected an array of categories');
   }
 
-  // Validate structure
+  // Validate structure, URL schemes, and field lengths
   for (const cat of data) {
     if (typeof cat.name !== 'string' || !Array.isArray(cat.bookmarks)) {
       throw new Error('Invalid category structure');
     }
+    if (cat.name.length > 200) cat.name = cat.name.slice(0, 200);
+
     for (const b of cat.bookmarks) {
       if (typeof b.title !== 'string' || typeof b.url !== 'string') {
         throw new Error('Invalid bookmark structure');
+      }
+      if (!/^https?:\/\//i.test(b.url)) {
+        throw new Error(`Invalid URL scheme in bookmark "${b.title.slice(0, 50)}" — only http and https are allowed`);
+      }
+      if (b.url.length > 2048) {
+        throw new Error('Bookmark URL exceeds maximum length');
+      }
+      if (b.title.length > 500) b.title = b.title.slice(0, 500);
+      if (b.iconPath !== undefined && b.iconPath !== null) {
+        if (typeof b.iconPath !== 'string') {
+          b.iconPath = null;
+        } else if (b.iconPath.length > 2048) {
+          b.iconPath = null;
+        }
       }
     }
   }

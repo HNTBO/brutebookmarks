@@ -75,6 +75,10 @@ export function closeSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.remove('active');
 }
 
+function closeHelpModal(): void {
+  document.getElementById('help-modal')!.classList.remove('active');
+}
+
 function exportData(): void {
   const dataStr = JSON.stringify(getCategories(), null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -388,9 +392,7 @@ function syncColumnPicker(): void {
 
 export function initSettingsModal(): void {
   registerModal('settings-modal', closeSettingsModal);
-  registerModal('help-modal', () => {
-    document.getElementById('help-modal')!.classList.remove('active');
-  });
+  registerModal('help-modal', closeHelpModal);
 
   document.getElementById('settings-modal-close')!.addEventListener('click', closeSettingsModal);
 
@@ -459,9 +461,7 @@ export function initSettingsModal(): void {
   document.getElementById('help-btn')!.addEventListener('click', () => {
     document.getElementById('help-modal')!.classList.add('active');
   });
-  document.getElementById('help-modal-close')!.addEventListener('click', () => {
-    document.getElementById('help-modal')!.classList.remove('active');
-  });
+  document.getElementById('help-modal-close')!.addEventListener('click', closeHelpModal);
   // Backdrop close for help modal (pointer events for mouse/touch/pen parity)
   const helpModal = document.getElementById('help-modal')!;
   let helpPointerDownOnBackdrop = false;
@@ -470,7 +470,7 @@ export function initSettingsModal(): void {
   });
   helpModal.addEventListener('pointerup', (e) => {
     if (helpPointerDownOnBackdrop && e.target === helpModal) {
-      helpModal.classList.remove('active');
+      closeHelpModal();
     }
     helpPointerDownOnBackdrop = false;
   });
@@ -490,7 +490,5 @@ export function initSettingsModal(): void {
 
   // Mobile swipe-down to dismiss
   wireModalSwipeDismiss('settings-modal', closeSettingsModal);
-  wireModalSwipeDismiss('help-modal', () => {
-    document.getElementById('help-modal')!.classList.remove('active');
-  });
+  wireModalSwipeDismiss('help-modal', closeHelpModal);
 }

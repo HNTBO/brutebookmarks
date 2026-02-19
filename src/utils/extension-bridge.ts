@@ -1,8 +1,12 @@
 let extensionInstalled = false;
+let _detectionInitialized = false;
 
 export function initExtensionDetection(): void {
+  if (_detectionInitialized) return;
+  _detectionInitialized = true;
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
+    if (event.origin !== window.location.origin) return;
     if (event.data?.type === 'BB_EXT_INSTALLED') {
       extensionInstalled = true;
     }
@@ -31,6 +35,7 @@ export function requestBrowserBookmarks(): Promise<BookmarkTreeNode[]> {
 
     function handler(event: MessageEvent) {
       if (event.source !== window) return;
+      if (event.origin !== window.location.origin) return;
       if (event.data?.type !== 'BB_EXT_BOOKMARKS_RESULT') return;
       if (event.data.requestId !== requestId) return;
 

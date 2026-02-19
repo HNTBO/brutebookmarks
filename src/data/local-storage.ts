@@ -16,9 +16,16 @@ export function getItem<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(key);
   if (raw === null) return fallback;
   try {
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw);
+    // Type-check primitives: ensure parsed value matches fallback type
+    if (fallback !== null && typeof fallback !== 'object' && typeof parsed !== typeof fallback) {
+      return fallback;
+    }
+    return parsed as T;
   } catch {
-    return raw as unknown as T;
+    // Parse failed — raw is a plain string; only valid if fallback is also a string
+    if (typeof fallback === 'string') return raw as unknown as T;
+    return fallback;
   }
 }
 

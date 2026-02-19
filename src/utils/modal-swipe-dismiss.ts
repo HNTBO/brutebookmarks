@@ -19,7 +19,7 @@ import { MODAL_SWIPE_DISMISS } from './interaction-constants';
  * @param modalId  The DOM id of the .modal element
  * @param closeFn  Function that closes/dismisses the modal
  */
-export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): void {
+export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): (() => void) | undefined {
   const modal = document.getElementById(modalId);
   if (!modal) return;
   const content = modal.querySelector('.modal-content') as HTMLElement | null;
@@ -140,10 +140,16 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): voi
   });
   observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
 
-  window.addEventListener('popstate', (e) => {
+  const popstateHandler = (e: PopStateEvent) => {
     if (modal.classList.contains('active')) {
       closeFn();
       e.stopImmediatePropagation();
     }
-  });
+  };
+  window.addEventListener('popstate', popstateHandler);
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('popstate', popstateHandler);
+  };
 }

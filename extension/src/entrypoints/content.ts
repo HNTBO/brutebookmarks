@@ -39,7 +39,7 @@ export default defineContentScript({
           .sendMessage({ type: 'BB_REQUEST_BOOKMARKS' })
           .then((response) => {
             window.postMessage(
-              { type: 'BB_EXT_BOOKMARKS_RESULT', requestId, ...response },
+              { ...response, type: 'BB_EXT_BOOKMARKS_RESULT', requestId },
               window.location.origin,
             );
           })

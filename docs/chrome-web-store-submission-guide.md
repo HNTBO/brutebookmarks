@@ -46,6 +46,8 @@ The 128x128 is the main store icon. Best practice: 96x96 actual artwork with 16p
 | Dimensions | **1280x800** (recommended) or 640x400 |
 | Format | PNG or JPEG |
 
+**5 is the hard maximum** — the dashboard caps it at 5 slots. Use all of them.
+
 **What to capture:**
 1. New tab page with bookmark grid (main feature)
 2. Quick-add via context menu (right-click save)
@@ -58,6 +60,31 @@ The 128x128 is the main store icon. Best practice: 96x96 actual artwork with 16p
 - Or use a screenshot extension that crops to exact dimensions
 - Show real bookmarks, not empty state
 
+### Promotional Video (OPTIONAL BUT HIGH-IMPACT)
+
+| Requirement | Details |
+|---|---|
+| Platform | **YouTube only** — must be a YouTube link |
+| Quantity | **1 video** per locale (1 global + 1 per localized language) |
+| Duration | No stated limit (YouTube's own limits apply) |
+| Format/Resolution | No specific requirements — whatever YouTube accepts |
+| Display position | **First item in the listing carousel**, before all screenshots |
+
+**Why it matters:** Most extensions don't include a video. Adding one puts you ahead of the competition immediately. The video plays inline in the carousel — it's the first thing visitors see.
+
+**Our approach:**
+- **Under 60 seconds** — 30-45s sweet spot. Store visitors are evaluating, not watching content.
+- **Hosted on a dedicated "Brute Bookmarks" YouTube channel** — separate from the main "How Not To Be Obsolete" channel. Product promos don't belong on a personal/educational channel.
+- **Pure screen explainer** — no talking head, no narration, no YouTube energy. Think app store preview (iOS, Figma, Linear), not tech YouTuber review.
+- **Mute-friendly** — text overlays instead of voiceover. Many store visitors browse with sound off.
+- **Suggested flow:**
+  1. New tab page with bookmarks populated (~5s)
+  2. Drag-and-drop a bookmark between categories (~5s)
+  3. Quick-save via browser extension (~8s)
+  4. Theme toggle / accent color / wireframe mode (~8s)
+  5. Same bookmarks appearing on a second device — sync (~8s)
+  6. Logo + tagline (~3s)
+
 ### Promotional Images (NEED TO CREATE)
 
 | Asset | Dimensions | Required? |
@@ -67,6 +94,17 @@ The 128x128 is the main store icon. Best practice: 96x96 actual artwork with 16p
 | Marquee | 1400x560 | No (for homepage carousel) |
 
 The **small tile (440x280)** is the one that appears in search results and category pages. Make it branded, not just a screenshot — think "app icon + tagline on a clean background."
+
+### Listing Carousel Display Order
+
+Your visual assets appear on the listing page in this exact sequence:
+
+1. Localized video (if provided for the viewer's language)
+2. Localized screenshots (if provided)
+3. Global video
+4. Global screenshots
+
+**Total visual slots:** 1 video + 5 screenshots = 6 items in the carousel for a single-language listing.
 
 ---
 
@@ -214,8 +252,9 @@ The ZIP is what you upload to the Developer Dashboard.
 
 ### Assets
 - [ ] Icons: 16, 32, 48, 128 PNG (already have these)
-- [ ] Screenshots: 3-5 at 1280x800
+- [ ] Screenshots: 5 at 1280x800 (5 is the hard max — use all slots)
 - [ ] Small promotional tile: 440x280
+- [ ] Promotional video: YouTube link, 30-60s recommended
 
 ### Content
 - [ ] Extension name

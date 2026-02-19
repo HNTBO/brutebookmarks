@@ -11,6 +11,9 @@ let easterEggs = localStorage.getItem('easterEggs') !== 'false'; // default on
 let showNameOnHover = localStorage.getItem('showNameOnHover') !== 'false'; // default on
 let mobileColumns: 3 | 4 | 5 = (parseInt(localStorage.getItem('mobileColumns') || '5') || 5) as 3 | 4 | 5;
 
+// Cached media query for mobile breakpoint
+const mobileQuery = window.matchMedia('(max-width: 768px)');
+
 // Barscale & wireframe — localStorage only, no Convex sync
 type BarscaleSize = 'S' | 'M' | 'L';
 const BARSCALE_PX: Record<BarscaleSize, number> = { S: 31, M: 37, L: 44 };
@@ -174,7 +177,7 @@ export function getBtnSize(cardSize: number): number {
 }
 
 function applyCardSizeToDOM(): void {
-  const mobile = window.matchMedia('(max-width: 768px)').matches;
+  const mobile = mobileQuery.matches;
   const btnSize = getBtnSize(currentCardSize);
 
   document.querySelectorAll<HTMLElement>('.bookmarks-grid').forEach((grid) => {
@@ -223,7 +226,7 @@ export function getBarscale(): BarscaleSize {
 }
 
 function applyBarscaleToDOM(): void {
-  if (window.matchMedia('(max-width: 768px)').matches) {
+  if (mobileQuery.matches) {
     // Let CSS handle the forced XS barscale on mobile
     document.documentElement.style.removeProperty('--bar-height');
     return;

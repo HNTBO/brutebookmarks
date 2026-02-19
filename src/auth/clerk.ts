@@ -84,7 +84,7 @@ export async function initClerk(): Promise<ClerkInstance | null> {
       showSignInOverlay({ showLocalEscape: true });
     }
 
-    // Listen for user sign-in events (handles post-sign-in flow)
+    // Listen for user sign-in/sign-out events
     clerk.addListener(({ user }) => {
       if (user) {
         removeSignInOverlay();
@@ -93,6 +93,9 @@ export async function initClerk(): Promise<ClerkInstance | null> {
           _signInResolve(true);
           _signInResolve = null;
         }
+      } else {
+        // User signed out — notify extension to clear auth state
+        window.postMessage({ type: 'BB_EXT_DISCONNECT' }, window.location.origin);
       }
     });
 

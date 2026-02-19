@@ -28,17 +28,17 @@ export function renderApp(): void {
         </div>
         <div class="header-controls">
           <div class="clerk-slot">
-            <button class="clerk-slot-btn" id="wireframe-btn" title="Toggle Wireframe"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect x="73.97" y="189.88" width="253" height="253"/><rect x="180.93" y="79.77" width="253" height="253"/><line x1="71.55" y1="186.5" x2="178.18" y2="77.21"/><line x1="326.97" y1="187.88" x2="433.93" y2="79.77"/><line x1="329.5" y1="445.82" x2="436.58" y2="335.19"/><line x1="73.97" y1="440.88" x2="185.9" y2="329.41"/></svg></button>
-            <button class="clerk-slot-btn" id="barscale-btn" title="Cycle Bar Scale"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect fill="currentColor" stroke="none" x="376.06" y="70.8" width="67.94" height="67.94"/><rect x="73.17" y="168.41" width="274.22" height="274.22"/><line x1="73.17" y1="443.46" x2="416.23" y2="98.07"/></svg></button>
+            <button class="clerk-slot-btn" id="wireframe-btn" title="Toggle Wireframe" aria-label="Toggle Wireframe"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect x="73.97" y="189.88" width="253" height="253"/><rect x="180.93" y="79.77" width="253" height="253"/><line x1="71.55" y1="186.5" x2="178.18" y2="77.21"/><line x1="326.97" y1="187.88" x2="433.93" y2="79.77"/><line x1="329.5" y1="445.82" x2="436.58" y2="335.19"/><line x1="73.97" y1="440.88" x2="185.9" y2="329.41"/></svg></button>
+            <button class="clerk-slot-btn" id="barscale-btn" title="Cycle Bar Scale" aria-label="Cycle Bar Scale"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect fill="currentColor" stroke="none" x="376.06" y="70.8" width="67.94" height="67.94"/><rect x="73.17" y="168.41" width="274.22" height="274.22"/><line x1="73.17" y1="443.46" x2="416.23" y2="98.07"/></svg></button>
             <div id="clerk-user-button" class="clerk-user-button"><svg class="default-avatar-overlay" viewBox="0 0 512 512" aria-hidden="true"><rect class="avatar-bg" width="512" height="512"/><rect class="avatar-shape" x="189.69" y="97.61" width="132.63" height="113.62"/><rect class="avatar-shape" x="110.55" y="225.59" width="290.89" height="188.81"/></svg></div>
           </div>
           <div class="size-controller" id="size-controller">
             <div class="size-handle" id="size-handle"></div>
           </div>
           <div class="action-buttons">
-            <button class="action-btn" id="add-category-btn" title="Add Category">+</button>
-            <button class="action-btn" id="theme-toggle-btn" title="Toggle Theme">☀</button>
-            <button class="action-btn" id="settings-btn" title="Settings">⚙</button>
+            <button class="action-btn" id="add-category-btn" title="Add Category" aria-label="Add Category">+</button>
+            <button class="action-btn" id="theme-toggle-btn" title="Toggle Theme" aria-label="Toggle Theme">☀</button>
+            <button class="action-btn" id="settings-btn" title="Settings" aria-label="Settings">⚙</button>
           </div>
         </div>
       </header>
@@ -56,32 +56,32 @@ export function renderApp(): void {
 
     <!-- Mobile Toolbar -->
     <div class="mobile-toolbar">
-      <button class="mobile-toolbar-btn" id="mobile-add-btn" title="Add Category">+</button>
-      <button class="mobile-toolbar-btn" id="mobile-theme-btn" title="Toggle Theme">☀</button>
+      <button class="mobile-toolbar-btn" id="mobile-add-btn" title="Add Category" aria-label="Add Category">+</button>
+      <button class="mobile-toolbar-btn" id="mobile-theme-btn" title="Toggle Theme" aria-label="Toggle Theme">☀</button>
       <div class="mobile-toolbar-btn" id="mobile-avatar-btn"><svg class="default-avatar-overlay" viewBox="0 0 512 512" aria-hidden="true"><rect class="avatar-bg" width="512" height="512"/><rect class="avatar-shape" x="189.69" y="97.61" width="132.63" height="113.62"/><rect class="avatar-shape" x="110.55" y="225.59" width="290.89" height="188.81"/></svg></div>
-      <button class="mobile-toolbar-btn" id="mobile-wireframe-btn" title="Toggle Wireframe"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect x="73.97" y="189.88" width="253" height="253"/><rect x="180.93" y="79.77" width="253" height="253"/><line x1="71.55" y1="186.5" x2="178.18" y2="77.21"/><line x1="326.97" y1="187.88" x2="433.93" y2="79.77"/><line x1="329.5" y1="445.82" x2="436.58" y2="335.19"/><line x1="73.97" y1="440.88" x2="185.9" y2="329.41"/></svg></button>
-      <button class="mobile-toolbar-btn" id="mobile-settings-btn" title="Settings">⚙</button>
+      <button class="mobile-toolbar-btn" id="mobile-wireframe-btn" title="Toggle Wireframe" aria-label="Toggle Wireframe"><svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="20" stroke-miterlimit="10"><rect x="73.97" y="189.88" width="253" height="253"/><rect x="180.93" y="79.77" width="253" height="253"/><line x1="71.55" y1="186.5" x2="178.18" y2="77.21"/><line x1="326.97" y1="187.88" x2="433.93" y2="79.77"/><line x1="329.5" y1="445.82" x2="436.58" y2="335.19"/><line x1="73.97" y1="440.88" x2="185.9" y2="329.41"/></svg></button>
+      <button class="mobile-toolbar-btn" id="mobile-settings-btn" title="Settings" aria-label="Settings">⚙</button>
     </div>
 
     <!-- Add/Edit Bookmark Modal -->
-    <div id="bookmark-modal" class="modal">
+    <div id="bookmark-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="bookmark-modal-title">
       <div class="modal-content">
         <div class="modal-header">
           <h2 id="bookmark-modal-title">Add Bookmark</h2>
-          <button class="modal-close" id="bookmark-modal-close">×</button>
+          <button class="modal-close" id="bookmark-modal-close" aria-label="Close">×</button>
         </div>
         <form id="bookmark-form">
           <div class="modal-body">
             <div class="form-group-inline">
-              <label>Name</label>
+              <label for="bookmark-title">Name</label>
               <input type="text" id="bookmark-title" required placeholder="Google, YouTube, GitHub...">
             </div>
             <div class="form-group-inline">
-              <label>URL</label>
+              <label for="bookmark-url">URL</label>
               <input type="url" id="bookmark-url" required placeholder="https://example.com">
             </div>
             <div class="form-group-inline">
-              <label>Category</label>
+              <label for="bookmark-category-select">Category</label>
               <select id="bookmark-category-select"></select>
             </div>
 
@@ -139,20 +139,20 @@ export function renderApp(): void {
     </div>
 
     <!-- Add/Edit Category Modal -->
-    <div id="category-modal" class="modal">
+    <div id="category-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
       <div class="modal-content">
         <div class="modal-header">
           <h2 id="category-modal-title">New Category</h2>
-          <button class="modal-close" id="category-modal-close">×</button>
+          <button class="modal-close" id="category-modal-close" aria-label="Close">×</button>
         </div>
         <form id="category-form">
           <div class="modal-body">
             <div class="form-group">
-              <label>Category Name</label>
+              <label for="category-name">Category Name</label>
               <input type="text" id="category-name" required placeholder="Work, Social, Tools...">
             </div>
             <div class="form-group hidden" id="category-group-section">
-              <label>Tab Group</label>
+              <label for="category-group-select">Tab Group</label>
               <select id="category-group-select">
                 <option value="">None (standalone)</option>
                 <option value="__new__">+ Create new group...</option>
@@ -172,11 +172,11 @@ export function renderApp(): void {
     </div>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal">
+    <div id="settings-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>Settings</h2>
-          <button class="modal-close" id="settings-modal-close">×</button>
+          <h2 id="settings-modal-title">Settings</h2>
+          <button class="modal-close" id="settings-modal-close" aria-label="Close">×</button>
         </div>
         <div class="modal-body">
           <div class="settings-section" id="settings-account-section"></div>
@@ -235,11 +235,11 @@ export function renderApp(): void {
     </div>
 
     <!-- Help Modal -->
-    <div id="help-modal" class="modal">
+    <div id="help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>Feature Overview</h2>
-          <button class="modal-close" id="help-modal-close">×</button>
+          <h2 id="help-modal-title">Feature Overview</h2>
+          <button class="modal-close" id="help-modal-close" aria-label="Close">×</button>
         </div>
         <div class="modal-body help-body">
           <div class="help-section">
@@ -294,11 +294,11 @@ export function renderApp(): void {
     </div>
 
     <!-- Confirm/Alert Modal (replaces native browser dialogs) -->
-    <div id="confirm-modal" class="modal">
+    <div id="confirm-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
       <div class="modal-content">
         <div class="modal-header">
           <h2 id="confirm-modal-title">Confirm</h2>
-          <button class="modal-close" id="confirm-modal-close">×</button>
+          <button class="modal-close" id="confirm-modal-close" aria-label="Close">×</button>
         </div>
         <div class="modal-body">
           <p id="confirm-modal-message"></p>

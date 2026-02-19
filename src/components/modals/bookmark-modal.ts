@@ -8,6 +8,7 @@ import { getIconUrl } from '../../utils/icons';
 import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
 import { styledConfirm } from './confirm-modal';
 import { getAutofillUrl } from '../../features/preferences';
+import { escapeHtml } from '../../utils/escape-html';
 
 let editingBookmarkId: string | null = null;
 let titleFetchGeneration = 0;
@@ -16,7 +17,7 @@ function populateCategorySelect(selectedCategoryId: string): void {
   const select = document.getElementById('bookmark-category-select') as HTMLSelectElement;
   const categories = getCategories();
   select.innerHTML = categories
-    .map((cat) => `<option value="${cat.id}" ${cat.id === selectedCategoryId ? 'selected' : ''}>${cat.name}</option>`)
+    .map((cat) => `<option value="${escapeHtml(cat.id)}" ${cat.id === selectedCategoryId ? 'selected' : ''}>${escapeHtml(cat.name)}</option>`)
     .join('');
 }
 

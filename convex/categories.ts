@@ -1,6 +1,8 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
 
+const MAX_NAME_LENGTH = 200;
+
 export const list = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -18,6 +20,7 @@ export const create = mutation({
   handler: async (ctx, { name, groupId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
+    if (name.length > MAX_NAME_LENGTH) throw new Error('Category name too long');
     const userId = identity.subject;
 
     const existing = await ctx.db
@@ -40,6 +43,7 @@ export const update = mutation({
   handler: async (ctx, { id, name }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
+    if (name.length > MAX_NAME_LENGTH) throw new Error('Category name too long');
 
     const category = await ctx.db.get(id);
     if (!category || category.userId !== identity.subject) {

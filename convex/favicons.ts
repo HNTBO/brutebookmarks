@@ -49,6 +49,17 @@ async function fetchWithTimeout(
       headers: { "User-Agent": USER_AGENT, ...options.headers },
       redirect: "follow",
     });
+    // Block redirects to private/internal hosts (SSRF protection)
+    if (resp.url) {
+      try {
+        const finalHost = new URL(resp.url).hostname;
+        if (isPrivateHost(finalHost)) {
+          throw new Error("Blocked: redirect to private host");
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("Blocked:")) throw e;
+      }
+    }
     return resp;
   } finally {
     clearTimeout(timeout);

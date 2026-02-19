@@ -7,7 +7,7 @@ import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
 import { initCategoryModal, openAddCategoryModal, openEditCategoryModal } from './components/modals/category-modal';
 import { initSettingsModal, openSettingsModal } from './components/modals/settings-modal';
-import { dismissAllModals } from './utils/modal-manager';
+import { dismissTopModal } from './utils/modal-manager';
 import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis, setActiveIconButton } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
@@ -19,6 +19,14 @@ import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
 import { initExtensionDetection } from './utils/extension-bridge';
+
+// Global error handlers — catch unhandled errors and promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
+window.onerror = (_message, _source, _lineno, _colno, error) => {
+  console.error('Uncaught error:', error);
+};
 
 // Detect extension early (before auth) to catch BB_EXT_INSTALLED at document_idle
 initExtensionDetection();
@@ -169,7 +177,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (e.key === 'Escape') {
-    dismissAllModals();
+    dismissTopModal();
   }
 });
 

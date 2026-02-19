@@ -1,4 +1,4 @@
-# Brute Bookmarks — Monetization Strategy
+# BruteBookmarks — Monetization Strategy
 
 > Last updated: February 2026.
 
@@ -96,12 +96,15 @@ Sync is the natural paywall. It's the feature that requires infrastructure (Conv
 
 **How it works:** Pay once, use forever. Like buying software in 2005.
 
-**Pricing:** $12-15 lifetime (roughly 1 year of subscription).
+**Pricing:** $25 lifetime (~2 years of subscription value).
+
+At $25, the price is high enough to be sustainable per-user while still being impulse-friendly for a tool people use daily. It's roughly 2 years of Pro at $1/mo — users who stick around longer than that are getting a deal, and the upfront cash helps fund development now.
 
 **Pros:**
 - Simple. No subscription fatigue.
 - Appeals to users who hate recurring charges.
 - Strong for privacy-focused audience ("I pay once, you never need to bill me again").
+- $25 is more sustainable per-user than $12-15 — covers ~2 years of infrastructure cost per user.
 
 **Cons:**
 - Doesn't cover ongoing costs (Convex, Clerk, Vercel are monthly).
@@ -111,11 +114,11 @@ Sync is the natural paywall. It's the feature that requires infrastructure (Conv
 
 | Users | Buyers (5%) | Price | Total (cumulative) |
 |-------|------------|-------|-------------------|
-| 1,000 | 50 | $12 | **$600** |
-| 10,000 | 500 | $12 | **$6,000** |
-| 100,000 | 5,000 | $12 | **$60,000** |
+| 1,000 | 50 | $25 | **$1,250** |
+| 10,000 | 500 | $25 | **$12,500** |
+| 100,000 | 5,000 | $25 | **$125,000** |
 
-**Verdict:** Works well early (bootstrapping). Doesn't scale for ongoing infrastructure costs unless paired with a recurring option.
+**Verdict:** Works well early (bootstrapping). Better per-user economics at $25 than at $12. Still doesn't cover ongoing infrastructure costs alone, but pairs well with the subscription option.
 
 ## Path 4: Hybrid — Tips + Freemium (Recommended)
 
@@ -124,10 +127,25 @@ Sync is the natural paywall. It's the feature that requires infrastructure (Conv
 1. **Free tier** — full local-only experience. No account needed. Works offline.
 2. **"Buy me a coffee" button** — visible but not pushy. In the footer or settings.
 3. **Pro tier ($1/mo or $10/year)** — cloud sync, browser extension, unlimited bookmarks, shared collections.
-4. **Lifetime option ($15)** — for users who prefer one-time payment. Covers ~15 months of their infrastructure cost.
+4. **Lifetime option ($25)** — for users who prefer one-time payment. Covers ~2 years of their infrastructure cost.
+
+### Early Adopter Program: First 1,000 Users Get Pro Free Forever
+
+The first 1,000 users who sign up get the full Pro experience — sync, extension, unlimited bookmarks — at no cost, permanently. This is a deliberate growth lever:
+
+- **Seed the user base.** 1,000 active users generating word-of-mouth is worth far more than 1,000 × $1/mo ($1K/mo). At that scale, infrastructure costs are near-zero anyway (~$0/mo at 1K users from the scaling doc).
+- **Create evangelists.** Users who got something valuable for free feel loyalty. They leave reviews, share with friends, defend the product in forums. You can't buy that.
+- **Build social proof.** The Chrome Web Store listing needs reviews and install counts to rank. Free early adopters drive both.
+- **Test at scale before charging.** Real users find real bugs. Better to iron out the payment flow, sync edge cases, and onboarding friction with a cohort that isn't paying yet.
+- **Create urgency.** "749 of 1,000 free spots remaining" is a powerful motivator. FOMO works even at $1/mo.
+
+The math: 1,000 free Pro users cost roughly $0-22/mo in infrastructure (from the scaling doc). That's the price of a good marketing campaign — except these users stick around and bring others.
+
+**When to flip the switch:** Once you hit 1,000 Pro users, new users see the paid tiers. The founding 1,000 keep their free access forever — it's a promise, and keeping it builds trust.
 
 **Why this works:**
 - Free users pay nothing, generate zero infrastructure cost (local only).
+- Early adopters get Pro free, seeding reviews and word-of-mouth at negligible cost.
 - Tipping captures goodwill from users who appreciate the privacy stance.
 - Pro captures users who need sync (the expensive feature to operate).
 - Lifetime captures the anti-subscription crowd without losing money.
@@ -138,24 +156,73 @@ The key insight from the scaling doc: **free users on local-only storage cost yo
 
 ## Revenue vs Infrastructure
 
-| Users | Infrastructure cost | Tips only | Freemium ($1/mo) | Hybrid |
-|-------|--------------------|-----------|-----------------:|-------:|
-| 1,000 | $0/mo | $80/mo | $60/mo | $140/mo |
-| 10,000 | $22/mo | $800/mo | $600/mo | $1,400/mo |
-| 100,000 | $65-83/mo | $8,000/mo | $6,000/mo | $14,000/mo |
-| 1,000,000 | $18,000/mo | $80,000/mo | $60,000/mo | $130,000/mo |
+**Assumptions:** 6% of non-founding users convert to paid. Of those, 70% choose subscription ($1/mo), 30% choose lifetime ($25 one-time). Tips at 2% of all users, $4 avg. Lifetime revenue amortized over 24 months for monthly comparison.
 
-Tips alone cover costs at 1M users, but barely and unreliably (one-time, not recurring). Freemium at $1/mo covers it sustainably. The hybrid model gives you the best of both: goodwill from the free/tipping crowd, sustainability from the paying users.
+### Paid user breakdown
+
+| Users | Founding (free) | Paying pool | Subscribers (70%) | Lifetime (30%) |
+|-------|:-:|:-:|:-:|:-:|
+| 1,000 | 1,000 | 0 | 0 | 0 |
+| 10,000 | 1,000 | 540 | 378 | 162 |
+| 100,000 | 1,000 | 5,940 | 4,158 | 1,782 |
+| 1,000,000 | 1,000 | 59,940 | 41,958 | 17,982 |
+
+### Monthly revenue
+
+| Users | Infra cost | Tips | Subscriptions | Lifetime (amortized/mo) | **Hybrid total** |
+|-------|:-:|:-:|:-:|:-:|:-:|
+| 1,000 | $0/mo | $80 | $0 | $0 | **$80/mo** |
+| 10,000 | $22/mo | $800 | $378 | $169 | **$1,347/mo** |
+| 100,000 | $65-83/mo | $8,000 | $4,158 | $1,856 | **$14,014/mo** |
+| 1,000,000 | $18,000/mo | $80,000 | $41,958 | $18,735 | **$140,693/mo** |
+
+Lifetime amortized = (lifetime buyers × $25) ÷ 24 months. This is a conservative view — in practice, new users buying lifetime every month creates a steady revenue stream on top of the amortized base.
+
+At every scale, the hybrid model comfortably covers infrastructure. Tips alone are unreliable (one-time, not recurring). Subscriptions provide the predictable base. Lifetime purchases add meaningful upfront cash — at 1M users, lifetime buyers alone generate ~$450K cumulative, which is a significant runway buffer. The early adopter giveaway costs almost nothing at the 1K scale and becomes invisible at 10K+.
+
+---
+
+## Studio Tier — $2/mo or $16/year
+
+A higher tier on top of Pro for users who want full personalization.
+
+### What's included (everything in Pro, plus)
+
+| Feature | Description |
+|---------|-------------|
+| Custom app name | Replace "BruteBookmarks" with whatever you want |
+| Icon Studio | Full icon creation/editing tools (search, upload, crop, emoji, favicon) |
+
+### Pricing
+
+| Plan | Price | Savings vs monthly |
+|------|-------|--------------------|
+| Monthly | $2/mo | — |
+| Yearly | $16/year | 33% off |
+
+### Studio tier projections
+
+**Assumptions:** Of the 6% who convert to paid, 80% choose Pro ($1/mo), 20% choose Studio ($2/mo). Lifetime buyers excluded here — they're already in the hybrid model above.
+
+| Users | Pro subscribers | Studio subscribers | Pro revenue | Studio revenue | **Combined sub revenue** |
+|-------|:-:|:-:|:-:|:-:|:-:|
+| 1,000 | 0 | 0 | $0 | $0 | **$0/mo** |
+| 10,000 | 302 | 76 | $302 | $152 | **$454/mo** |
+| 100,000 | 3,326 | 832 | $3,326 | $1,664 | **$4,990/mo** |
+| 1,000,000 | 33,566 | 8,392 | $33,566 | $16,784 | **$50,350/mo** |
+
+The Studio tier is pure margin — custom app names and Icon Studio don't add infrastructure cost. At 100K users, Studio subscribers alone add ~$1,664/mo on top of the hybrid model. At 1M, it's an extra ~$16.8K/mo. This is money for nothing operationally.
 
 ---
 
 ## Recommendations
 
 1. **Start with a tip jar (today).** Buy Me a Coffee is already in the footer. Captures early supporters.
-2. **Plan the freemium gate around sync.** Free = local only. Paid = cloud sync + extension. This naturally aligns cost with revenue.
-3. **Price at $1/mo or $10/year.** Match the Speed Dial benchmark. Lower price = higher conversion = more sustainable than a $4 price point that scares users away.
-4. **Don't rush the paywall.** Build the user base first. A generous free tier with a visible tip jar builds more long-term value than an early paywall.
-5. **Use Stripe directly.** Clerk doesn't handle payments. Stripe's checkout is embeddable, handles subscriptions, and takes 2.9% + $0.30. No middleman fee.
+2. **Launch with the early adopter program.** First 1,000 users get Pro free forever. This seeds your user base, generates Chrome Web Store reviews, and costs you nearly nothing at that scale.
+3. **Plan the freemium gate around sync.** Free = local only. Paid = cloud sync + extension. This naturally aligns cost with revenue.
+4. **Price at $1/mo, $10/year, or $25 lifetime.** Three tiers for three mindsets: monthly for the cautious, annual for the committed, lifetime for the anti-subscription crowd.
+5. **Don't rush the paywall.** Build the user base first. A generous free tier with a visible tip jar builds more long-term value than an early paywall.
+6. **Use Stripe directly.** Clerk doesn't handle payments. Stripe's checkout is embeddable, handles subscriptions, and takes 2.9% + $0.30. No middleman fee.
 
 ### Future LLM features (premium tier)
 

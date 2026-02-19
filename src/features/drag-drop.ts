@@ -41,7 +41,7 @@ function moveBookmarkLocal(
   renderCallback();
 }
 
-function computeMidpoint(
+export function computeMidpoint(
   bookmarks: { order?: number }[],
   targetIndex: number,
 ): number {
@@ -51,6 +51,11 @@ function computeMidpoint(
       ? (bookmarks[targetIndex].order ?? targetIndex)
       : (bookmarks.length > 0 ? (bookmarks[bookmarks.length - 1].order ?? bookmarks.length - 1) + 1 : 1);
   return (prev + next) / 2;
+}
+
+/** Wrap a fire-and-forget mutation call with error logging. */
+function safeMutation(promise: Promise<unknown>): void {
+  promise.catch((err) => console.error('[DragDrop] mutation failed:', err));
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +119,7 @@ class DragController {
 
   // Click guard — after desktop drag, suppress the next click on the source
   private clickGuardActive = false;
+  private initialized = false;
 
   // Bound handlers for document-level listeners (added/removed per drag)
   private onPointerMoveBound = this.onPointerMove.bind(this);
@@ -128,6 +134,9 @@ class DragController {
   /** Call once after each render to register the render callback. */
   init(renderCallback: () => void): void {
     this.renderCallback = renderCallback;
+
+    if (this.initialized) return;
+    this.initialized = true;
 
     // Global listeners that persist for the lifetime of the app
     document.addEventListener('visibilitychange', () => {
@@ -770,7 +779,7 @@ class DragController {
         ? Math.max(...targetCategory.bookmarks.map((b) => b.order ?? 0))
         : 0;
       const newOrder = lastOrder + 1;
-      reorderBookmark(bkId, newOrder, targetCategoryId);
+      safeMutation(reorderBookmark(bkId, newOrder, targetCategoryId));
       if (!isUndoing()) {
         pushUndo({
           undo: () => reorderBookmark(bkId, oldOrder, sourceCatId),
@@ -822,21 +831,21 @@ class DragController {
     if (!zone) return;
 
     if (zone.action === 'group' && layoutData.kind === 'category') {
-      createTabGroup('Tab Group', [zone.targetCategoryId, layoutData.id]);
+      safeMutation(createTabGroup('Tab Group', [zone.targetCategoryId, layoutData.id]));
       return;
     }
 
     if (zone.action === 'add-to-group') {
       if (layoutData.kind === 'category') {
-        setCategoryGroup(layoutData.id, zone.targetGroupId);
+        safeMutation(setCategoryGroup(layoutData.id, zone.targetGroupId));
       } else if (layoutData.kind === 'tabGroup') {
-        mergeTabGroups(layoutData.id, zone.targetGroupId);
+        safeMutation(mergeTabGroups(layoutData.id, zone.targetGroupId));
       }
       return;
     }
 
     if (zone.action === 'absorb-category' && layoutData.kind === 'tabGroup') {
-      setCategoryGroup(zone.targetCategoryId, layoutData.id);
+      safeMutation(setCategoryGroup(zone.targetCategoryId, layoutData.id));
       return;
     }
 
@@ -872,7 +881,7 @@ class DragController {
       const prev = targetIndex > 0 ? orderList[targetIndex - 1] : 0;
       const next = targetIndex < orderList.length ? orderList[targetIndex] : prev + 2;
       const newOrder = (prev + next) / 2;
-      setCategoryGroup(layoutData.id, null, newOrder);
+      safeMutation(setCategoryGroup(layoutData.id, null, newOrder));
       return;
     }
     if (sourceIndex === -1) return;
@@ -890,9 +899,9 @@ class DragController {
 
     const oldOrder = orderList[sourceIndex];
     if (layoutData.kind === 'category') {
-      reorderCategory(layoutData.id, newOrder);
+      safeMutation(reorderCategory(layoutData.id, newOrder));
     } else {
-      reorderTabGroup(layoutData.id, newOrder);
+      safeMutation(reorderTabGroup(layoutData.id, newOrder));
     }
     if (!isUndoing()) {
       const itemId = layoutData.id;
@@ -956,12 +965,12 @@ class DragController {
           const targetIndex = filtered.findIndex((c) => c.id === targetCategoryId);
           const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
           const newOrder = computeMidpoint(filtered, insertIndex);
-          reorderCategory(layoutData.id, newOrder);
+          safeMutation(reorderCategory(layoutData.id, newOrder));
         } else {
           const targetIndex = groupCategories.findIndex((c) => c.id === targetCategoryId);
           const insertIndex = isLeftHalf ? targetIndex : targetIndex + 1;
           const newOrder = computeMidpoint(groupCategories, insertIndex);
-          setCategoryGroup(layoutData.id, groupId, newOrder);
+          safeMutation(setCategoryGroup(layoutData.id, groupId, newOrder));
         }
         return;
       }
@@ -1038,7 +1047,7 @@ function performBookmarkDrop(
       }
 
       const bkId = claimed.bookmarkId;
-      reorderBookmark(bkId, newOrder);
+      safeMutation(reorderBookmark(bkId, newOrder));
       if (!isUndoing()) {
         pushUndo({
           undo: () => reorderBookmark(bkId, oldOrder),
@@ -1066,7 +1075,7 @@ function performBookmarkDrop(
       }
 
       const bkId = claimed.bookmarkId;
-      reorderBookmark(bkId, newOrder, targetCategoryId);
+      safeMutation(reorderBookmark(bkId, newOrder, targetCategoryId));
       if (!isUndoing()) {
         pushUndo({
           undo: () => reorderBookmark(bkId, oldOrder, sourceCatId),

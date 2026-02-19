@@ -1,5 +1,5 @@
 import { getClient, setAuthToken } from '../../lib/api';
-import { getStoredToken, isConnected, getAppUrl } from '../../lib/auth';
+import { getStoredToken, isConnected, getAppUrl, TOKEN_KEY } from '../../lib/auth';
 import type { Category, Bookmark, PopupView } from '../../lib/types';
 
 // --- Theme sync ---
@@ -260,7 +260,7 @@ async function reconnect(): Promise<void> {
   }
 
   function onTokenChanged(changes: Record<string, browser.Storage.StorageChange>) {
-    if (changes.bb_auth_token?.newValue) {
+    if (changes[TOKEN_KEY]?.newValue) {
       cleanup();
       // Token refreshed — swap to Retry and auto-retry
       reconnectBtn.style.display = 'none';

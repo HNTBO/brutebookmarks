@@ -36,6 +36,9 @@ function closePrompt(value: string | null): void {
 }
 
 export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel'): Promise<boolean | null> {
+  // Dismiss any active dialog before showing a new one (resolves previous with null)
+  if (_resolve || _promptResolve) dismissConfirm();
+
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;
@@ -52,6 +55,8 @@ export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK'
 }
 
 export function styledAlert(message: string, title = 'Notice'): Promise<void> {
+  if (_resolve || _promptResolve) dismissConfirm();
+
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;
@@ -67,6 +72,8 @@ export function styledAlert(message: string, title = 'Notice'): Promise<void> {
 }
 
 export function styledPrompt(message: string, title = 'Input', defaultValue = ''): Promise<string | null> {
+  if (_resolve || _promptResolve) dismissConfirm();
+
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;

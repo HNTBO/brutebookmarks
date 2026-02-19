@@ -8,6 +8,9 @@ import { dragController, initDragListeners } from '../features/drag-drop';
 import { TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
 import { attachDragTracking } from '../utils/pointer-tracker';
 
+// Cached media query for mobile breakpoint
+const mobileQuery = window.matchMedia('(max-width: 768px)');
+
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
 
@@ -103,7 +106,7 @@ function initTabSwipe(
 }
 
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
-  const mobile = window.matchMedia('(max-width: 768px)').matches;
+  const mobile = mobileQuery.matches;
   const gap = mobile ? getCardGap(60) : getCardGap(currentCardSize);
   const cols = mobile ? `repeat(${getMobileColumns()}, 1fr)` : `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
   const nameOnHover = getShowNameOnHover();
@@ -114,6 +117,8 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
         .map(
           (bookmark, index) => `
         <div class="bookmark-card ${!showCardNames ? 'hide-title' : ''}"
+             tabindex="0"
+             role="link"
              data-bookmark-id="${escapeHtml(bookmark.id)}"
              data-category-id="${escapeHtml(category.id)}"
              data-index="${index}"
@@ -164,11 +169,19 @@ function wireBookmarkCards(el: HTMLElement): void {
       const url = card.dataset.url;
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     });
+
+    card.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const url = card.dataset.url;
+        if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    });
   });
 
   // Long-press grid background → undo/redo (mobile only)
   const grids = el.querySelectorAll<HTMLElement>('.bookmarks-grid');
-  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  const isMobile = mobileQuery.matches;
   grids.forEach((grid) => {
     if (isMobile) initGridLongPress(grid);
   });
@@ -244,8 +257,9 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
       .map(
         (cat) => `
       <div class="tab ${cat.id === activeCatId ? 'tab-active' : ''}"
-           role="button"
-           tabindex="0"
+           role="tab"
+           aria-selected="${cat.id === activeCatId}"
+           tabindex="${cat.id === activeCatId ? '0' : '-1'}"
            data-tab-category-id="${escapeHtml(cat.id)}"
            data-group-id="${escapeHtml(group.id)}">
         ${escapeHtml(cat.name)}
@@ -258,7 +272,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
   groupEl.innerHTML = `
     <div class="tab-group-header">
       <div class="category-drag-handle" title="Drag to reorder">⠿</div>
-      <div class="tab-bar tab-bar-mobile">
+      <div class="tab-bar tab-bar-mobile" role="tablist">
         <div class="tab-ribbon">${tabsHtml(rotated, activeTabId)}</div>
       </div>
       <button class="category-edit-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit group">✎</button>
@@ -268,6 +282,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
         .map(
           (cat) => `
         <div class="tab-panel ${cat.id === activeTabId ? 'tab-panel-active' : ''}"
+             role="tabpanel"
              data-tab-panel-id="${escapeHtml(cat.id)}">
           ${renderBookmarksGrid(cat, currentCardSize, showCardNames)}
         </div>
@@ -376,13 +391,14 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
   groupEl.innerHTML = `
     <div class="tab-group-header">
       <div class="category-drag-handle" title="Drag to reorder">⠿</div>
-      <div class="tab-bar">
+      <div class="tab-bar" role="tablist">
         ${group.categories
           .map(
             (cat) => `
           <div class="tab ${cat.id === activeTabId ? 'tab-active' : ''}"
-               role="button"
-               tabindex="0"
+               role="tab"
+               aria-selected="${cat.id === activeTabId}"
+               tabindex="${cat.id === activeTabId ? '0' : '-1'}"
                data-tab-category-id="${escapeHtml(cat.id)}"
                data-group-id="${escapeHtml(group.id)}">
             ${escapeHtml(cat.name)}
@@ -398,6 +414,7 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
         .map(
           (cat) => `
         <div class="tab-panel ${cat.id === activeTabId ? 'tab-panel-active' : ''}"
+             role="tabpanel"
              data-tab-panel-id="${escapeHtml(cat.id)}">
           ${renderBookmarksGrid(cat, currentCardSize, showCardNames)}
         </div>
@@ -462,7 +479,7 @@ export function renderCategories(): void {
   // If we have layout items (Convex mode), use them
   const items = layoutItems.length > 0 ? layoutItems : categories.map((c) => ({ type: 'category' as const, category: c }));
 
-  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  const isMobile = mobileQuery.matches;
 
   items.forEach((item) => {
     if (item.type === 'category') {
