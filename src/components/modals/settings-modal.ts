@@ -2,6 +2,7 @@ import { getCategories, setCategories, saveData, importBulk, eraseAllData, isCon
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
+import { registerModal } from '../../utils/modal-manager';
 import { renderCategories } from '../categories';
 import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
@@ -386,6 +387,11 @@ function syncColumnPicker(): void {
 }
 
 export function initSettingsModal(): void {
+  registerModal('settings-modal', closeSettingsModal);
+  registerModal('help-modal', () => {
+    document.getElementById('help-modal')!.classList.remove('active');
+  });
+
   document.getElementById('settings-modal-close')!.addEventListener('click', closeSettingsModal);
 
   document.getElementById('show-card-names')!.addEventListener('change', (e) => {

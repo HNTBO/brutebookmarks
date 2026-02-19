@@ -98,8 +98,8 @@ export function initLongPress(card: HTMLElement): void {
     // cards, grid gaps, or child elements during the pre-drag phase).
     try { card.setPointerCapture(e.pointerId); } catch { /* ignored */ }
 
-    if (e.pointerType === 'mouse') {
-      // Desktop: no long-press timer — drag starts on move
+    if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
+      // Mouse/pen: no long-press timer — drag starts on move
       timer = null;
     } else {
       // Touch: start long-press timer
@@ -120,8 +120,8 @@ export function initLongPress(card: HTMLElement): void {
     const dy = e.clientY - startY;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (e.pointerType === 'mouse') {
-      // Desktop: move threshold → immediate drag
+    if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
+      // Mouse/pen: move threshold → immediate drag
       if (dist > DRAG_THRESHOLD && savedEvent && !dragController.active) {
         dragStarted = true;
         card.classList.remove('long-press-active');

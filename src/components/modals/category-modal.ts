@@ -8,6 +8,7 @@ import {
   createTabGroup,
   isConvexMode,
 } from '../../data/store';
+import { registerModal } from '../../utils/modal-manager';
 import { styledConfirm, styledPrompt } from './confirm-modal';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 
@@ -111,6 +112,8 @@ async function saveCategory(event: Event): Promise<void> {
 }
 
 export function initCategoryModal(): void {
+  registerModal('category-modal', closeCategoryModal);
+
   document.getElementById('category-modal-close')!.addEventListener('click', closeCategoryModal);
   document.getElementById('category-cancel-btn')!.addEventListener('click', closeCategoryModal);
   document.getElementById('category-form')!.addEventListener('submit', saveCategory);

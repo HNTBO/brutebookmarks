@@ -303,8 +303,8 @@ class DragController {
       this.executeLayoutDrop(x, y);
     }
 
-    // Click guard for desktop (prevent URL open after drag)
-    if (e.pointerType === 'mouse') {
+    // Click guard for mouse/pen (prevent URL open after drag)
+    if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
       this.clickGuardActive = true;
       setTimeout(() => { this.clickGuardActive = false; }, CLICK_GUARD_TIMEOUT);
     }

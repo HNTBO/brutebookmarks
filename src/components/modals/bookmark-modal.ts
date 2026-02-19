@@ -1,5 +1,6 @@
 import { getCategories, createBookmark, updateBookmark, deleteBookmarkById, isConvexMode } from '../../data/store';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
+import { registerModal } from '../../utils/modal-manager';
 import { ConvexHttpClient } from 'convex/browser';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
@@ -183,6 +184,8 @@ export async function deleteBookmark(categoryId: string, bookmarkId: string): Pr
 }
 
 export function initBookmarkModal(): void {
+  registerModal('bookmark-modal', closeBookmarkModal);
+
   // Close button
   document.getElementById('bookmark-modal-close')!.addEventListener('click', closeBookmarkModal);
   document.getElementById('bookmark-cancel-btn')!.addEventListener('click', closeBookmarkModal);

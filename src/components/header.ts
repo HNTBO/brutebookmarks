@@ -5,6 +5,7 @@ export function initSizeController(): void {
   const controller = document.getElementById('size-controller')!;
   const handle = document.getElementById('size-handle')!;
   let isDragging = false;
+  let pointerId: number | null = null;
   let dragStartCardSize: number | undefined;
   let dragStartPageWidth: number | undefined;
 
@@ -23,22 +24,9 @@ export function initSizeController(): void {
     handle.style.top = `${yPos}px`;
   }
 
-  function startDrag(e: MouseEvent | TouchEvent): void {
-    isDragging = true;
-    handle.classList.add('dragging');
-    dragStartCardSize = getCardSize();
-    dragStartPageWidth = getPageWidth();
-    e.preventDefault();
-  }
-
-  function onDrag(e: MouseEvent | TouchEvent): void {
-    if (!isDragging) return;
-
+  function applyFromPointer(clientX: number, clientY: number): { pageWidth: number; cardSize: number } {
     const rect = controller.getBoundingClientRect();
     const handleRadius = 8;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
     const innerWidth = rect.width - handleRadius * 2;
     const innerHeight = rect.height - handleRadius * 2;
     let xPercent = ((clientX - rect.left - handleRadius) / innerWidth) * 100;
@@ -47,16 +35,33 @@ export function initSizeController(): void {
     xPercent = Math.max(0, Math.min(100, xPercent));
     yPercent = Math.max(0, Math.min(100, yPercent));
 
-    // X = page width, Y = card size
     const newPageWidth = Math.round(50 + (xPercent / 100) * 50);
     const newCardSize = Math.round(60 + (yPercent / 100) * 60);
 
     updateCardSize(newCardSize);
     updatePageWidth(newPageWidth);
     updateHandlePosition();
+    return { pageWidth: newPageWidth, cardSize: newCardSize };
   }
 
-  function stopDrag(): void {
+  // --- Pointer-based drag (handles mouse, touch, and pen) ---
+
+  function onPointerMove(e: PointerEvent): void {
+    if (!isDragging || !e.isPrimary) return;
+    e.preventDefault();
+    applyFromPointer(e.clientX, e.clientY);
+  }
+
+  function onPointerUp(e: PointerEvent): void {
+    if (!isDragging || !e.isPrimary) return;
+    finishDrag();
+  }
+
+  function onTouchMove(e: TouchEvent): void {
+    if (isDragging) e.preventDefault();
+  }
+
+  function finishDrag(): void {
     if (isDragging && dragStartCardSize !== undefined && dragStartPageWidth !== undefined) {
       const endCS = getCardSize();
       const endPW = getPageWidth();
@@ -73,41 +78,55 @@ export function initSizeController(): void {
     handle.classList.remove('dragging');
     dragStartCardSize = undefined;
     dragStartPageWidth = undefined;
+
+    // Release pointer capture
+    if (pointerId !== null) {
+      try { handle.releasePointerCapture(pointerId); } catch { /* ignored */ }
+      pointerId = null;
+    }
+
+    // Remove document-level listeners (only active during drag)
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.removeEventListener('pointercancel', onPointerUp);
+    document.removeEventListener('touchmove', onTouchMove);
   }
 
-  handle.addEventListener('mousedown', startDrag);
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', stopDrag);
+  handle.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.button !== 0 || !e.isPrimary) return;
+    e.preventDefault();
 
-  handle.addEventListener('touchstart', startDrag);
-  document.addEventListener('touchmove', onDrag);
-  document.addEventListener('touchend', stopDrag);
+    isDragging = true;
+    pointerId = e.pointerId;
+    handle.classList.add('dragging');
+    dragStartCardSize = getCardSize();
+    dragStartPageWidth = getPageWidth();
 
+    // Capture pointer for reliable tracking outside the handle
+    try { handle.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+
+    // Document-level listeners — added per drag, removed on finish
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', onPointerUp);
+    // Non-passive touchmove prevents browser scroll during drag
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+  });
+
+  // Click on controller background (not the handle) — jump to position
   controller.addEventListener('click', (e) => {
     if (e.target === handle) return;
     const oldCS = getCardSize();
     const oldPW = getPageWidth();
-    const rect = controller.getBoundingClientRect();
-    const handleRadius = 8;
-    const innerWidth = rect.width - handleRadius * 2;
-    const innerHeight = rect.height - handleRadius * 2;
-    let xPercent = ((e.clientX - rect.left - handleRadius) / innerWidth) * 100;
-    let yPercent = ((e.clientY - rect.top - handleRadius) / innerHeight) * 100;
 
-    xPercent = Math.max(0, Math.min(100, xPercent));
-    yPercent = Math.max(0, Math.min(100, yPercent));
+    applyFromPointer(e.clientX, e.clientY);
 
-    // X = page width, Y = card size
-    const newPageWidth = Math.round(50 + (xPercent / 100) * 50);
-    const newCardSize = Math.round(60 + (yPercent / 100) * 60);
-
-    updateCardSize(newCardSize);
-    updatePageWidth(newPageWidth);
-    updateHandlePosition();
-    if (!isUndoing() && (newCardSize !== oldCS || newPageWidth !== oldPW)) {
+    const newCS = getCardSize();
+    const newPW = getPageWidth();
+    if (!isUndoing() && (newCS !== oldCS || newPW !== oldPW)) {
       pushUndo({
         undo: () => { updateCardSize(oldCS); updatePageWidth(oldPW); updateHandlePosition(); },
-        redo: () => { updateCardSize(newCardSize); updatePageWidth(newPageWidth); updateHandlePosition(); },
+        redo: () => { updateCardSize(newCS); updatePageWidth(newPW); updateHandlePosition(); },
       });
     }
   });

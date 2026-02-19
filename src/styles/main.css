@@ -219,6 +219,7 @@ body::before {
     left: 50%;
     top: 50%;
     transition: box-shadow 0.15s ease;
+    touch-action: none; /* prevent browser scroll/pan during drag */
 }
 
 .size-handle:hover {

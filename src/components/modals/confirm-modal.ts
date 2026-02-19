@@ -1,4 +1,5 @@
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
+import { registerModal } from '../../utils/modal-manager';
 
 let _resolve: ((value: boolean | null) => void) | null = null;
 let _promptResolve: ((value: string | null) => void) | null = null;
@@ -81,7 +82,18 @@ export function styledPrompt(message: string, title = 'Input', defaultValue = ''
   });
 }
 
+/** Dismiss the confirm modal (resolves promise with null). */
+function dismissConfirm(): void {
+  if (_promptResolve) {
+    closePrompt(null);
+  } else {
+    close(null);
+  }
+}
+
 export function initConfirmModal(): void {
+  registerModal('confirm-modal', dismissConfirm);
+
   const els = getElements();
 
   // OK button → true
