@@ -5,7 +5,8 @@ import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
 import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initGridLongPress, consumeLongPressGuard } from './bookmark-card';
 import { dragController, initDragListeners } from '../features/drag-drop';
-import { DRAG_THRESHOLD, TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
+import { TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
+import { attachDragTracking } from '../utils/pointer-tracker';
 
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
@@ -178,76 +179,27 @@ function initHandleDrag(
   handle: HTMLElement,
   getDragData: () => { kind: 'category' | 'tabGroup'; id: string },
 ): void {
-  let startX = 0;
-  let startY = 0;
-  let tracking = false;
-
-  // Prevent browser from claiming touch and native drag
-  handle.style.touchAction = 'none';
-  handle.addEventListener('dragstart', (e) => e.preventDefault());
-
-  handle.addEventListener('pointerdown', (e: PointerEvent) => {
-    if (e.button !== 0 || !e.isPrimary) return;
-    startX = e.clientX;
-    startY = e.clientY;
-    tracking = true;
-    // Capture pointer so pointermove always reaches this element
-    try { handle.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+  attachDragTracking({
+    element: handle,
+    preventDragStart: true,
+    onThresholdExceeded: (e) => {
+      if (!dragController.active) {
+        dragController.startDrag(e, getDragData(), handle);
+      }
+    },
   });
-
-  handle.addEventListener('pointermove', (e: PointerEvent) => {
-    if (!tracking || !e.isPrimary) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD && !dragController.active) {
-      tracking = false;
-      const data = getDragData();
-      dragController.startDrag(e, data, handle);
-    }
-  });
-
-  handle.addEventListener('pointerup', () => { tracking = false; });
-  handle.addEventListener('pointercancel', () => { tracking = false; });
-
-  // Prevent browser scroll during handle drag (keeps pointer alive)
-  handle.addEventListener('touchmove', (e: TouchEvent) => {
-    if (tracking) e.preventDefault();
-  }, { passive: false });
 }
 
 /** Wire pointer-based drag on a tab (for reorder/ungroup). */
 function initTabDrag(tab: HTMLElement): void {
-  let startX = 0;
-  let startY = 0;
-  let tracking = false;
-
-  tab.style.touchAction = 'none';
-
-  tab.addEventListener('pointerdown', (e: PointerEvent) => {
-    if (e.button !== 0 || !e.isPrimary) return;
-    startX = e.clientX;
-    startY = e.clientY;
-    tracking = true;
-    try { tab.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+  attachDragTracking({
+    element: tab,
+    onThresholdExceeded: (e) => {
+      if (!dragController.active) {
+        dragController.startDrag(e, { kind: 'category', id: tab.dataset.tabCategoryId! }, tab);
+      }
+    },
   });
-
-  tab.addEventListener('pointermove', (e: PointerEvent) => {
-    if (!tracking || !e.isPrimary) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD && !dragController.active) {
-      tracking = false;
-      const categoryId = tab.dataset.tabCategoryId!;
-      dragController.startDrag(e, { kind: 'category', id: categoryId }, tab);
-    }
-  });
-
-  tab.addEventListener('pointerup', () => { tracking = false; });
-  tab.addEventListener('pointercancel', () => { tracking = false; });
-
-  tab.addEventListener('touchmove', (e: TouchEvent) => {
-    if (tracking) e.preventDefault();
-  }, { passive: false });
 }
 
 function renderSingleCategory(category: Category, currentCardSize: number, showCardNames: boolean): HTMLElement {
