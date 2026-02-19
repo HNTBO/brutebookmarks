@@ -19,5 +19,9 @@
     "convex": "^1.31.7",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
+  },
+  "devDependencies": {
+    "emojilib": "^4.0.2",
+    "unicode-emoji-json": "^0.8.0"
   }
 }
