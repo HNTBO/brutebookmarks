@@ -48,11 +48,16 @@ export function openBookmark(url: string): void {
 
 let activeContextMenu: HTMLElement | null = null;
 let longPressClickGuard = false;
+let _cleanupDismissListeners: (() => void) | null = null;
 
 function dismissContextMenu(): void {
   if (activeContextMenu) {
     activeContextMenu.remove();
     activeContextMenu = null;
+  }
+  if (_cleanupDismissListeners) {
+    _cleanupDismissListeners();
+    _cleanupDismissListeners = null;
   }
 }
 
@@ -348,12 +353,13 @@ function showUndoRedoMenu(x: number, y: number): void {
   const dismissHandler = (e: Event) => {
     if (!menu.contains(e.target as Node)) {
       dismissContextMenu();
-      document.removeEventListener('pointerdown', dismissHandler, true);
-      document.removeEventListener('scroll', scrollDismiss, true);
     }
   };
   const scrollDismiss = () => {
     dismissContextMenu();
+  };
+
+  _cleanupDismissListeners = () => {
     document.removeEventListener('pointerdown', dismissHandler, true);
     document.removeEventListener('scroll', scrollDismiss, true);
   };
@@ -407,12 +413,13 @@ function showContextMenu(x: number, y: number, categoryId: string, bookmarkId: s
   const dismissHandler = (e: Event) => {
     if (!menu.contains(e.target as Node)) {
       dismissContextMenu();
-      document.removeEventListener('pointerdown', dismissHandler, true);
-      document.removeEventListener('scroll', scrollDismiss, true);
     }
   };
   const scrollDismiss = () => {
     dismissContextMenu();
+  };
+
+  _cleanupDismissListeners = () => {
     document.removeEventListener('pointerdown', dismissHandler, true);
     document.removeEventListener('scroll', scrollDismiss, true);
   };

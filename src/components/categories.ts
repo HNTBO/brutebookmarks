@@ -31,6 +31,12 @@ function wireTabClicks(
 ): void {
   groupEl.querySelectorAll<HTMLElement>('.tab-bar-mobile .tab').forEach((tab) => {
     tab.addEventListener('click', () => switchFn(tab.dataset.tabCategoryId!));
+    tab.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        switchFn(tab.dataset.tabCategoryId!);
+      }
+    });
   });
 }
 
@@ -51,6 +57,12 @@ function initTabSwipe(
     startX = e.clientX;
     startY = e.clientY;
     tracking = true;
+    // Capture pointer so swipe tracking continues even if pointer leaves
+    // the content area. Skip if starting on a bookmark card — its
+    // initLongPress will capture instead, and events still bubble up.
+    if (!(e.target as HTMLElement).closest('.bookmark-card')) {
+      try { contentEl.setPointerCapture(e.pointerId); } catch { /* ignored */ }
+    }
   });
 
   contentEl.addEventListener('pointermove', (e: PointerEvent) => {
@@ -58,14 +70,16 @@ function initTabSwipe(
     if (dragController.active) { tracking = false; return; }
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    // Vertical scroll intent — cancel swipe tracking
+    // Vertical scroll intent — cancel swipe tracking and release capture
     if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > TAB_SWIPE_VERTICAL_CANCEL) {
       tracking = false;
+      try { contentEl.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
       return;
     }
     // Horizontal swipe threshold
     if (Math.abs(dx) > TAB_SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
       tracking = false;
+      try { contentEl.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
       const activeId = getActive();
       const idx = categories.findIndex((c) => c.id === activeId);
       if (idx === -1) return;
@@ -77,8 +91,14 @@ function initTabSwipe(
     }
   });
 
-  contentEl.addEventListener('pointerup', () => { tracking = false; });
-  contentEl.addEventListener('pointercancel', () => { tracking = false; });
+  contentEl.addEventListener('pointerup', (e: PointerEvent) => {
+    tracking = false;
+    try { contentEl.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
+  });
+  contentEl.addEventListener('pointercancel', (e: PointerEvent) => {
+    tracking = false;
+    try { contentEl.releasePointerCapture(e.pointerId); } catch { /* ignored */ }
+  });
 }
 
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
@@ -443,10 +463,16 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
     groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
   }
 
-  // Wire tab clicks and pointer-based drag for reorder/ungroup
+  // Wire tab clicks, keyboard activation, and pointer-based drag for reorder/ungroup
   groupEl.querySelectorAll<HTMLElement>('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       switchToTab(tab.dataset.tabCategoryId!);
+    });
+    tab.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        switchToTab(tab.dataset.tabCategoryId!);
+      }
     });
     initTabDrag(tab);
   });
