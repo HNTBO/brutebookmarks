@@ -249,7 +249,7 @@ export function searchEmojis(): void {
   emojiSearchTimeout = setTimeout(() => {
     const lowerQuery = query.toLowerCase();
     const matches = EMOJI_DATA.filter((entry) =>
-      entry.keywords.some((kw) => kw.includes(lowerQuery)),
+      entry.keywords.some((kw) => kw.includes(lowerQuery) || lowerQuery.includes(kw)),
     ).slice(0, 40);
 
     const resultsEl = document.getElementById('emoji-results')!;
