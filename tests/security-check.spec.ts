@@ -28,8 +28,12 @@ test.describe('Security checks', () => {
   test('no CSP violations on load', async ({ page }) => {
     const cspErrors: string[] = [];
     page.on('console', (msg) => {
-      if (msg.text().toLowerCase().includes('content security policy')) {
-        cspErrors.push(msg.text());
+      const text = msg.text();
+      if (text.toLowerCase().includes('content security policy')) {
+        // frame-ancestors is intentionally in <meta> CSP but browsers ignore it there —
+        // this is a known benign warning, not an actual violation
+        if (text.includes("'frame-ancestors'") && text.includes('ignored')) return;
+        cspErrors.push(text);
       }
     });
 

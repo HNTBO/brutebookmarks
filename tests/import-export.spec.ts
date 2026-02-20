@@ -45,7 +45,7 @@ test.describe('Import/Export round-trip', () => {
     // Trigger export and capture the downloaded file
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('#export-btn'),
+      page.click('#export-data-btn'),
     ]);
 
     const downloadPath = await download.path();
@@ -76,7 +76,7 @@ test.describe('Import/Export round-trip', () => {
     await page.click('#settings-btn');
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('#export-btn'),
+      page.click('#export-data-btn'),
     ]);
     const exportPath = await download.path();
     const exportedContent = fs.readFileSync(exportPath!, 'utf-8');
@@ -95,28 +95,39 @@ test.describe('Import/Export round-trip', () => {
     await page.goto('/');
     await page.waitForSelector('.category', { timeout: 10_000 });
 
-    // Open settings and import the exported file
-    await page.click('#settings-btn');
-    await expect(page.locator('#settings-modal')).toHaveClass(/active/);
-
     // Write the exported content to a temp file for upload
     const tmpDir = path.join(process.cwd(), 'test-results');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
     const tmpFile = path.join(tmpDir, 'reimport-test.json');
     fs.writeFileSync(tmpFile, exportedContent);
 
-    // Use the file input for import
-    const fileInput = page.locator('#import-file');
-    await fileInput.setInputFiles(tmpFile);
+    // Open settings and click import
+    await page.click('#settings-btn');
+    await expect(page.locator('#settings-modal')).toHaveClass(/active/);
+    await page.click('#import-data-btn');
+
+    // Confirm dialog asks "From File" vs "From Browser" — click "From File" (OK button)
+    await expect(page.locator('#confirm-modal')).toHaveClass(/active/, { timeout: 3000 });
+    // Set up filechooser listener BEFORE clicking so we catch the dynamic input
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.click('#confirm-modal-ok'),
+    ]);
+    await fileChooser.setFiles(tmpFile);
+
+    // "Replace or Append" dialog appears since we have existing data — click "Replace"
+    await expect(page.locator('#confirm-modal')).toHaveClass(/active/, { timeout: 3000 });
+    await page.click('#confirm-modal-ok');
+
+    // Success alert — dismiss it
+    await expect(page.locator('#confirm-modal')).toHaveClass(/active/, { timeout: 3000 });
+    await page.click('#confirm-modal-ok');
 
     // Wait for import to complete — categories should reappear
     await page.waitForSelector('.category', { timeout: 10_000 });
 
-    // Close settings
-    await page.keyboard.press('Escape');
-
     // Verify the data was imported correctly
-    const categoryNames = await page.$$eval('.category-name', (els) =>
+    const categoryNames = await page.$$eval('.category-title', (els) =>
       els.map((el) => el.textContent?.trim()),
     );
     expect(categoryNames).toContain('Work');

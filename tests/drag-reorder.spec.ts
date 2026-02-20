@@ -47,7 +47,7 @@ async function getBookmarkTitles(page: Page, categoryId: string): Promise<string
 
 /** Get ordered category names. */
 async function getCategoryNames(page: Page): Promise<string[]> {
-  return page.$$eval('.category-name', (els) =>
+  return page.$$eval('.category-title', (els) =>
     els.map((el) => el.textContent?.trim() ?? ''),
   );
 }
