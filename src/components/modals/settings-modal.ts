@@ -73,6 +73,7 @@ function populateAccountSection(): void {
 
 export function closeSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.remove('active');
+  (document.activeElement as HTMLElement | null)?.blur();
 }
 
 function closeHelpModal(): void {

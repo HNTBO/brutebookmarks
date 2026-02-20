@@ -180,7 +180,7 @@ body::before {
     inset: 0;
     background-image: var(--noise-texture, none);
     background-repeat: repeat;
-    opacity: 0.03;
+    opacity: 0.012;
     pointer-events: none;
     z-index: var(--z-noise);
 }
