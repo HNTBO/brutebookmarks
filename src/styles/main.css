@@ -499,7 +499,7 @@ h1 em {
 .category-title {
     font-family: var(--font-display);
     font-size: 1.7rem; /* Increased size */
-    font-weight: 700; /* Bolder */
+    font-weight: 0;
     line-height: 1;
     background: color-mix(in srgb, var(--bg-primary) 96%, transparent); /* Active look — nearly solid */
     color: var(--accent); /* Accent color */
@@ -1819,7 +1819,7 @@ body.dragging {
 .tab {
     font-family: var(--font-display);
     font-size: 1.7rem;
-    font-weight: 700;
+    font-weight: 0;
     line-height: 1;
     padding: 0 var(--space-md);
     background: transparent;

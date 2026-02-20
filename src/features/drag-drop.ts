@@ -11,6 +11,7 @@ import {
   mergeTabGroups,
 } from '../data/store';
 import { pushUndo, isUndoing } from './undo';
+import { setActiveTab } from '../components/categories';
 import { HOVER_SWITCH_DELAY, CLICK_GUARD_TIMEOUT, AUTO_SCROLL_EDGE } from '../utils/interaction-constants';
 
 // ---------------------------------------------------------------------------
@@ -562,10 +563,13 @@ class DragController {
       // Simulate tab switch
       const groupEl = tab.closest('.tab-group') as HTMLElement | null;
       if (groupEl) {
+        const groupId = groupEl.dataset.groupId;
         groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
         tab.classList.add('tab-active');
         groupEl.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('tab-panel-active'));
         groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
+        // Persist so re-render keeps this tab active
+        if (groupId) setActiveTab(groupId, catId);
       }
       this.hoverSwitchTimer = null;
       this.hoverSwitchTabId = null;
@@ -747,13 +751,34 @@ class DragController {
       return;
     }
 
-    // Check if over a category drop target (cross-category append)
+    // Check if over a tab — drop onto that tab's category and switch to it
     const el = document.elementFromPoint(this.currentX, this.currentY);
     if (el) {
+      const tab = el.closest('.tab') as HTMLElement | null;
+      if (tab) {
+        const targetCatId = tab.dataset.tabCategoryId;
+        const groupEl = tab.closest('.tab-group') as HTMLElement | null;
+        const groupId = groupEl?.dataset.groupId;
+        if (targetCatId && targetCatId !== bkData.categoryId) {
+          // Switch to the target tab so the user sees where the card landed
+          if (groupId) setActiveTab(groupId, targetCatId);
+          this.executeCategoryAppend(bkData, targetCatId, renderCb);
+          return;
+        }
+      }
+
+      // Check if over a category drop target (cross-category append)
       const catEl = el.closest('.category, .tab-panel') as HTMLElement | null;
       if (catEl) {
         const targetCatId = catEl.dataset.categoryId || catEl.dataset.tabPanelId;
         if (targetCatId && targetCatId !== bkData.categoryId) {
+          // Persist the active tab so re-render stays on the target panel
+          const tabPanel = catEl.closest('.tab-panel') as HTMLElement | null;
+          if (tabPanel) {
+            const groupEl = tabPanel.closest('.tab-group') as HTMLElement | null;
+            const groupId = groupEl?.dataset.groupId;
+            if (groupId) setActiveTab(groupId, targetCatId);
+          }
           this.executeCategoryAppend(bkData, targetCatId, renderCb);
         }
       }

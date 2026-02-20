@@ -14,6 +14,11 @@ const mobileQuery = window.matchMedia('(max-width: 768px)');
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
 
+/** Set the active tab for a group (called by drag-drop to persist tab switch through re-renders). */
+export function setActiveTab(groupId: string, categoryId: string): void {
+  activeTabPerGroup.set(groupId, categoryId);
+}
+
 // Guard: init drag listeners only once
 let dragListenersInitialized = false;
 
