@@ -203,7 +203,6 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') flushSyncToConvex();
 });
-window.addEventListener('beforeunload', () => flushSyncToConvex());
 
 // Wire mobile toolbar buttons
 function wireMobileToolbar(): void {
