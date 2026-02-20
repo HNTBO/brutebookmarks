@@ -835,9 +835,12 @@ export async function createTabGroup(name: string, categoryIds: string[]): Promi
     }
   } else {
     const groupId = 'g' + Date.now();
-    // Use the first category's order as the group order
-    const firstCat = _categories.find((c) => c.id === categoryIds[0]);
-    const groupOrder = firstCat?.order ?? _localTabGroups.length + 1;
+    // Use the minimum order of grouped categories (same ?? 0 fallback as rebuildLocalLayout sort)
+    const catOrders = categoryIds
+      .map((id) => _categories.find((c) => c.id === id))
+      .filter(Boolean)
+      .map((c) => c!.order ?? 0);
+    const groupOrder = catOrders.length > 0 ? Math.min(...catOrders) : 0;
     _localTabGroups.push({ id: groupId, name, order: groupOrder });
     for (const catId of categoryIds) {
       const cat = _categories.find((c) => c.id === catId);
