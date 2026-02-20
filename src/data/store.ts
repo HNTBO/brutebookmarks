@@ -73,12 +73,10 @@ function rebuildLocalLayout(): void {
     });
   }
 
-  const ungrouped: LayoutItem[] = [];
+  // Assign categories to their groups
   for (const cat of _categories) {
     if (cat.groupId && groupMap.has(cat.groupId)) {
       groupMap.get(cat.groupId)!.categories.push(cat);
-    } else {
-      ungrouped.push({ type: 'category', category: cat });
     }
   }
 
@@ -86,11 +84,25 @@ function rebuildLocalLayout(): void {
     group.categories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
-  const groupItems: LayoutItem[] = Array.from(groupMap.values())
-    .filter((g) => g.categories.length > 0)
-    .map((g) => ({ type: 'tabGroup', group: g }));
+  // Build layout by iterating categories in order, emitting each group
+  // at the position of its first member (preserves visual position).
+  const groupsEmitted = new Set<string>();
+  const items: LayoutItem[] = [];
+  for (const cat of _categories) {
+    if (cat.groupId && groupMap.has(cat.groupId)) {
+      if (!groupsEmitted.has(cat.groupId)) {
+        groupsEmitted.add(cat.groupId);
+        const group = groupMap.get(cat.groupId)!;
+        if (group.categories.length > 0) {
+          items.push({ type: 'tabGroup', group });
+        }
+      }
+    } else {
+      items.push({ type: 'category', category: cat });
+    }
+  }
 
-  _layoutItems = [...ungrouped, ...groupItems].sort((a, b) => {
+  _layoutItems = items.sort((a, b) => {
     const orderA = a.type === 'category' ? (a.category.order ?? 0) : a.group.order;
     const orderB = b.type === 'category' ? (b.category.order ?? 0) : b.group.order;
     return orderA - orderB;
