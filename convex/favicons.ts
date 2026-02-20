@@ -3,7 +3,7 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { isPrivateHost, safeFetch } from "./ssrf-guard";
+import { isPrivateHost, safeFetch } from "./ssrf_guard";
 
 const FETCH_TIMEOUT = 4000;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days

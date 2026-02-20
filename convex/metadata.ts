@@ -2,7 +2,7 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { isPrivateHost, safeFetch } from "./ssrf-guard";
+import { isPrivateHost, safeFetch } from "./ssrf_guard";
 
 // Common title suffixes to strip (site names appended after separators)
 const SUFFIX_PATTERN =
