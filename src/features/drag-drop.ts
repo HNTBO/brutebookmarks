@@ -289,6 +289,15 @@ class DragController {
     this.currentX = e.clientX;
     this.currentY = e.clientY;
 
+    // Restart auto-scroll RAF if pointer re-enters edge zone
+    if (this.scrollRAF === null) {
+      const EDGE = AUTO_SCROLL_EDGE;
+      const vh = window.innerHeight;
+      if (e.clientY < EDGE || e.clientY > vh - EDGE) {
+        this.scrollRAF = requestAnimationFrame(this.autoScrollFn);
+      }
+    }
+
     this.moveProxy(e.clientX, e.clientY);
 
     // Hit-test based on drag kind
@@ -981,24 +990,26 @@ class DragController {
   // Auto-scroll
   // -------------------------------------------------------------------
 
+  private autoScrollFn = (): void => {
+    if (!this.isDragging) return;
+    const EDGE = AUTO_SCROLL_EDGE;
+    const y = this.currentY;
+    const vh = window.innerHeight;
+
+    if (y < EDGE) {
+      window.scrollBy(0, -((EDGE - y) / EDGE) * 12);
+      this.scrollRAF = requestAnimationFrame(this.autoScrollFn);
+    } else if (y > vh - EDGE) {
+      window.scrollBy(0, ((y - (vh - EDGE)) / EDGE) * 12);
+      this.scrollRAF = requestAnimationFrame(this.autoScrollFn);
+    } else {
+      // Not near edge — pause RAF loop until next pointermove
+      this.scrollRAF = null;
+    }
+  };
+
   private startAutoScroll(): void {
-    const scroll = () => {
-      if (!this.isDragging) return;
-      const EDGE = AUTO_SCROLL_EDGE;
-      const y = this.currentY;
-      const vh = window.innerHeight;
-
-      if (y < EDGE) {
-        const speed = ((EDGE - y) / EDGE) * 12;
-        window.scrollBy(0, -speed);
-      } else if (y > vh - EDGE) {
-        const speed = ((y - (vh - EDGE)) / EDGE) * 12;
-        window.scrollBy(0, speed);
-      }
-
-      this.scrollRAF = requestAnimationFrame(scroll);
-    };
-    this.scrollRAF = requestAnimationFrame(scroll);
+    this.scrollRAF = requestAnimationFrame(this.autoScrollFn);
   }
 
   private stopAutoScroll(): void {

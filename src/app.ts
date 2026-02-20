@@ -220,7 +220,7 @@ export function renderApp(): void {
               <button class="btn" id="help-btn">Feature Overview</button>
             </div>
           </div>
-          <div class="settings-section">
+          <div class="settings-section settings-section-bookmarks">
             <h3>Bookmarks</h3>
             <div class="settings-row">
               <button class="btn" id="smart-name-btn">Smart Name</button>

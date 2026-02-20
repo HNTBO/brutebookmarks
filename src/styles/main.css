@@ -70,6 +70,28 @@ html, body {
     --shadow-lg: 8px 8px 0 var(--bg-primary);
     --shadow-accent: 4px 4px 0 var(--accent);
 
+    /* Overlays */
+    --overlay-bg: rgba(0, 0, 0, 0.9);
+    --overlay-heavy: rgba(0, 0, 0, 0.95);
+    --overlay-subtle: rgba(0, 0, 0, 0.1);
+
+    /* Z-index scale */
+    --z-base: 1;
+    --z-card-btn: 10;
+    --z-chrome: 100;
+    --z-noise: 999;
+    --z-modal: 1000;
+    --z-context-menu: 1001;
+    --z-modal-confirm: 1010;
+    --z-drag-proxy: 10000;
+    --z-overlay: 10000;
+    --z-gate: 10001;
+
+    /* Transition durations */
+    --duration-fast: 0.15s;
+    --duration-normal: 0.2s;
+    --duration-slow: 0.3s;
+
     /* Scrollbar colors derived from background */
     --scrollbar-track: var(--bg-primary);
     --scrollbar-thumb: color-mix(in srgb, var(--bg-primary) 70%, white 30%);
@@ -94,10 +116,18 @@ html, body {
     --border: #93a1a1;        /* Base1 */
     --border-strong: var(--accent);
 
+    --danger: #dc322f;       /* Solarized Red */
+    --danger-dim: #b0281f;
+    --scale-color: color-mix(in srgb, var(--bg-primary) 80%, var(--accent) 20%);
+
     --shadow-sm: 4px 4px 0 rgba(0,0,0,0.05);
     --shadow-md: 6px 6px 0 rgba(0,0,0,0.05);
     --shadow-lg: 8px 8px 0 rgba(0,0,0,0.02);
     --shadow-accent: 4px 4px 0 var(--accent);
+
+    --overlay-bg: rgba(0, 0, 0, 0.7);
+    --overlay-heavy: rgba(0, 0, 0, 0.85);
+    --overlay-subtle: rgba(0, 0, 0, 0.06);
 
     /* In light mode, darken scrollbar against light background */
     --scrollbar-track: var(--bg-primary);
@@ -148,10 +178,11 @@ body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    background-image: var(--noise-texture, none);
+    background-repeat: repeat;
     opacity: 0.03;
     pointer-events: none;
-    z-index: 1000;
+    z-index: var(--z-noise);
 }
 
 .container {
@@ -634,8 +665,8 @@ h1 em {
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.2s ease, background 0.2s ease;
-    z-index: 10;
+    transition: opacity var(--duration-normal) ease, background var(--duration-normal) ease;
+    z-index: var(--z-card-btn);
     pointer-events: none;
 }
 
@@ -667,8 +698,8 @@ h1 em {
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.2s ease, background 0.2s ease;
-    z-index: 10;
+    transition: opacity var(--duration-normal) ease, background var(--duration-normal) ease;
+    z-index: var(--z-card-btn);
     pointer-events: none;
 }
 
@@ -681,7 +712,7 @@ h1 em {
 .delete-btn:hover {
     background: var(--danger);
     border-color: var(--danger);
-    color: white;
+    color: var(--bg-primary);
 }
 
 /* Modal - Stark overlay */
@@ -689,13 +720,13 @@ h1 em {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 1000;
+    background: var(--overlay-bg);
+    z-index: var(--z-modal);
 }
 
 /* Confirm/alert modal stacks above all others */
 #confirm-modal {
-    z-index: 1010;
+    z-index: var(--z-modal-confirm);
     align-items: center;
     justify-content: center;
     padding: var(--space-xl);
@@ -796,7 +827,7 @@ body:has(.modal.active) {
 }
 
 .modal-close:hover {
-    background: rgba(0,0,0,0.1);
+    background: var(--overlay-subtle);
     color: var(--bg-primary);
 }
 
@@ -1095,7 +1126,7 @@ body:has(.modal.active) {
 
 .modal-btn.delete:hover {
     background: var(--danger);
-    color: white;
+    color: var(--bg-primary);
 }
 
 .modal-actions-right {
@@ -1135,17 +1166,17 @@ body:has(.modal.active) {
 }
 
 /* Settings bookmarks section — grid layout */
-.settings-section:last-child .settings-row {
+.settings-section-bookmarks .settings-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-sm);
 }
 
-.settings-section:last-child .settings-row .btn {
+.settings-section-bookmarks .settings-row .btn {
     width: 100%;
 }
 
-.settings-section:last-child .settings-row .btn-danger {
+.settings-section-bookmarks .settings-row .btn-danger {
     grid-column: 1 / -1;
 }
 
@@ -1285,7 +1316,7 @@ footer {
         top: 0;
         left: 0;
         right: 0;
-        z-index: 100;
+        z-index: var(--z-chrome);
         height: auto;
         justify-content: center;
         padding: calc(var(--space-sm) + env(safe-area-inset-top)) var(--space-md) var(--space-sm);
@@ -1319,7 +1350,7 @@ footer {
         bottom: 0;
         left: 0;
         right: 0;
-        z-index: 100;
+        z-index: var(--z-chrome);
         background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
         border-top: 1px solid var(--border);
         padding: var(--space-sm) 0 calc(var(--space-sm) + env(safe-area-inset-bottom));
@@ -1565,7 +1596,7 @@ footer {
 /* Long-press context menu */
 .long-press-menu {
     position: fixed;
-    z-index: 1001;
+    z-index: var(--z-context-menu);
     background: var(--bg-secondary);
     border: 1px solid var(--accent);
     box-shadow: var(--shadow-md);
@@ -1605,7 +1636,7 @@ footer {
 
 .long-press-menu-btn-danger:active {
     background: var(--danger);
-    color: white;
+    color: var(--bg-primary);
 }
 
 /* Scrollbar styling */
@@ -1638,7 +1669,7 @@ footer {
 .drag-proxy {
     position: fixed;
     pointer-events: none;
-    z-index: 10000;
+    z-index: var(--z-drag-proxy);
     opacity: 0.85;
     transform: scale(0.92);
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
@@ -1669,7 +1700,7 @@ body.dragging {
     background: var(--accent);
     border-radius: 2px;
     pointer-events: none;
-    z-index: 10;
+    z-index: var(--z-card-btn);
 }
 
 .bookmark-card:not(.add-bookmark) {
@@ -1903,7 +1934,7 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     position: fixed;
     inset: 0;
     background: var(--bg-primary);
-    z-index: 10001;
+    z-index: var(--z-gate);
     align-items: center;
     justify-content: center;
 }
@@ -2284,12 +2315,12 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
 .auth-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.95);
+    background: var(--overlay-heavy);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    z-index: var(--z-overlay);
 }
 
 /* Auth escape button */
@@ -2302,12 +2333,11 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     cursor: pointer;
     font-family: inherit;
     padding: 8px 20px;
-    border-radius: 6px;
-    transition: background 0.15s, color 0.15s;
+    transition: background var(--duration-fast), color var(--duration-fast);
 }
 .auth-escape-btn:hover {
     background: var(--accent);
-    color: #fff;
+    color: var(--bg-primary);
 }
 
 @media (max-width: 480px) {

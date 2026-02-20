@@ -1,7 +1,7 @@
 import type { Bookmark, Category, TabGroup, LayoutItem, UserPreferences } from '../types';
 import { getConvexClient } from './convex-client';
 import { api } from '../../convex/_generated/api';
-import type { Id } from '../../convex/_generated/dataModel';
+import type { Doc, Id } from '../../convex/_generated/dataModel';
 import { DEFAULT_LAYOUT } from './defaults';
 import { styledConfirm, styledAlert } from '../components/modals/confirm-modal';
 import { getAppMode } from './local-storage';
@@ -14,11 +14,19 @@ let _tabGroups: TabGroup[] = [];
 let _localTabGroups: { id: string; name: string; order: number }[] = [];
 let _renderCallback: (() => void) | null = null;
 let _convexActive = false;
+let _unsubscribes: (() => void)[] = [];
+
+/** Get Convex client or throw if not initialized. Use in mutation helpers. */
+function requireConvexClient() {
+  const client = getConvexClient();
+  if (!client) throw new Error('[Store] Convex client not initialized');
+  return client;
+}
 
 // Raw Convex subscription data
-let _rawCategories: any[] | null = null;
-let _rawBookmarks: any[] | null = null;
-let _rawTabGroups: any[] | null = null;
+let _rawCategories: Doc<'categories'>[] | null = null;
+let _rawBookmarks: Doc<'bookmarks'>[] | null = null;
+let _rawTabGroups: Doc<'tabGroups'>[] | null = null;
 let _migrationChecked = false;
 
 // --- Preferences sync ---
@@ -195,6 +203,8 @@ export function isApplyingFromConvex(): boolean {
 
 // --- Convex activation ---
 export function activateConvex(): void {
+  if (_convexActive) return; // idempotent
+
   const client = getConvexClient();
   if (!client) return;
 
@@ -202,25 +212,25 @@ export function activateConvex(): void {
   console.log('[Store] Activating Convex subscriptions');
 
   // Subscribe to categories
-  client.onUpdate(api.categories.list, {}, (result) => {
-    _rawCategories = result as any[];
-    rebuild();
-  });
+  _unsubscribes.push(client.onUpdate(api.categories.list, {}, (result) => {
+    _rawCategories = result;
+    scheduleRebuild();
+  }));
 
   // Subscribe to tab groups
-  client.onUpdate(api.tabGroups.list, {}, (result) => {
-    _rawTabGroups = result as any[];
-    rebuild();
-  });
+  _unsubscribes.push(client.onUpdate(api.tabGroups.list, {}, (result) => {
+    _rawTabGroups = result;
+    scheduleRebuild();
+  }));
 
   // Subscribe to bookmarks
-  client.onUpdate(api.bookmarks.listAll, {}, (result) => {
-    _rawBookmarks = result as any[];
-    rebuild();
-  });
+  _unsubscribes.push(client.onUpdate(api.bookmarks.listAll, {}, (result) => {
+    _rawBookmarks = result;
+    scheduleRebuild();
+  }));
 
   // Subscribe to preferences
-  client.onUpdate(api.preferences.get, {}, (result) => {
+  _unsubscribes.push(client.onUpdate(api.preferences.get, {}, (result) => {
     if (!result) {
       // No prefs in Convex yet — push current localStorage values as initial state
       if (_prefsCollector) {
@@ -230,15 +240,15 @@ export function activateConvex(): void {
     }
     if (!_prefsCallback) return;
     const prefs: UserPreferences = {
-      theme: (result as any).theme === 'light' ? 'light' : 'dark',
-      accentColorDark: (result as any).accentColorDark ?? null,
-      accentColorLight: (result as any).accentColorLight ?? null,
-      wireframeDark: (result as any).wireframeDark ?? false,
-      wireframeLight: (result as any).wireframeLight ?? false,
-      cardSize: (result as any).cardSize ?? 90,
-      pageWidth: (result as any).pageWidth ?? 100,
-      showCardNames: (result as any).showCardNames ?? true,
-      autofillUrl: (result as any).autofillUrl ?? false,
+      theme: result.theme === 'light' ? 'light' : 'dark',
+      accentColorDark: result.accentColorDark ?? null,
+      accentColorLight: result.accentColorLight ?? null,
+      wireframeDark: result.wireframeDark ?? false,
+      wireframeLight: result.wireframeLight ?? false,
+      cardSize: result.cardSize ?? 90,
+      pageWidth: result.pageWidth ?? 100,
+      showCardNames: result.showCardNames ?? true,
+      autofillUrl: result.autofillUrl ?? false,
     };
     _applyingFromConvex = true;
     try {
@@ -246,72 +256,98 @@ export function activateConvex(): void {
     } finally {
       _applyingFromConvex = false;
     }
+  }));
+}
+
+/** Tear down all Convex subscriptions. */
+export function deactivateConvex(): void {
+  for (const unsub of _unsubscribes) unsub();
+  _unsubscribes = [];
+  _convexActive = false;
+  _rawCategories = null;
+  _rawBookmarks = null;
+  _rawTabGroups = null;
+  _migrationChecked = false;
+}
+
+// --- Debounced rebuild scheduling ---
+let _rebuildScheduled = false;
+function scheduleRebuild(): void {
+  if (_rebuildScheduled) return;
+  _rebuildScheduled = true;
+  queueMicrotask(() => {
+    _rebuildScheduled = false;
+    rebuild();
   });
 }
 
-// --- Denormalize Convex data into Category[] and LayoutItem[] ---
-function rebuild(): void {
-  if (_rawCategories === null || _rawBookmarks === null) return;
+// --- Debounced localStorage cache ---
+let _localStorageTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedCacheToLocalStorage(): void {
+  if (_localStorageTimer) clearTimeout(_localStorageTimer);
+  _localStorageTimer = setTimeout(() => {
+    localStorage.setItem('speedDialData', JSON.stringify(_categories));
+  }, 100);
+}
 
-  // Check migration on first data arrival (only in sync mode)
-  if (!_migrationChecked) {
-    _migrationChecked = true;
-    if (getAppMode() === 'sync' && _rawCategories.length === 0 && _rawBookmarks.length === 0) {
-      const savedData = localStorage.getItem('speedDialData');
-      if (savedData) {
-        const legacy: Category[] = JSON.parse(savedData);
-        if (legacy.length > 0) {
-          promptMigration(legacy);
-          return;
-        }
-      }
-      // No legacy data either — offer seed defaults
-      promptSeedDefaults();
-      return;
-    }
-  }
+// --- Pure denormalization (extracted for testability) ---
 
+interface RawCategory { _id: string; name: string; order: number; groupId?: string | null; }
+interface RawBookmark { _id: string; title: string; url: string; iconPath?: string | null; order: number; categoryId: string; }
+interface RawTabGroup { _id: string; name: string; order: number; }
+
+export interface RebuildResult {
+  categories: Category[];
+  layoutItems: LayoutItem[];
+  tabGroups: TabGroup[];
+}
+
+/**
+ * Pure function: denormalize raw Convex subscription data into app state.
+ * Exported for unit testing — called internally by rebuild().
+ */
+export function denormalize(
+  rawCategories: RawCategory[],
+  rawBookmarks: RawBookmark[],
+  rawTabGroups: RawTabGroup[],
+): RebuildResult {
   // Group bookmarks by categoryId
-  const bookmarksByCategory = new Map<string, any[]>();
-  for (const b of _rawBookmarks) {
-    const catId = b.categoryId as string;
-    if (!bookmarksByCategory.has(catId)) {
-      bookmarksByCategory.set(catId, []);
+  const bookmarksByCategory = new Map<string, RawBookmark[]>();
+  for (const b of rawBookmarks) {
+    if (!bookmarksByCategory.has(b.categoryId)) {
+      bookmarksByCategory.set(b.categoryId, []);
     }
-    bookmarksByCategory.get(catId)!.push(b);
+    bookmarksByCategory.get(b.categoryId)!.push(b);
   }
 
   // Build denormalized Category[]
-  const allCategories: Category[] = [..._rawCategories]
+  const allCategories: Category[] = [...rawCategories]
     .sort((a, b) => a.order - b.order)
     .map((cat) => {
-      const rawBookmarks = bookmarksByCategory.get(cat._id as string) ?? [];
-      rawBookmarks.sort((a: any, b: any) => a.order - b.order);
+      const catBookmarks = bookmarksByCategory.get(cat._id) ?? [];
+      catBookmarks.sort((a, b) => a.order - b.order);
       return {
-        id: cat._id as string,
-        name: cat.name as string,
-        order: cat.order as number,
-        groupId: (cat.groupId as string) ?? undefined,
-        bookmarks: rawBookmarks.map((b: any) => ({
-          id: b._id as string,
-          title: b.title as string,
-          url: b.url as string,
-          iconPath: (b.iconPath as string) ?? null,
-          order: b.order as number,
+        id: cat._id,
+        name: cat.name,
+        order: cat.order,
+        groupId: cat.groupId ?? undefined,
+        bookmarks: catBookmarks.map((b) => ({
+          id: b._id,
+          title: b.title,
+          url: b.url,
+          iconPath: b.iconPath ?? null,
+          order: b.order,
         })),
       };
     });
 
-  _categories = allCategories;
-
   // Build LayoutItem[] — merge ungrouped categories and tab groups by order
-  const rawGroups = _rawTabGroups ?? [];
   const groupMap = new Map<string, TabGroup>();
-  for (const g of rawGroups) {
-    groupMap.set(g._id as string, {
-      id: g._id as string,
-      name: g.name as string,
-      order: g.order as number,
+  for (const g of rawTabGroups) {
+    groupMap.set(g._id, {
+      id: g._id,
+      name: g.name,
+      order: g.order,
       categories: [],
     });
   }
@@ -325,26 +361,53 @@ function rebuild(): void {
     }
   }
 
-  // Sort categories within each group by order
   for (const group of groupMap.values()) {
     group.categories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
   const groupItems: LayoutItem[] = Array.from(groupMap.values())
-    .filter((g) => g.categories.length > 0) // hide empty groups
+    .filter((g) => g.categories.length > 0)
     .map((g) => ({ type: 'tabGroup', group: g }));
 
-  // Merge and sort by order
-  _layoutItems = [...ungrouped, ...groupItems].sort((a, b) => {
+  const layoutItems = [...ungrouped, ...groupItems].sort((a, b) => {
     const orderA = a.type === 'category' ? (a.category.order ?? 0) : a.group.order;
     const orderB = b.type === 'category' ? (b.category.order ?? 0) : b.group.order;
     return orderA - orderB;
   });
 
-  _tabGroups = Array.from(groupMap.values()).sort((a, b) => a.order - b.order);
+  const tabGroups = Array.from(groupMap.values()).sort((a, b) => a.order - b.order);
 
-  // Cache to localStorage for instant restore
-  localStorage.setItem('speedDialData', JSON.stringify(_categories));
+  return { categories: allCategories, layoutItems, tabGroups };
+}
+
+// --- Denormalize Convex data into Category[] and LayoutItem[] ---
+function rebuild(): void {
+  if (_rawCategories === null || _rawBookmarks === null || _rawTabGroups === null) return;
+
+  // Check migration on first data arrival (only in sync mode)
+  if (!_migrationChecked) {
+    _migrationChecked = true;
+    if (getAppMode() === 'sync' && _rawCategories.length === 0 && _rawBookmarks.length === 0) {
+      const savedData = localStorage.getItem('speedDialData');
+      if (savedData) {
+        const legacy: Category[] = JSON.parse(savedData);
+        if (legacy.length > 0) {
+          promptMigration(legacy);
+          return;
+        }
+      }
+      promptSeedDefaults();
+      return;
+    }
+  }
+
+  const result = denormalize(_rawCategories, _rawBookmarks, _rawTabGroups);
+  _categories = result.categories;
+  _layoutItems = result.layoutItems;
+  _tabGroups = result.tabGroups;
+
+  // Cache to localStorage for instant restore (debounced)
+  debouncedCacheToLocalStorage();
 
   rerender();
 }
@@ -447,7 +510,7 @@ export function seedLocalDefaults(): void {
 export async function createCategory(name: string): Promise<string> {
   let newId: string;
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       newId = await client.mutation(api.categories.create, { name });
     } catch (err) {
@@ -477,7 +540,7 @@ export async function updateCategory(id: string, name: string): Promise<void> {
     if (cat) oldName = cat.name;
   }
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.categories.update, {
         id: id as Id<'categories'>,
@@ -510,7 +573,7 @@ export async function deleteCategory(id: string): Promise<void> {
     }
   }
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.categories.remove, {
         id: id as Id<'categories'>,
@@ -547,7 +610,7 @@ export async function createBookmark(
 ): Promise<string> {
   let newId: string;
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       newId = await client.mutation(api.bookmarks.create, {
         categoryId: categoryId as Id<'categories'>,
@@ -602,7 +665,7 @@ export async function updateBookmark(
     }
   }
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.bookmarks.update, {
         id: id as Id<'bookmarks'>,
@@ -663,7 +726,7 @@ export async function deleteBookmarkById(id: string): Promise<void> {
     }
   }
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.bookmarks.remove, {
         id: id as Id<'bookmarks'>,
@@ -696,7 +759,7 @@ export async function deleteBookmarkById(id: string): Promise<void> {
 
 export async function reorderCategory(id: string, order: number): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.categories.reorder, {
         id: id as Id<'categories'>,
@@ -720,7 +783,7 @@ export async function reorderBookmark(
   categoryId?: string,
 ): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.bookmarks.reorder, {
         id: id as Id<'bookmarks'>,
@@ -739,7 +802,7 @@ export async function reorderBookmark(
 
 export async function createTabGroup(name: string, categoryIds: string[]): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.tabGroups.createWithCategories, {
         name,
@@ -766,7 +829,7 @@ export async function createTabGroup(name: string, categoryIds: string[]): Promi
 
 export async function deleteTabGroup(id: string): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.tabGroups.remove, {
         id: id as Id<'tabGroups'>,
@@ -787,7 +850,7 @@ export async function deleteTabGroup(id: string): Promise<void> {
 
 export async function reorderTabGroup(id: string, order: number): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.tabGroups.reorder, {
         id: id as Id<'tabGroups'>,
@@ -807,29 +870,20 @@ export async function reorderTabGroup(id: string, order: number): Promise<void> 
 
 export async function setCategoryGroup(categoryId: string, groupId: string | null, order?: number): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     const baseArgs = {
       id: categoryId as Id<'categories'>,
       groupId: groupId ? (groupId as Id<'tabGroups'>) : undefined,
     };
 
     try {
-      // New backend supports "order" for positioned ungrouping.
       if (order !== undefined) {
         await client.mutation(api.categories.setGroup, { ...baseArgs, order });
       } else {
         await client.mutation(api.categories.setGroup, baseArgs);
       }
     } catch (err) {
-      // Backward compatibility: older deployed validator rejects extra "order".
-      if (
-        order !== undefined &&
-        err instanceof Error &&
-        err.message.includes("extra field `order`")
-      ) {
-        await client.mutation(api.categories.setGroup, baseArgs);
-        return;
-      }
+      console.error('[Store] setCategoryGroup failed:', err);
       throw err;
     }
   } else {
@@ -845,7 +899,7 @@ export async function setCategoryGroup(categoryId: string, groupId: string | nul
 
 export async function mergeTabGroups(sourceId: string, targetId: string): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.tabGroups.mergeInto, {
         sourceId: sourceId as Id<'tabGroups'>,
@@ -867,7 +921,7 @@ export async function mergeTabGroups(sourceId: string, targetId: string): Promis
 
 export async function renameTabGroup(id: string, name: string): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.tabGroups.update, {
         id: id as Id<'tabGroups'>,
@@ -887,7 +941,7 @@ export async function renameTabGroup(id: string, name: string): Promise<void> {
 
 export async function eraseAllData(): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     try {
       await client.mutation(api.bookmarks.eraseAll, {});
     } catch (err) {
@@ -903,7 +957,7 @@ export async function eraseAllData(): Promise<void> {
 
 export async function importBulk(data: Category[]): Promise<void> {
   if (_convexActive) {
-    const client = getConvexClient()!;
+    const client = requireConvexClient();
     const bulkData = data.map((cat) => ({
       name: cat.name,
       bookmarks: cat.bookmarks.map((b) => ({

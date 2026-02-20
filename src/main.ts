@@ -20,6 +20,22 @@ import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
 import { initExtensionDetection } from './utils/extension-bridge';
 
+// Generate noise texture once (replaces SVG feTurbulence — cheaper to render)
+{
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d')!;
+  const img = ctx.createImageData(128, 128);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = (Math.random() * 255) | 0;
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  document.documentElement.style.setProperty('--noise-texture', `url(${c.toDataURL('image/png')})`);
+}
+
 // Global error handlers — catch unhandled errors and promise rejections
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);

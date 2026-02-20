@@ -1,3 +1,6 @@
+import { BRIDGE_VERSION } from '../shared/bridge-types';
+import type { BridgeMsgRequestBookmarks, BridgeMsgBookmarksResult } from '../shared/bridge-types';
+
 let extensionInstalled = false;
 let _detectionInitialized = false;
 
@@ -50,9 +53,7 @@ export function requestBrowserBookmarks(): Promise<BookmarkTreeNode[]> {
     }
 
     window.addEventListener('message', handler);
-    window.postMessage(
-      { type: 'BB_EXT_REQUEST_BOOKMARKS', requestId },
-      window.location.origin,
-    );
+    const msg: BridgeMsgRequestBookmarks = { type: 'BB_EXT_REQUEST_BOOKMARKS', v: BRIDGE_VERSION, requestId };
+    window.postMessage(msg, window.location.origin);
   });
 }

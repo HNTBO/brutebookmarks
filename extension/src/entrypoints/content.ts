@@ -7,8 +7,11 @@
  * This is the "auth bridge" — when the user visits BB while logged in,
  * the main app automatically sends a fresh Convex JWT to the extension.
  */
+const prodMatches = ['*://*.brutebookmarks.com/*'];
+const devMatches = [...prodMatches, 'http://localhost:5173/*'];
+
 export default defineContentScript({
-  matches: ['*://*.brutebookmarks.com/*', 'http://localhost:5173/*'],
+  matches: import.meta.env.MODE === 'development' ? devMatches : prodMatches,
   runAt: 'document_idle',
 
   main() {
@@ -16,7 +19,9 @@ export default defineContentScript({
     window.postMessage({ type: 'BB_EXT_INSTALLED' }, window.location.origin);
 
     // Listen for messages from the main app
-    const ALLOWED_ORIGINS = ['https://brutebookmarks.com', 'https://www.brutebookmarks.com', 'http://localhost:5173'];
+    const ALLOWED_ORIGINS = import.meta.env.MODE === 'development'
+      ? ['https://brutebookmarks.com', 'https://www.brutebookmarks.com', 'http://localhost:5173']
+      : ['https://brutebookmarks.com', 'https://www.brutebookmarks.com'];
     window.addEventListener('message', (event) => {
       if (event.source !== window) return;
       if (!ALLOWED_ORIGINS.includes(event.origin)) return;

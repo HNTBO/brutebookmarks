@@ -46,6 +46,22 @@ export function isUndoing(): boolean {
   return _isUndoing;
 }
 
+/**
+ * Run a function as an undo group. All pushUndo() calls within fn()
+ * are collected into a single group that undoes/redoes atomically.
+ * Safe against exceptions (endGroup is always called via finally).
+ * Nested calls are flattened — inner runInUndoGroup adds to the outer group.
+ */
+export async function runInUndoGroup(fn: () => Promise<void> | void): Promise<void> {
+  const isNested = _groupEntries !== null;
+  if (!isNested) beginGroup();
+  try {
+    await fn();
+  } finally {
+    if (!isNested) endGroup();
+  }
+}
+
 export function setAfterUndoRedoCallback(cb: () => void): void {
   _afterUndoRedo = cb;
 }
@@ -68,6 +84,10 @@ export async function undo(): Promise<void> {
   try {
     await executeItem(item, 'undo');
     redoStack.push(item);
+  } catch (err) {
+    // Restore item so it's not lost
+    undoStack.push(item);
+    throw err;
   } finally {
     _isUndoing = false;
   }
@@ -81,6 +101,10 @@ export async function redo(): Promise<void> {
   try {
     await executeItem(item, 'redo');
     undoStack.push(item);
+  } catch (err) {
+    // Restore item so it's not lost
+    redoStack.push(item);
+    throw err;
   } finally {
     _isUndoing = false;
   }

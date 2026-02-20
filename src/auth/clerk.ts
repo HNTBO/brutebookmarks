@@ -2,6 +2,8 @@
 type ClerkInstance = import('@clerk/clerk-js').Clerk;
 
 import { setAppMode } from '../data/local-storage';
+import { BRIDGE_VERSION } from '../shared/bridge-types';
+import type { BridgeMsgDisconnect, BridgeMsgAuth } from '../shared/bridge-types';
 
 let clerk: ClerkInstance | null = null;
 
@@ -95,7 +97,8 @@ export async function initClerk(): Promise<ClerkInstance | null> {
         }
       } else {
         // User signed out — notify extension to clear auth state
-        window.postMessage({ type: 'BB_EXT_DISCONNECT' }, window.location.origin);
+        const msg: BridgeMsgDisconnect = { type: 'BB_EXT_DISCONNECT', v: BRIDGE_VERSION };
+        window.postMessage(msg, window.location.origin);
       }
     });
 
@@ -239,7 +242,8 @@ async function sendTokenToExtension(): Promise<void> {
   try {
     const token = await clerk.session.getToken({ template: 'convex' });
     if (token) {
-      window.postMessage({ type: 'BB_EXT_AUTH', token }, window.location.origin);
+      const msg: BridgeMsgAuth = { type: 'BB_EXT_AUTH', v: BRIDGE_VERSION, token };
+      window.postMessage(msg, window.location.origin);
     }
   } catch {
     // Silently ignore — extension may not be installed
