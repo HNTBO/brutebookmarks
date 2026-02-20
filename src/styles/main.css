@@ -722,15 +722,15 @@ h1 em {
     inset: 0;
     background: var(--overlay-bg);
     z-index: var(--z-modal);
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xl);
+    backdrop-filter: blur(4px);
 }
 
 /* Confirm/alert modal stacks above all others */
 #confirm-modal {
     z-index: var(--z-modal-confirm);
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-xl);
-    backdrop-filter: blur(4px);
 }
 
 .modal.active {
