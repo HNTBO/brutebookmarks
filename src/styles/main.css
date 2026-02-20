@@ -1950,9 +1950,9 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     cursor: grabbing;
 }
 
-/* Mobile: drag handles always visible (easier to discover) */
+/* Mobile wireframe: drag handles always visible (easier to discover) */
 @media (max-width: 768px) {
-    .category-drag-handle {
+    [data-wireframe] .category-drag-handle {
         opacity: 0.5;
     }
 }
