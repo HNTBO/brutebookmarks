@@ -3,63 +3,93 @@ import { savePreferencesToConvex, flushPreferencesToConvex } from '../data/store
 import { getCurrentTheme, getAccentColorDark, getAccentColorLight } from './theme';
 import { pushUndo, isUndoing } from './undo';
 
-let currentCardSize = Math.max(60, Math.min(120, parseInt(localStorage.getItem('cardSize') || '90') || 90));
-let currentPageWidth = Math.max(50, Math.min(100, parseInt(localStorage.getItem('pageWidth') || '100') || 100));
-let showCardNames = localStorage.getItem('showCardNames') !== 'false';
-let autofillUrl = localStorage.getItem('autofillUrl') === 'true';
-let easterEggs = localStorage.getItem('easterEggs') !== 'false'; // default on
-let showNameOnHover = localStorage.getItem('showNameOnHover') !== 'false'; // default on
-let mobileColumns: 3 | 4 | 5 = (parseInt(localStorage.getItem('mobileColumns') || '5') || 5) as 3 | 4 | 5;
+let currentCardSize = 90;
+let currentPageWidth = 100;
+let showCardNames = true;
+let autofillUrl = false;
+let easterEggs = true;
+let showNameOnHover = true;
+let mobileColumns: 3 | 4 | 5 = 5;
 
-// Cached media query for mobile breakpoint
-const mobileQuery = window.matchMedia('(max-width: 768px)');
+// Cached media query for mobile breakpoint (lazy-init for Node test compat)
+let mobileQuery: MediaQueryList | null = null;
+function getMobileQuery(): MediaQueryList {
+  if (!mobileQuery) mobileQuery = window.matchMedia('(max-width: 768px)');
+  return mobileQuery;
+}
 
 // Barscale & wireframe — localStorage only, no Convex sync
 type BarscaleSize = 'S' | 'M' | 'L';
 const BARSCALE_PX: Record<BarscaleSize, number> = { S: 31, M: 37, L: 44 };
 const BARSCALE_CYCLE: BarscaleSize[] = ['S', 'M', 'L'];
-let currentBarscale: BarscaleSize = (localStorage.getItem('barscale') as BarscaleSize) || 'L';
-// Wireframe per theme — migrate legacy single key on first load
-let wireframeDark = localStorage.getItem('wireframe_dark') === 'true'
-  || (localStorage.getItem('wireframe_dark') === null && localStorage.getItem('wireframe') === 'true');
-let wireframeLight = localStorage.getItem('wireframe_light') === 'true';
-// Clean up legacy key
-if (localStorage.getItem('wireframe') !== null) {
-  localStorage.setItem('wireframe_dark', String(wireframeDark));
-  localStorage.setItem('wireframe_light', String(wireframeLight));
-  localStorage.removeItem('wireframe');
+let currentBarscale: BarscaleSize = 'L';
+let wireframeDark = false;
+let wireframeLight = false;
+
+// Lazy init — reads all preference state from localStorage on first access
+let _prefsInitialized = false;
+function ensurePrefsInit(): void {
+  if (_prefsInitialized) return;
+  _prefsInitialized = true;
+
+  currentCardSize = Math.max(60, Math.min(120, parseInt(localStorage.getItem('cardSize') || '90') || 90));
+  currentPageWidth = Math.max(50, Math.min(100, parseInt(localStorage.getItem('pageWidth') || '100') || 100));
+  showCardNames = localStorage.getItem('showCardNames') !== 'false';
+  autofillUrl = localStorage.getItem('autofillUrl') === 'true';
+  easterEggs = localStorage.getItem('easterEggs') !== 'false';
+  showNameOnHover = localStorage.getItem('showNameOnHover') !== 'false';
+  mobileColumns = (parseInt(localStorage.getItem('mobileColumns') || '5') || 5) as 3 | 4 | 5;
+  currentBarscale = (localStorage.getItem('barscale') as BarscaleSize) || 'L';
+
+  // Wireframe per theme — migrate legacy single key on first load
+  wireframeDark = localStorage.getItem('wireframe_dark') === 'true'
+    || (localStorage.getItem('wireframe_dark') === null && localStorage.getItem('wireframe') === 'true');
+  wireframeLight = localStorage.getItem('wireframe_light') === 'true';
+  if (localStorage.getItem('wireframe') !== null) {
+    localStorage.setItem('wireframe_dark', String(wireframeDark));
+    localStorage.setItem('wireframe_light', String(wireframeLight));
+    localStorage.removeItem('wireframe');
+  }
 }
 
 function getCurrentWireframe(): boolean {
+  ensurePrefsInit();
   const theme = getCurrentTheme();
   return theme === 'dark' ? wireframeDark : wireframeLight;
 }
 
 export function getCardSize(): number {
+  ensurePrefsInit();
   return currentCardSize;
 }
 
 export function getPageWidth(): number {
+  ensurePrefsInit();
   return currentPageWidth;
 }
 
 export function getShowCardNames(): boolean {
+  ensurePrefsInit();
   return showCardNames;
 }
 
 export function getAutofillUrl(): boolean {
+  ensurePrefsInit();
   return autofillUrl;
 }
 
 export function getEasterEggs(): boolean {
+  ensurePrefsInit();
   return easterEggs;
 }
 
 export function getShowNameOnHover(): boolean {
+  ensurePrefsInit();
   return showNameOnHover;
 }
 
 export function getMobileColumns(): number {
+  ensurePrefsInit();
   return mobileColumns;
 }
 
@@ -81,6 +111,7 @@ export function toggleEasterEggs(enabled: boolean): void {
 
 /** Collect all current preferences into one object (used by savePreferencesToConvex). */
 export function collectPreferences(): UserPreferences {
+  ensurePrefsInit();
   return {
     theme: getCurrentTheme() as 'dark' | 'light',
     accentColorDark: getAccentColorDark(),
@@ -139,6 +170,7 @@ export function toggleAutofillUrl(enabled: boolean): void {
 
 /** Apply preferences from Convex subscription — updates state + DOM + localStorage, no save back. */
 export function applyPreferences(prefs: UserPreferences, renderCallback: () => void): void {
+  ensurePrefsInit();
   const cardChanged = currentCardSize !== prefs.cardSize;
   const widthChanged = currentPageWidth !== prefs.pageWidth;
   const namesChanged = showCardNames !== prefs.showCardNames;
@@ -177,7 +209,7 @@ export function getBtnSize(cardSize: number): number {
 }
 
 function applyCardSizeToDOM(): void {
-  const mobile = mobileQuery.matches;
+  const mobile = getMobileQuery().matches;
   const btnSize = getBtnSize(currentCardSize);
 
   document.querySelectorAll<HTMLElement>('.bookmarks-grid').forEach((grid) => {
@@ -226,7 +258,7 @@ export function getBarscale(): BarscaleSize {
 }
 
 function applyBarscaleToDOM(): void {
-  if (mobileQuery.matches) {
+  if (getMobileQuery().matches) {
     // Let CSS handle the forced XS barscale on mobile
     document.documentElement.style.removeProperty('--bar-height');
     return;
@@ -241,6 +273,7 @@ function setBarscaleDirectly(size: BarscaleSize): void {
 }
 
 export function cycleBarscale(): void {
+  ensurePrefsInit();
   const old = currentBarscale;
   const idx = BARSCALE_CYCLE.indexOf(currentBarscale);
   currentBarscale = BARSCALE_CYCLE[(idx + 1) % BARSCALE_CYCLE.length];
@@ -256,6 +289,7 @@ export function cycleBarscale(): void {
 }
 
 export function randomizeBarscale(): void {
+  ensurePrefsInit();
   const old = currentBarscale;
   const others = BARSCALE_CYCLE.filter((s) => s !== currentBarscale);
   currentBarscale = others[Math.floor(Math.random() * others.length)];
@@ -298,6 +332,7 @@ function setWireframeState(theme: string, val: boolean): void {
 }
 
 export function toggleWireframe(): void {
+  ensurePrefsInit();
   const theme = getCurrentTheme();
   const oldVal = theme === 'dark' ? wireframeDark : wireframeLight;
   if (theme === 'dark') {
@@ -317,6 +352,7 @@ export function toggleWireframe(): void {
 }
 
 export function randomizeWireframe(): void {
+  ensurePrefsInit();
   const theme = getCurrentTheme();
   const oldVal = theme === 'dark' ? wireframeDark : wireframeLight;
   const val = Math.random() > 0.5;
@@ -343,6 +379,7 @@ export function applyWireframeForCurrentTheme(): void {
 // --- Init both ---
 
 export function initBarscaleAndWireframe(): void {
+  ensurePrefsInit();
   applyBarscaleToDOM();
   applyWireframeToDOM();
 }

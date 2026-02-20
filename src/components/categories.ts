@@ -8,8 +8,12 @@ import { dragController, initDragListeners } from '../features/drag-drop';
 import { TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
 import { attachDragTracking } from '../utils/pointer-tracker';
 
-// Cached media query for mobile breakpoint
-const mobileQuery = window.matchMedia('(max-width: 768px)');
+// Cached media query for mobile breakpoint (lazy-init for Node test compat)
+let _mobileQuery: MediaQueryList | null = null;
+function mobileQuery(): MediaQueryList {
+  if (!_mobileQuery) _mobileQuery = window.matchMedia('(max-width: 768px)');
+  return _mobileQuery;
+}
 
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
@@ -111,7 +115,7 @@ function initTabSwipe(
 }
 
 function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
-  const mobile = mobileQuery.matches;
+  const mobile = mobileQuery().matches;
   const gap = mobile ? getCardGap(60) : getCardGap(currentCardSize);
   const cols = mobile ? `repeat(${getMobileColumns()}, 1fr)` : `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
   const nameOnHover = getShowNameOnHover();
@@ -186,7 +190,7 @@ function wireBookmarkCards(el: HTMLElement): void {
 
   // Long-press grid background → undo/redo (mobile only)
   const grids = el.querySelectorAll<HTMLElement>('.bookmarks-grid');
-  const isMobile = mobileQuery.matches;
+  const isMobile = mobileQuery().matches;
   grids.forEach((grid) => {
     if (isMobile) initGridLongPress(grid);
   });
@@ -484,7 +488,7 @@ export function renderCategories(): void {
   // If we have layout items (Convex mode), use them
   const items = layoutItems.length > 0 ? layoutItems : categories.map((c) => ({ type: 'category' as const, category: c }));
 
-  const isMobile = mobileQuery.matches;
+  const isMobile = mobileQuery().matches;
 
   items.forEach((item) => {
     if (item.type === 'category') {

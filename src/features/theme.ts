@@ -2,10 +2,17 @@ import { savePreferencesToConvex, isApplyingFromConvex } from '../data/store';
 import { collectPreferences, applyWireframeForCurrentTheme } from './preferences';
 import { pushUndo, isUndoing } from './undo';
 
-let currentTheme = localStorage.getItem('theme') || 'dark';
+let currentTheme: string | null = null;
+
+function getTheme(): string {
+  if (currentTheme === null) {
+    currentTheme = localStorage.getItem('theme') || 'dark';
+  }
+  return currentTheme;
+}
 
 export function getCurrentTheme(): string {
-  return currentTheme;
+  return getTheme();
 }
 
 export function getAccentColorDark(): string | null {
@@ -29,8 +36,8 @@ function setThemeDirectly(theme: string): void {
 }
 
 export function toggleTheme(): void {
-  const oldTheme = currentTheme;
-  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  const oldTheme = getTheme();
+  currentTheme = getTheme() === 'dark' ? 'light' : 'dark';
   applyThemeToDOM();
   localStorage.setItem('theme', currentTheme);
   // Re-apply wireframe for the new theme (each theme has its own wireframe state)
@@ -89,7 +96,7 @@ function applyThemeToDOM(): void {
 
 export function updateAccentColor(color: string): void {
   document.documentElement.style.setProperty('--accent', color);
-  localStorage.setItem(`accentColor_${currentTheme}`, color);
+  localStorage.setItem(`accentColor_${getTheme()}`, color);
   syncToConvex();
 }
 
@@ -215,8 +222,8 @@ function syncPickerToAccent(color: string): void {
 }
 
 export function resetAccentColor(): void {
-  const oldColor = localStorage.getItem(`accentColor_${currentTheme}`);
-  localStorage.removeItem(`accentColor_${currentTheme}`);
+  const oldColor = localStorage.getItem(`accentColor_${getTheme()}`);
+  localStorage.removeItem(`accentColor_${getTheme()}`);
   document.documentElement.style.removeProperty('--accent');
 
   setTimeout(() => {
@@ -234,7 +241,7 @@ export function resetAccentColor(): void {
 }
 
 export function syncThemeUI(): void {
-  document.getElementById('theme-toggle-btn')!.innerHTML = currentTheme === 'dark' ? '☀' : '☾';
+  document.getElementById('theme-toggle-btn')!.innerHTML = getTheme() === 'dark' ? '☀' : '☾';
   const picker = document.getElementById('accent-color-picker') as HTMLInputElement | null;
   if (picker) {
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
