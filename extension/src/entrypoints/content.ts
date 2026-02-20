@@ -37,6 +37,12 @@ export default defineContentScript({
         return;
       }
 
+      // Disconnect relay (sign-out)
+      if (event.data?.type === 'BB_EXT_DISCONNECT') {
+        browser.runtime.sendMessage({ type: 'BB_DISCONNECT' });
+        return;
+      }
+
       // Browser bookmarks request relay
       if (event.data?.type === 'BB_EXT_REQUEST_BOOKMARKS') {
         const requestId = event.data.requestId;

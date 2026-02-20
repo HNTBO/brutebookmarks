@@ -2,33 +2,11 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
+import { isPrivateHost, safeFetch } from "./ssrf-guard";
 
 // Common title suffixes to strip (site names appended after separators)
 const SUFFIX_PATTERN =
   /\s*[\-–—|·•]\s*(YouTube|Reddit|GitHub|Wikipedia|X|Twitter|Facebook|LinkedIn|Medium|Stack Overflow|Amazon|Google).*$/i;
-
-// Private/reserved IP ranges that should not be fetched (SSRF protection)
-const PRIVATE_IP_PATTERNS = [
-  /^127\./,           // Loopback
-  /^10\./,            // Class A private
-  /^172\.(1[6-9]|2\d|3[01])\./,  // Class B private
-  /^192\.168\./,      // Class C private
-  /^169\.254\./,      // Link-local
-  /^0\./,             // Current network
-  /^::1$/,            // IPv6 loopback
-  /^fc00:/i,          // IPv6 unique local
-  /^fe80:/i,          // IPv6 link-local
-];
-
-function isPrivateHost(hostname: string): boolean {
-  // Block numeric IPs in private ranges
-  if (PRIVATE_IP_PATTERNS.some((p) => p.test(hostname))) return true;
-  // Block localhost variants
-  if (hostname === 'localhost' || hostname.endsWith('.localhost')) return true;
-  // Block metadata endpoints (cloud providers)
-  if (hostname === '169.254.169.254') return true;
-  return false;
-}
 
 function decodeHTMLEntities(text: string): string {
   return text
@@ -76,29 +54,13 @@ export const fetchPageTitle = action({
     }
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-
-      const response = await fetch(url, {
-        signal: controller.signal,
+      const response = await safeFetch(url, {
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; BruteBookmarks/1.0)",
           Accept: "text/html",
         },
-        redirect: "follow",
+        timeout: 4000,
       });
-
-      clearTimeout(timeout);
-
-      // Block redirects to private/internal hosts (SSRF protection)
-      if (response.url) {
-        try {
-          const finalHost = new URL(response.url).hostname;
-          if (isPrivateHost(finalHost)) {
-            return { title: domainFallback(url) };
-          }
-        } catch { /* ignore parse errors */ }
-      }
 
       if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
         return { title: domainFallback(url) };

@@ -108,13 +108,23 @@ export function setCategories(data: Category[]): void {
 export async function initializeData(): Promise<void> {
   const savedData = localStorage.getItem('speedDialData');
   if (savedData) {
-    _categories = JSON.parse(savedData);
+    try {
+      const parsed = JSON.parse(savedData);
+      _categories = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      _categories = [];
+    }
   } else {
     _categories = [];
   }
   const savedGroups = localStorage.getItem('speedDialTabGroups');
   if (savedGroups) {
-    _localTabGroups = JSON.parse(savedGroups);
+    try {
+      const parsed = JSON.parse(savedGroups);
+      _localTabGroups = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      _localTabGroups = [];
+    }
   } else {
     _localTabGroups = [];
   }
@@ -390,7 +400,13 @@ function rebuild(): void {
     if (getAppMode() === 'sync' && _rawCategories.length === 0 && _rawBookmarks.length === 0) {
       const savedData = localStorage.getItem('speedDialData');
       if (savedData) {
-        const legacy: Category[] = JSON.parse(savedData);
+        let legacy: Category[];
+        try {
+          const parsed = JSON.parse(savedData);
+          legacy = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          legacy = [];
+        }
         if (legacy.length > 0) {
           promptMigration(legacy);
           return;
@@ -464,7 +480,12 @@ export function seedLocalDefaults(): void {
   // Only seed if localStorage is empty
   const savedData = localStorage.getItem('speedDialData');
   if (savedData) {
-    const parsed = JSON.parse(savedData);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(savedData);
+    } catch {
+      parsed = null;
+    }
     if (Array.isArray(parsed) && parsed.length > 0) return;
   }
 

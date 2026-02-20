@@ -3,26 +3,7 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-
-// --- SSRF protection (reused from metadata.ts) ---
-const PRIVATE_IP_PATTERNS = [
-  /^127\./,
-  /^10\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^0\./,
-  /^::1$/,
-  /^fc00:/i,
-  /^fe80:/i,
-];
-
-function isPrivateHost(hostname: string): boolean {
-  if (PRIVATE_IP_PATTERNS.some((p) => p.test(hostname))) return true;
-  if (hostname === "localhost" || hostname.endsWith(".localhost")) return true;
-  if (hostname === "169.254.169.254") return true;
-  return false;
-}
+import { isPrivateHost, safeFetch } from "./ssrf-guard";
 
 const FETCH_TIMEOUT = 4000;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -40,30 +21,11 @@ async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-  try {
-    const resp = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: { "User-Agent": USER_AGENT, ...options.headers },
-      redirect: "follow",
-    });
-    // Block redirects to private/internal hosts (SSRF protection)
-    if (resp.url) {
-      try {
-        const finalHost = new URL(resp.url).hostname;
-        if (isPrivateHost(finalHost)) {
-          throw new Error("Blocked: redirect to private host");
-        }
-      } catch (e) {
-        if (e instanceof Error && e.message.startsWith("Blocked:")) throw e;
-      }
-    }
-    return resp;
-  } finally {
-    clearTimeout(timeout);
-  }
+  return safeFetch(url, {
+    ...options,
+    headers: { "User-Agent": USER_AGENT, ...options.headers },
+    timeout: FETCH_TIMEOUT,
+  });
 }
 
 // Check if a URL points to a valid image (HEAD then GET fallback)

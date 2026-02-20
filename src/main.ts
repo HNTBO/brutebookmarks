@@ -11,7 +11,7 @@ import { dismissTopModal } from './utils/modal-manager';
 import { initConfirmModal } from './components/modals/confirm-modal';
 import { initUploadArea, useFavicon, toggleIconSearch, searchIcons, toggleEmojiSearch, searchEmojis, setActiveIconButton } from './components/icon-picker';
 import { toggleTheme, syncThemeUI, applyTheme, randomizeAccentHue } from './features/theme';
-import { undo, redo, setAfterUndoRedoCallback, beginGroup, endGroup } from './features/undo';
+import { undo, redo, setAfterUndoRedoCallback, runInUndoGroup } from './features/undo';
 import { updateCardSize, updatePageWidth, syncPreferencesUI, getCardSize, getPageWidth, applyPreferences, collectPreferences, flushSyncToConvex, cycleBarscale, toggleWireframe, randomizeBarscale, randomizeWireframe, randomizeXY, getWireframe, initBarscaleAndWireframe, getEasterEggs } from './features/preferences';
 import { initClerk, getAuthToken, initExtensionBridge, triggerSignIn } from './auth/clerk';
 import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-client';
@@ -88,11 +88,11 @@ document.getElementById('brand-u')?.addEventListener('click', (e) => {
 document.getElementById('brand-r')?.addEventListener('click', (e) => {
   if (!getEasterEggs() || isMobileQuery.matches) return;
   e.stopPropagation();
-  beginGroup();
-  randomizeAccentHue();
-  randomizeBarscale();
-  randomizeWireframe();
-  endGroup();
+  runInUndoGroup(() => {
+    randomizeAccentHue();
+    randomizeBarscale();
+    randomizeWireframe();
+  });
   syncWireframeBtnState();
 });
 
@@ -103,11 +103,11 @@ document.getElementById('brand-brute')?.addEventListener('click', () => {
 });
 document.getElementById('brand-bookmarks')?.addEventListener('click', () => {
   if (!getEasterEggs() || !isMobileQuery.matches) return;
-  beginGroup();
-  randomizeAccentHue();
-  randomizeBarscale();
-  randomizeWireframe();
-  endGroup();
+  runInUndoGroup(() => {
+    randomizeAccentHue();
+    randomizeBarscale();
+    randomizeWireframe();
+  });
   syncWireframeBtnState();
 });
 

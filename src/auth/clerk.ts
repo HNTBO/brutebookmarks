@@ -254,7 +254,12 @@ async function sendTokenToExtension(): Promise<void> {
  * Start listening for extension token requests and auto-send on login.
  * Called once after Clerk initializes with an authenticated user.
  */
+let _bridgeInitialized = false;
+
 export function initExtensionBridge(): void {
+  if (_bridgeInitialized) return;
+  _bridgeInitialized = true;
+
   // Send token immediately (extension content script may already be waiting)
   sendTokenToExtension();
 

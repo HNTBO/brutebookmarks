@@ -4,6 +4,14 @@ import { registerModal } from '../../utils/modal-manager';
 let _resolve: ((value: boolean | null) => void) | null = null;
 let _promptResolve: ((value: string | null) => void) | null = null;
 
+// --- Modal queue ---
+type QueueItem =
+  | { type: 'confirm'; args: [string, string, string, string]; resolve: (v: boolean | null) => void }
+  | { type: 'alert'; args: [string, string]; resolve: (v: void) => void }
+  | { type: 'prompt'; args: [string, string, string]; resolve: (v: string | null) => void };
+
+const _queue: QueueItem[] = [];
+
 function getElements() {
   return {
     modal: document.getElementById('confirm-modal')!,
@@ -17,28 +25,51 @@ function getElements() {
   };
 }
 
+function isActive(): boolean {
+  return _resolve !== null || _promptResolve !== null;
+}
+
+function showNext(): void {
+  if (_queue.length === 0) return;
+  const item = _queue.shift()!;
+  if (item.type === 'confirm') {
+    showConfirm(...item.args, item.resolve);
+  } else if (item.type === 'alert') {
+    showAlert(...item.args, item.resolve);
+  } else {
+    showPromptDialog(...item.args, item.resolve);
+  }
+}
+
 function close(result: boolean | null): void {
   const { modal } = getElements();
   modal.classList.remove('active');
   if (_resolve) {
-    _resolve(result);
+    const r = _resolve;
     _resolve = null;
+    r(result);
   }
+  showNext();
 }
 
 function closePrompt(value: string | null): void {
   const { modal } = getElements();
   modal.classList.remove('active');
   if (_promptResolve) {
-    _promptResolve(value);
+    const r = _promptResolve;
     _promptResolve = null;
+    r(value);
   }
+  showNext();
 }
 
-export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel'): Promise<boolean | null> {
-  // Dismiss any active dialog before showing a new one (resolves previous with null)
-  if (_resolve || _promptResolve) dismissConfirm();
-
+function showConfirm(
+  message: string,
+  title: string,
+  okLabel: string,
+  cancelLabel: string,
+  resolve: (v: boolean | null) => void,
+): void {
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;
@@ -48,15 +79,14 @@ export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK'
   els.inputGroup.classList.add('hidden');
   els.modal.classList.add('active');
   els.confirmBtn.focus();
-
-  return new Promise((resolve) => {
-    _resolve = resolve;
-  });
+  _resolve = resolve;
 }
 
-export function styledAlert(message: string, title = 'Notice'): Promise<void> {
-  if (_resolve || _promptResolve) dismissConfirm();
-
+function showAlert(
+  message: string,
+  title: string,
+  resolve: (v: void) => void,
+): void {
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;
@@ -65,15 +95,15 @@ export function styledAlert(message: string, title = 'Notice'): Promise<void> {
   els.inputGroup.classList.add('hidden');
   els.modal.classList.add('active');
   els.confirmBtn.focus();
-
-  return new Promise((resolve) => {
-    _resolve = () => resolve();
-  });
+  _resolve = () => resolve();
 }
 
-export function styledPrompt(message: string, title = 'Input', defaultValue = ''): Promise<string | null> {
-  if (_resolve || _promptResolve) dismissConfirm();
-
+function showPromptDialog(
+  message: string,
+  title: string,
+  defaultValue: string,
+  resolve: (v: string | null) => void,
+): void {
   const els = getElements();
   els.title.textContent = title;
   els.message.textContent = message;
@@ -83,9 +113,36 @@ export function styledPrompt(message: string, title = 'Input', defaultValue = ''
   els.input.value = defaultValue;
   els.modal.classList.add('active');
   els.input.focus();
+  _promptResolve = resolve;
+}
 
+export function styledConfirm(message: string, title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel'): Promise<boolean | null> {
   return new Promise((resolve) => {
-    _promptResolve = resolve;
+    if (isActive()) {
+      _queue.push({ type: 'confirm', args: [message, title, okLabel, cancelLabel], resolve });
+    } else {
+      showConfirm(message, title, okLabel, cancelLabel, resolve);
+    }
+  });
+}
+
+export function styledAlert(message: string, title = 'Notice'): Promise<void> {
+  return new Promise((resolve) => {
+    if (isActive()) {
+      _queue.push({ type: 'alert', args: [message, title], resolve });
+    } else {
+      showAlert(message, title, resolve);
+    }
+  });
+}
+
+export function styledPrompt(message: string, title = 'Input', defaultValue = ''): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (isActive()) {
+      _queue.push({ type: 'prompt', args: [message, title, defaultValue], resolve });
+    } else {
+      showPromptDialog(message, title, defaultValue, resolve);
+    }
   });
 }
 
