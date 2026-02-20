@@ -7,6 +7,12 @@ import type { BridgeMsgDisconnect, BridgeMsgAuth } from '../shared/bridge-types'
 
 let clerk: ClerkInstance | null = null;
 
+declare global {
+  interface Window {
+    __BB_MOCK_CLERK__?: ClerkInstance;
+  }
+}
+
 /**
  * Inject the Clerk CDN script with data-clerk-publishable-key.
  * The browser may already have the file cached thanks to the <link rel="preload"> in index.html.
@@ -46,6 +52,14 @@ function loadClerkScript(publishableKey: string): Promise<void> {
 
 export async function initClerk(): Promise<ClerkInstance | null> {
   try {
+    if (import.meta.env.DEV && window.__BB_MOCK_CLERK__) {
+      clerk = window.__BB_MOCK_CLERK__;
+      if (clerk.user) {
+        mountUserButton();
+      }
+      return clerk;
+    }
+
     // Try Vite env var first (Vercel/production), fall back to Express API (local dev)
     let publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 

@@ -53,4 +53,10 @@ export default defineSchema({
     foundingMemberSince: v.optional(v.float64()),
     updatedAt: v.float64(),
   }).index('by_user', ['userId']),
+
+  syncWatermarks: defineTable({
+    userId: v.string(),
+    revision: v.float64(),
+    updatedAt: v.float64(),
+  }).index('by_user', ['userId']),
 });

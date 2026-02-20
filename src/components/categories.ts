@@ -467,6 +467,7 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
 
 export function renderCategories(): void {
   const container = document.getElementById('categories-container')!;
+  container.classList.remove('startup-loading');
   container.innerHTML = '';
 
   const layoutItems = getLayoutItems();
@@ -511,4 +512,30 @@ export function renderCategories(): void {
   requestAnimationFrame(() => {
     container.classList.add('loaded');
   });
+}
+
+export function renderStartupShell(): void {
+  const container = document.getElementById('categories-container');
+  if (!container) return;
+  container.classList.remove('loaded');
+  container.classList.add('startup-loading');
+  container.innerHTML = `
+    <div class="startup-shell-group">
+      <div class="startup-shell-bar"></div>
+      <div class="startup-shell-grid">
+        <div class="startup-shell-card"></div>
+        <div class="startup-shell-card"></div>
+        <div class="startup-shell-card"></div>
+        <div class="startup-shell-card"></div>
+      </div>
+    </div>
+    <div class="startup-shell-group">
+      <div class="startup-shell-bar"></div>
+      <div class="startup-shell-grid">
+        <div class="startup-shell-card"></div>
+        <div class="startup-shell-card"></div>
+        <div class="startup-shell-card"></div>
+      </div>
+    </div>
+  `;
 }

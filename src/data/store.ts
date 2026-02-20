@@ -6,6 +6,12 @@ import { DEFAULT_LAYOUT } from './defaults';
 import { styledConfirm, styledAlert } from '../components/modals/confirm-modal';
 import { getAppMode } from './local-storage';
 import { pushUndo, isUndoing } from '../features/undo';
+import { buildSnapshotDigest } from '../utils/snapshot-watermark';
+import type { SnapshotCacheMeta, StartupWatermark } from '../utils/snapshot-watermark';
+
+const SPEED_DIAL_DATA_KEY = 'speedDialData';
+const SPEED_DIAL_GROUPS_KEY = 'speedDialTabGroups';
+const SPEED_DIAL_SNAPSHOT_META_KEY = 'speedDialSnapshotMeta';
 
 // --- State ---
 let _categories: Category[] = [];
@@ -15,6 +21,9 @@ let _localTabGroups: { id: string; name: string; order: number }[] = [];
 let _renderCallback: (() => void) | null = null;
 let _convexActive = false;
 let _unsubscribes: (() => void)[] = [];
+let _convexHydrated = false;
+let _snapshotMeta: SnapshotCacheMeta | null = null;
+let _currentWatermark: { revision: number; updatedAt: number } | null = null;
 
 /** Get Convex client or throw if not initialized. Use in mutation helpers. */
 function requireConvexClient() {
@@ -50,6 +59,22 @@ export function getTabGroups(): TabGroup[] {
 
 export function isConvexMode(): boolean {
   return _convexActive;
+}
+
+export function hasConvexHydrated(): boolean {
+  return _convexHydrated;
+}
+
+export function getSnapshotCacheMeta(): SnapshotCacheMeta | null {
+  return _snapshotMeta;
+}
+
+export function setSyncWatermark(watermark: StartupWatermark): void {
+  if (watermark.source !== 'watermark') return;
+  _currentWatermark = {
+    revision: watermark.revision,
+    updatedAt: watermark.updatedAt,
+  };
 }
 
 // --- Render callback ---
@@ -116,9 +141,55 @@ export function setCategories(data: Category[]): void {
   _categories = data;
 }
 
+function parseSnapshotMeta(raw: string | null): SnapshotCacheMeta | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<SnapshotCacheMeta>;
+    if (
+      parsed &&
+      parsed.version === 1 &&
+      typeof parsed.cachedAt === 'number' &&
+      typeof parsed.snapshotDigest === 'string'
+    ) {
+      const meta: SnapshotCacheMeta = {
+        version: 1,
+        cachedAt: parsed.cachedAt,
+        snapshotDigest: parsed.snapshotDigest,
+      };
+      if (typeof parsed.watermarkRevision === 'number') {
+        meta.watermarkRevision = parsed.watermarkRevision;
+      }
+      if (typeof parsed.watermarkUpdatedAt === 'number') {
+        meta.watermarkUpdatedAt = parsed.watermarkUpdatedAt;
+      }
+      return meta;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSnapshotCache(): void {
+  localStorage.setItem(SPEED_DIAL_DATA_KEY, JSON.stringify(_categories));
+  localStorage.setItem(SPEED_DIAL_GROUPS_KEY, JSON.stringify(_localTabGroups));
+
+  const meta: SnapshotCacheMeta = {
+    version: 1,
+    cachedAt: Date.now(),
+    snapshotDigest: buildSnapshotDigest(_categories, _localTabGroups),
+  };
+  if (_currentWatermark) {
+    meta.watermarkRevision = _currentWatermark.revision;
+    meta.watermarkUpdatedAt = _currentWatermark.updatedAt;
+  }
+  localStorage.setItem(SPEED_DIAL_SNAPSHOT_META_KEY, JSON.stringify(meta));
+  _snapshotMeta = meta;
+}
+
 // --- Initialize from localStorage cache (instant render before Convex arrives) ---
 export async function initializeData(): Promise<void> {
-  const savedData = localStorage.getItem('speedDialData');
+  const savedData = localStorage.getItem(SPEED_DIAL_DATA_KEY);
   if (savedData) {
     try {
       const parsed = JSON.parse(savedData);
@@ -129,7 +200,7 @@ export async function initializeData(): Promise<void> {
   } else {
     _categories = [];
   }
-  const savedGroups = localStorage.getItem('speedDialTabGroups');
+  const savedGroups = localStorage.getItem(SPEED_DIAL_GROUPS_KEY);
   if (savedGroups) {
     try {
       const parsed = JSON.parse(savedGroups);
@@ -140,14 +211,14 @@ export async function initializeData(): Promise<void> {
   } else {
     _localTabGroups = [];
   }
+  _snapshotMeta = parseSnapshotMeta(localStorage.getItem(SPEED_DIAL_SNAPSHOT_META_KEY));
   rebuildLocalLayout();
 }
 
 // --- Legacy save (localStorage fallback when Convex is not active) ---
 export async function saveData(): Promise<void> {
   if (_convexActive) return; // Convex handles persistence
-  localStorage.setItem('speedDialData', JSON.stringify(_categories));
-  localStorage.setItem('speedDialTabGroups', JSON.stringify(_localTabGroups));
+  writeSnapshotCache();
   rebuildLocalLayout();
 }
 
@@ -231,6 +302,7 @@ export function activateConvex(): void {
   if (!client) return;
 
   _convexActive = true;
+  _convexHydrated = false;
   console.log('[Store] Activating Convex subscriptions');
 
   // Subscribe to categories
@@ -249,6 +321,16 @@ export function activateConvex(): void {
   _unsubscribes.push(client.onUpdate(api.bookmarks.listAll, {}, (result) => {
     _rawBookmarks = result;
     scheduleRebuild();
+  }));
+
+  _unsubscribes.push(client.onUpdate(api.syncMeta.getWatermark, {}, (result) => {
+    if (result?.source === 'watermark') {
+      _currentWatermark = {
+        revision: result.revision,
+        updatedAt: result.updatedAt,
+      };
+      debouncedCacheToLocalStorage();
+    }
   }));
 
   // Subscribe to preferences
@@ -290,6 +372,8 @@ export function deactivateConvex(): void {
   _rawBookmarks = null;
   _rawTabGroups = null;
   _migrationChecked = false;
+  _convexHydrated = false;
+  _currentWatermark = null;
 }
 
 // --- Debounced rebuild scheduling ---
@@ -308,7 +392,7 @@ let _localStorageTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedCacheToLocalStorage(): void {
   if (_localStorageTimer) clearTimeout(_localStorageTimer);
   _localStorageTimer = setTimeout(() => {
-    localStorage.setItem('speedDialData', JSON.stringify(_categories));
+    writeSnapshotCache();
   }, 100);
 }
 
@@ -405,12 +489,13 @@ export function denormalize(
 // --- Denormalize Convex data into Category[] and LayoutItem[] ---
 function rebuild(): void {
   if (_rawCategories === null || _rawBookmarks === null || _rawTabGroups === null) return;
+  _convexHydrated = true;
 
   // Check migration on first data arrival (only in sync mode)
   if (!_migrationChecked) {
     _migrationChecked = true;
     if (getAppMode() === 'sync' && _rawCategories.length === 0 && _rawBookmarks.length === 0) {
-      const savedData = localStorage.getItem('speedDialData');
+      const savedData = localStorage.getItem(SPEED_DIAL_DATA_KEY);
       if (savedData) {
         let legacy: Category[];
         try {
@@ -433,6 +518,11 @@ function rebuild(): void {
   _categories = result.categories;
   _layoutItems = result.layoutItems;
   _tabGroups = result.tabGroups;
+  _localTabGroups = result.tabGroups.map((g) => ({
+    id: g.id,
+    name: g.name,
+    order: g.order,
+  }));
 
   // Cache to localStorage for instant restore (debounced)
   debouncedCacheToLocalStorage();
@@ -490,7 +580,7 @@ async function promptSeedDefaults(): Promise<void> {
 // --- Local seed defaults (for first-time local-only users) ---
 export function seedLocalDefaults(): void {
   // Only seed if localStorage is empty
-  const savedData = localStorage.getItem('speedDialData');
+  const savedData = localStorage.getItem(SPEED_DIAL_DATA_KEY);
   if (savedData) {
     let parsed: unknown;
     try {
@@ -532,8 +622,7 @@ export function seedLocalDefaults(): void {
 
   _categories = categories;
   _localTabGroups = tabGroups;
-  localStorage.setItem('speedDialData', JSON.stringify(_categories));
-  localStorage.setItem('speedDialTabGroups', JSON.stringify(_localTabGroups));
+  writeSnapshotCache();
   rebuildLocalLayout();
   rerender();
 }

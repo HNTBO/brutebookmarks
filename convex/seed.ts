@@ -1,5 +1,6 @@
 import { mutation } from './_generated/server';
 import { v } from 'convex/values';
+import { bumpUserWatermark } from './syncMeta';
 
 export const seedDefaults = mutation({
   args: {
@@ -84,5 +85,6 @@ export const seedDefaults = mutation({
         }
       }
     }
+    await bumpUserWatermark(ctx, userId);
   },
 });

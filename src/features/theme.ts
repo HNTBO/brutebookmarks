@@ -72,12 +72,13 @@ export function applyTheme(theme: 'dark' | 'light', accentDark: string | null, a
 }
 
 function applyThemeToDOM(): void {
-  document.documentElement.setAttribute('data-theme', currentTheme);
+  const theme = getTheme();
+  document.documentElement.setAttribute('data-theme', theme);
 
   const btn = document.getElementById('theme-toggle-btn')!;
-  btn.innerHTML = currentTheme === 'dark' ? '☀' : '☾';
+  btn.innerHTML = theme === 'dark' ? '☀' : '☾';
 
-  const storageKey = `accentColor_${currentTheme}`;
+  const storageKey = `accentColor_${theme}`;
   const savedAccent = localStorage.getItem(storageKey);
   const picker = document.getElementById('accent-color-picker') as HTMLInputElement | null;
 

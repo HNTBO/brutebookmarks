@@ -1,5 +1,6 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
+import { bumpUserWatermark } from './syncMeta';
 
 const MAX_NAME_LENGTH = 200;
 
@@ -29,12 +30,14 @@ export const create = mutation({
       .collect();
     const maxOrder = existing.reduce((max, c) => Math.max(max, c.order), 0);
 
-    return await ctx.db.insert('categories', {
+    const categoryId = await ctx.db.insert('categories', {
       name,
       order: maxOrder + 1,
       userId,
       groupId,
     });
+    await bumpUserWatermark(ctx, userId);
+    return categoryId;
   },
 });
 
@@ -50,6 +53,7 @@ export const update = mutation({
       throw new Error('Category not found');
     }
     await ctx.db.patch(id, { name });
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });
 
@@ -74,6 +78,7 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(id);
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });
 
@@ -114,6 +119,7 @@ export const setGroup = mutation({
         await ctx.db.patch(id, { groupId: undefined, order: maxOrder + 1 });
       }
     }
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });
 
@@ -128,5 +134,6 @@ export const reorder = mutation({
       throw new Error('Category not found');
     }
     await ctx.db.patch(id, { order });
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });

@@ -1,7 +1,7 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex } from './data/store';
-import { renderCategories } from './components/categories';
+import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark } from './data/store';
+import { renderCategories, renderStartupShell } from './components/categories';
 import { dragController } from './features/drag-drop';
 import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
@@ -19,6 +19,8 @@ import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
 import { initExtensionDetection } from './utils/extension-bridge';
+import { api } from '../convex/_generated/api';
+import { shouldRenderSnapshotCache } from './utils/snapshot-watermark';
 
 // Generate noise texture once (replaces SVG feTurbulence — cheaper to render)
 {
@@ -231,12 +233,97 @@ function wireAvatarSignIn(): void {
   }
 }
 
+const STARTUP_WATERMARK_TIMEOUT_MS = 450;
+let startupMetricsLogged = false;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), timeoutMs);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+  });
+}
+
+function markStartup(name: string): void {
+  performance.mark(name);
+}
+
+function measureStartup(name: string, start: string, end: string): void {
+  try {
+    performance.measure(name, start, end);
+  } catch {
+    // ignore missing marks
+  }
+}
+
+function logStartupMetrics(): void {
+  if (startupMetricsLogged) return;
+  startupMetricsLogged = true;
+  const metrics = performance
+    .getEntriesByType('measure')
+    .filter((e) => e.name.startsWith('bb:start:'))
+    .map((e) => `${e.name}=${Math.round(e.duration)}ms`);
+  if (metrics.length) {
+    console.log('[Startup]', metrics.join(' | '));
+  }
+}
+
+async function maybeRenderSyncCache(convexClient: NonNullable<ReturnType<typeof initConvexClient>>): Promise<void> {
+  const localMeta = getSnapshotCacheMeta();
+  if (!localMeta) return;
+
+  markStartup('bb:start:watermark:request');
+  const watermark = await withTimeout(
+    convexClient.query(api.syncMeta.getWatermark, {}),
+    STARTUP_WATERMARK_TIMEOUT_MS,
+  );
+
+  if (!watermark) {
+    markStartup('bb:start:watermark:timeout');
+    measureStartup('bb:start:watermark-latency', 'bb:start:init', 'bb:start:watermark:timeout');
+    return;
+  }
+
+  markStartup('bb:start:watermark:response');
+  measureStartup('bb:start:watermark-latency', 'bb:start:init', 'bb:start:watermark:response');
+
+  if (watermark.source === 'watermark') {
+    setSyncWatermark(watermark);
+  }
+
+  if (!shouldRenderSnapshotCache(localMeta, watermark)) return;
+  if (hasConvexHydrated()) return;
+
+  renderCategories();
+  markStartup('bb:start:cache-render');
+  measureStartup('bb:start:time-to-cache-render', 'bb:start:init', 'bb:start:cache-render');
+  logStartupMetrics();
+}
+
 // Initialize app data and render
 async function init(): Promise<void> {
+  markStartup('bb:start:init');
+
+  let firstLiveRenderMeasured = false;
   // Wire callbacks so Convex subscriptions can trigger re-renders
   // Route subscription re-renders through DragController so DOM isn't
   // destroyed mid-drag (would release pointer capture and break the drag).
-  setRenderCallback(() => dragController.requestRender(renderCategories));
+  setRenderCallback(() => {
+    if (!firstLiveRenderMeasured && hasConvexHydrated()) {
+      firstLiveRenderMeasured = true;
+      markStartup('bb:start:live-render');
+      measureStartup('bb:start:time-to-live-render', 'bb:start:init', 'bb:start:live-render');
+      logStartupMetrics();
+    }
+    dragController.requestRender(renderCategories);
+  });
   setPreferencesCallback((prefs) => {
     applyTheme(prefs.theme, prefs.accentColorDark, prefs.accentColorLight);
     applyPreferences(prefs, renderCategories);
@@ -261,9 +348,15 @@ async function init(): Promise<void> {
     syncWireframeBtnState();
   }
 
-  // Render categories from localStorage cache (sync mode skips — waits for Convex)
-  if (getAppMode() !== 'sync') {
+  const mode = getAppMode();
+  if (mode === 'sync') {
+    renderStartupShell();
+    markStartup('bb:start:shell-render');
+    measureStartup('bb:start:time-to-shell-render', 'bb:start:init', 'bb:start:shell-render');
+  } else {
     renderCategories();
+    markStartup('bb:start:local-render');
+    measureStartup('bb:start:time-to-local-render', 'bb:start:init', 'bb:start:local-render');
   }
 
   // Apply saved settings
@@ -275,9 +368,6 @@ async function init(): Promise<void> {
 
   // Wire mobile toolbar buttons
   wireMobileToolbar();
-
-  // Check app mode
-  const mode = getAppMode();
 
   if (mode === null) {
     // First visit — show welcome gate
@@ -306,6 +396,7 @@ async function init(): Promise<void> {
       const convexClient = initConvexClient();
       if (convexClient) {
         setConvexAuth(() => getAuthToken({ template: 'convex' }));
+        void maybeRenderSyncCache(convexClient);
         activateConvex();
       }
       initExtensionBridge();

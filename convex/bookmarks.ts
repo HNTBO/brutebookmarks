@@ -1,5 +1,6 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
+import { bumpUserWatermark } from './syncMeta';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_URL_LENGTH = 2048;
@@ -75,7 +76,7 @@ export const create = mutation({
       .collect();
     const maxOrder = siblings.reduce((max, b) => Math.max(max, b.order), 0);
 
-    return await ctx.db.insert('bookmarks', {
+    const bookmarkId = await ctx.db.insert('bookmarks', {
       title,
       url,
       iconPath: iconPath ?? undefined,
@@ -83,6 +84,8 @@ export const create = mutation({
       order: maxOrder + 1,
       userId,
     });
+    await bumpUserWatermark(ctx, userId);
+    return bookmarkId;
   },
 });
 
@@ -126,6 +129,7 @@ export const update = mutation({
     }
 
     await ctx.db.patch(id, patch);
+    await bumpUserWatermark(ctx, userId);
   },
 });
 
@@ -140,6 +144,7 @@ export const remove = mutation({
       throw new Error('Bookmark not found');
     }
     await ctx.db.delete(id);
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });
 
@@ -169,6 +174,7 @@ export const reorder = mutation({
       patch.categoryId = categoryId;
     }
     await ctx.db.patch(id, patch);
+    await bumpUserWatermark(ctx, userId);
   },
 });
 
@@ -230,6 +236,7 @@ export const importBulk = mutation({
         });
       }
     }
+    await bumpUserWatermark(ctx, userId);
   },
 });
 
@@ -262,5 +269,6 @@ export const eraseAll = mutation({
     for (const g of tabGroups) {
       await ctx.db.delete(g._id);
     }
+    await bumpUserWatermark(ctx, userId);
   },
 });

@@ -1,5 +1,6 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
+import { bumpUserWatermark } from './syncMeta';
 
 export const list = query({
   handler: async (ctx) => {
@@ -26,11 +27,13 @@ export const create = mutation({
       .collect();
     const maxOrder = existing.reduce((max, g) => Math.max(max, g.order), 0);
 
-    return await ctx.db.insert('tabGroups', {
+    const groupId = await ctx.db.insert('tabGroups', {
       name,
       order: maxOrder + 1,
       userId,
     });
+    await bumpUserWatermark(ctx, userId);
+    return groupId;
   },
 });
 
@@ -45,6 +48,7 @@ export const update = mutation({
       throw new Error('Tab group not found');
     }
     await ctx.db.patch(id, { name });
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });
 
@@ -71,6 +75,7 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(id);
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });
 
@@ -85,6 +90,7 @@ export const reorder = mutation({
       throw new Error('Tab group not found');
     }
     await ctx.db.patch(id, { order });
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });
 
@@ -120,6 +126,7 @@ export const mergeInto = mutation({
 
     // Delete the now-empty source group
     await ctx.db.delete(sourceId);
+    await bumpUserWatermark(ctx, userId);
   },
 });
 
@@ -157,6 +164,7 @@ export const createWithCategories = mutation({
       await ctx.db.patch(categoryIds[i], { groupId, order: i + 1 });
     }
 
+    await bumpUserWatermark(ctx, userId);
     return groupId;
   },
 });
