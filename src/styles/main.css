@@ -25,8 +25,8 @@ html, body {
     --text-secondary: #888;
     --text-muted: #555;
 
-    /* Accent - Favicon Orange */
-    --accent: #ff5206;
+    /* Accent - Teal */
+    --accent: #0AEBFB;
     --accent-dim: color-mix(in srgb, var(--accent), black 20%);
     --accent-glow: color-mix(in srgb, var(--accent), transparent 85%);
 

@@ -3,7 +3,7 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: 'src',
   manifest: {
-    name: 'Brute Bookmarks',
+    name: 'BruteBookmarks',
     description: 'Quick-save any page to Brute Bookmarks with one click.',
     permissions: ['activeTab', 'storage', 'bookmarks'],
     host_permissions: ['https://*.convex.cloud/*'],
