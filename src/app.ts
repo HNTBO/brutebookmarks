@@ -218,6 +218,7 @@ export function renderApp(): void {
             <h3>Info</h3>
             <div class="settings-row">
               <button class="btn" id="help-btn">Feature Overview</button>
+              <a href="https://www.brutebookmarks.com/privacy" target="_blank" rel="noopener noreferrer" class="btn">Privacy Policy</a>
             </div>
           </div>
           <div class="settings-section settings-section-bookmarks">

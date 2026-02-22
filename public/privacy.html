@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — BruteBookmarks</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0e0e0e;
+            color: #ccc;
+            line-height: 1.7;
+            padding: 3rem 1.5rem;
+        }
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.25rem;
+        }
+        .updated {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 2.5rem;
+        }
+        h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        p { margin-bottom: 1rem; }
+        ul {
+            list-style: none;
+            margin-bottom: 1rem;
+        }
+        ul li {
+            padding-left: 1.2em;
+            position: relative;
+            margin-bottom: 0.4rem;
+        }
+        ul li::before {
+            content: "·";
+            position: absolute;
+            left: 0;
+            color: #0AEBFB;
+            font-weight: 700;
+        }
+        a {
+            color: #0AEBFB;
+            text-decoration: none;
+        }
+        a:hover { text-decoration: underline; }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .back-link:hover { color: #0AEBFB; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">&larr; Back to BruteBookmarks</a>
+
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: February 2026</p>
+
+        <p>BruteBookmarks is a bookmark manager built by an independent developer. This policy explains what data the extension and web app collect, how it's used, and how you can control it.</p>
+
+        <h2>What We Collect</h2>
+
+        <p><strong>When used locally (no account):</strong></p>
+        <ul>
+            <li>Bookmark URLs, titles, and category names — stored in your browser's local storage.</li>
+            <li>Display preferences (theme, accent color, card size) — stored in your browser's local storage.</li>
+            <li>Nothing is transmitted. Your data stays on your device.</li>
+        </ul>
+
+        <p><strong>When signed in (sync enabled):</strong></p>
+        <ul>
+            <li>Bookmark URLs, titles, category names, and organizational structure — transmitted to and stored on Convex Cloud (our real-time backend).</li>
+            <li>Authentication data (email, name, profile picture) — handled by Clerk, our authentication provider.</li>
+            <li>Display preferences — synced via Convex Cloud.</li>
+        </ul>
+
+        <p><strong>When importing Chrome bookmarks:</strong></p>
+        <p>The extension reads your Chrome bookmark tree only when you explicitly trigger an import. This data is processed locally and sent to Convex Cloud only if you are signed in.</p>
+
+        <h2>How We Use Your Data</h2>
+        <ul>
+            <li>To display and organize your bookmarks.</li>
+            <li>To sync bookmarks across your devices when you're signed in.</li>
+            <li>That's it. We have no other use for your data.</li>
+        </ul>
+
+        <h2>What We Don't Do</h2>
+        <ul>
+            <li>We don't serve ads.</li>
+            <li>We don't track your browsing activity.</li>
+            <li>We don't analyze your bookmark content.</li>
+            <li>We don't sell, share, or license your data to any third party for marketing, advertising, or profiling purposes.</li>
+            <li>We don't use your data to train machine learning models.</li>
+        </ul>
+
+        <h2>Third-Party Services</h2>
+        <ul>
+            <li><strong>Convex</strong> (<a href="https://convex.dev">convex.dev</a>) — Real-time database and backend. Stores your bookmarks and preferences when signed in. Data is transmitted over encrypted HTTPS/WSS connections. <a href="https://www.convex.dev/legal/privacy">Convex privacy policy</a>.</li>
+            <li><strong>Clerk</strong> (<a href="https://clerk.com">clerk.com</a>) — Authentication provider. Handles sign-in, session management, and account security. <a href="https://clerk.com/legal/privacy">Clerk privacy policy</a>.</li>
+            <li><strong>Favicon services</strong> (Icon Horse, DuckDuckGo, Google) — Used to fetch website icons. Only the domain name is sent; no user identity or bookmark data is attached.</li>
+            <li><strong>Wikimedia Commons</strong> — Image search for bookmark icons. Search queries are sent to the Wikimedia API. No user identification is attached.</li>
+        </ul>
+        <p>No other third-party services receive your data.</p>
+
+        <h2>Data Retention</h2>
+        <p>Your data is stored as long as your account exists. Local-only data persists until you clear your browser data or use the in-app "Erase" function.</p>
+
+        <h2>Data Deletion</h2>
+        <ul>
+            <li><strong>Local data:</strong> Use the "Erase" button in Settings, or clear your browser's local storage.</li>
+            <li><strong>Synced data:</strong> Use the "Erase" button in Settings while signed in. This deletes all your bookmarks and categories from Convex Cloud.</li>
+            <li><strong>Account deletion:</strong> Contact <a href="mailto:contact@brutebookmarks.com">contact@brutebookmarks.com</a> to request full account removal from both Clerk and Convex.</li>
+        </ul>
+
+        <h2>Your Rights</h2>
+        <p>You can export all your data as a JSON file at any time via Settings &gt; Export. You can delete all your data at any time via Settings &gt; Erase.</p>
+
+        <h2>Changes to This Policy</h2>
+        <p>If this policy changes, the updated version will be posted at this URL with a new "Last updated" date.</p>
+
+        <h2>Contact</h2>
+        <p>For privacy questions or data requests:<br>
+        <a href="mailto:contact@brutebookmarks.com">contact@brutebookmarks.com</a></p>
+    </div>
+</body>
+</html>
