@@ -5,7 +5,7 @@ import { bumpUserWatermark } from './syncMeta';
 const MAX_TITLE_LENGTH = 500;
 const MAX_URL_LENGTH = 2048;
 const MAX_NAME_LENGTH = 200;
-const MAX_ICON_PATH_LENGTH = 2048;
+const MAX_ICON_PATH_LENGTH = 50000;
 
 function validateUrl(url: string): void {
   if (url.length > MAX_URL_LENGTH) {
