@@ -4,7 +4,7 @@ A visual bookmark dashboard with a brutalist design. Organize your bookmarks int
 
 **[Try it live at brutebookmarks.com](https://brutebookmarks.com)**
 
-No account required. No ads. No tracking. Fun. Flexible. Private.
+No account required. No ads. No tracking. Fun. Stylish. Private.
 
 ![BruteBookmarks — Dark Theme](docs/screenshots/dark-theme.jpg)
 
