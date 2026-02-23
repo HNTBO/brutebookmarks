@@ -7,7 +7,7 @@ export function renderApp(): void {
     <div id="welcome-gate" class="welcome-gate">
       <div class="welcome-gate-content">
         <h1 class="welcome-gate-title">Brute <em>Bookmarks</em></h1>
-        <p class="welcome-gate-subtitle">Your bookmarks, your way.</p>
+        <p class="welcome-gate-subtitle">Fun. Flexible. Private.</p>
         <div class="welcome-gate-options">
           <button id="gate-local-btn" class="welcome-gate-btn gate-btn-local">
             <span class="gate-btn-label">Use Locally</span>
