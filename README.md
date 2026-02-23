@@ -25,6 +25,8 @@ No account required. No ads. No tracking. Fun. Flexible. Private.
 - **Tab Groups** — Drag one category onto another to combine them as tabs
 - **Drag & Drop** — Reorder bookmarks, categories, and tab groups freely. Move bookmarks between categories.
 
+![Drag & Drop — Bookmarks and Categories](docs/screenshots/drag-and-drop-explained.png)
+
 ### Customization
 - **Dark & Light Themes** — Toggle with one click
 - **Accent Colors** — Pick any color, the entire interface adapts
@@ -32,6 +34,8 @@ No account required. No ads. No tracking. Fun. Flexible. Private.
 - **Card Size & Page Width** — A 2D controller to resize cards and page width simultaneously
 - **Bar Scale** — Cycle through category bar heights to find your density
 - **Show or Hide Card Names** — Clean icons only, or icons with labels
+
+![Customization Overview](docs/screenshots/customization-overview.png)
 
 ### Smart Icons
 - **Favicon Auto-Fetch** — Grab site favicons with one click
@@ -77,8 +81,8 @@ npx wxt --browser firefox  # Firefox dev
 
 ```bash
 # Clone and install
-git clone https://github.com/HNTBO/brute-bookmarks.git
-cd brute-bookmarks
+git clone https://github.com/HNTBO/brutebookmarks.git
+cd brutebookmarks
 npm install
 
 # Start dev server (port 5173)
