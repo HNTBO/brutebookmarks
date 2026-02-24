@@ -523,6 +523,8 @@ h1 em {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: var(--space-md);
     position: relative;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 /* Bookmark Card - Hard edges, stark */
