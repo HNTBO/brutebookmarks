@@ -390,6 +390,7 @@ h1 em {
     transition: all 0.15s ease;
     position: relative;
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 @media (hover: hover) {
@@ -404,6 +405,19 @@ h1 em {
 .btn:active {
     transform: translate(0, 0);
     box-shadow: none;
+}
+
+/* Prevent stuck focus state on anchor-styled buttons (e.g. after navigating back) */
+a.btn:focus:not(:focus-visible) {
+    outline: none;
+    background: var(--bg-secondary);
+    border-color: var(--border-strong);
+    transform: none;
+    box-shadow: none;
+}
+
+a.btn:visited {
+    color: var(--text-primary);
 }
 
 .btn-primary {
