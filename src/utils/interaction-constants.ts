@@ -11,8 +11,8 @@
 export const LONG_PRESS_DELAY = 500;
 
 /** Long-press activation delay for grid background undo/redo menu (touch only).
- *  Deliberately longer than card long-press to require an intentional hold. */
-export const GRID_LONG_PRESS_DELAY = 1200;
+ *  Same as card long-press for consistent feel. */
+export const GRID_LONG_PRESS_DELAY = 500;
 
 /** Hover-to-switch delay when dragging a bookmark over a tab. */
 export const HOVER_SWITCH_DELAY = 400;

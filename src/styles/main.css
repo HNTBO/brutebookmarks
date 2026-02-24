@@ -1350,6 +1350,8 @@ footer {
 /* Mobile toolbar — hidden on desktop */
 .mobile-toolbar {
     display: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 /* Responsive — Mobile layout */
