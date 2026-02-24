@@ -141,6 +141,9 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void, head
   observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
 
   const popstateHandler = (e: PopStateEvent) => {
+    // If the new state still contains this modal's key, something ABOVE
+    // this modal was popped (e.g. help on top of settings). Skip closing.
+    if (history.state?.[stateKey]) return;
     if (modal.classList.contains('active')) {
       closeFn();
       e.stopImmediatePropagation();
