@@ -389,13 +389,16 @@ h1 em {
     cursor: pointer;
     transition: all 0.15s ease;
     position: relative;
+    text-decoration: none;
 }
 
-.btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--text-muted);
-    transform: translate(-2px, -2px);
-    box-shadow: var(--shadow-sm);
+@media (hover: hover) {
+    .btn:hover {
+        background: var(--bg-hover);
+        border-color: var(--text-muted);
+        transform: translate(-2px, -2px);
+        box-shadow: var(--shadow-sm);
+    }
 }
 
 .btn:active {
