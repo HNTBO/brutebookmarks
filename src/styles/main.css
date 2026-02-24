@@ -2291,10 +2291,12 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     min-width: 80px;
 }
 
-/* Help modal */
-.help-body {
-    max-height: 70vh;
-    overflow-y: auto;
+/* Help modal — desktop only cap (mobile override in mobile media query) */
+@media (min-width: 769px) {
+    .help-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
 }
 
 .help-section {
