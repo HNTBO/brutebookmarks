@@ -572,6 +572,8 @@ h1 em {
     border-style: dashed;
     border-color: color-mix(in srgb, var(--accent) 40%, transparent); /* Muted accent */
     background: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
 
 .bookmark-card.add-bookmark:hover {
