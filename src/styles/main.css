@@ -202,6 +202,8 @@ body::before {
     background: var(--accent); /* Filled */
     border: none;
     height: var(--header-height);
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .header-title-box {
