@@ -243,6 +243,12 @@ export function initGridLongPress(grid: HTMLElement): void {
   let timer: number | null = null;
   let startX = 0;
   let startY = 0;
+  let fingerDown = false;
+
+  function cancelTimer(): void {
+    fingerDown = false;
+    if (timer !== null) { clearTimeout(timer); timer = null; }
+  }
 
   grid.addEventListener('pointerdown', (e: PointerEvent) => {
     // Only fire on grid background (gaps / empty area), not on cards
@@ -250,10 +256,12 @@ export function initGridLongPress(grid: HTMLElement): void {
     if (e.button !== 0 || !e.isPrimary) return;
     startX = e.clientX;
     startY = e.clientY;
+    fingerDown = true;
 
     const delay = e.pointerType === 'touch' ? GRID_LONG_PRESS_DELAY : LONG_PRESS_DELAY;
     timer = window.setTimeout(() => {
       timer = null;
+      if (!fingerDown) return; // finger already lifted — don't show menu
       try { navigator.vibrate?.(50); } catch { /* ignored */ }
       dismissContextMenu();
       showUndoRedoMenu(e.clientX, e.clientY);
@@ -270,17 +278,15 @@ export function initGridLongPress(grid: HTMLElement): void {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_CANCEL_DISTANCE) {
-      clearTimeout(timer);
-      timer = null;
+      cancelTimer();
     }
   });
 
-  grid.addEventListener('pointerup', () => {
-    if (timer !== null) { clearTimeout(timer); timer = null; }
-  });
-  grid.addEventListener('pointercancel', () => {
-    if (timer !== null) { clearTimeout(timer); timer = null; }
-  });
+  // Cancel on all lift/cancel events — Android sometimes skips pointerup
+  grid.addEventListener('pointerup', cancelTimer);
+  grid.addEventListener('pointercancel', cancelTimer);
+  grid.addEventListener('touchend', cancelTimer);
+  grid.addEventListener('touchcancel', cancelTimer);
 
   grid.addEventListener('contextmenu', (e) => {
     if (!(e.target as HTMLElement).closest('.bookmark-card')) {
