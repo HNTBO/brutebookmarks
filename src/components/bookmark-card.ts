@@ -257,6 +257,11 @@ export function initGridLongPress(grid: HTMLElement): void {
       try { navigator.vibrate?.(50); } catch { /* ignored */ }
       dismissContextMenu();
       showUndoRedoMenu(e.clientX, e.clientY);
+      // Suppress the click event that fires on pointerup after long-press
+      longPressClickGuard = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { longPressClickGuard = false; });
+      });
     }, delay);
   });
 

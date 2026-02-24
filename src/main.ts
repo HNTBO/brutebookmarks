@@ -2,6 +2,7 @@ import './styles/main.css';
 import { renderApp } from './app';
 import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark } from './data/store';
 import { renderCategories, renderStartupShell } from './components/categories';
+import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
 import { initSizeController } from './components/header';
 import { initBookmarkModal, openAddBookmarkModal, openEditBookmarkModal, deleteBookmark } from './components/modals/bookmark-modal';
@@ -129,6 +130,7 @@ document.getElementById('emoji-search-query')!.addEventListener('input', searchE
 
 // Delegate click events from dynamically rendered content
 document.getElementById('categories-container')!.addEventListener('click', (e) => {
+  if (consumeLongPressGuard()) return;
   const target = e.target as HTMLElement;
 
   // Category edit button

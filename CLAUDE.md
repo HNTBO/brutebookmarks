@@ -17,6 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Always run `npm run build` after multi-file changes before committing.
 - For Convex deploys: `npx convex deploy && npm run build` (not `--cmd` wrapper).
 - Production is on Vercel. Build command: `npx convex deploy && vite build`.
+- **Mobile fixes**: For changes related to mobile behavior/touch interactions, always commit and push immediately so the user can test on their device via the deployed version.
 
 ## Project Overview
 
