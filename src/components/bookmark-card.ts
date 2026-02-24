@@ -282,11 +282,15 @@ export function initGridLongPress(grid: HTMLElement): void {
     }
   });
 
-  // Cancel on all lift/cancel events — Android sometimes skips pointerup
+  // Cancel on all lift/cancel events.
+  // Grid-level listeners may not fire on Android if the browser reassigns
+  // the touch target, so also listen on document as a guaranteed fallback.
   grid.addEventListener('pointerup', cancelTimer);
   grid.addEventListener('pointercancel', cancelTimer);
   grid.addEventListener('touchend', cancelTimer);
   grid.addEventListener('touchcancel', cancelTimer);
+  document.addEventListener('pointerup', () => { if (timer !== null) cancelTimer(); });
+  document.addEventListener('touchend', () => { if (timer !== null) cancelTimer(); });
 
   grid.addEventListener('contextmenu', (e) => {
     if (!(e.target as HTMLElement).closest('.bookmark-card')) {
