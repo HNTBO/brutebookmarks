@@ -1,5 +1,5 @@
 import { dragController } from '../features/drag-drop';
-import { LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
+import { LONG_PRESS_DELAY, GRID_LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
 
 // Cache button element references per card to avoid repeated querySelector calls
 const btnCache = new WeakMap<HTMLElement, { edit: HTMLElement | null; delete: HTMLElement | null }>();
@@ -251,12 +251,13 @@ export function initGridLongPress(grid: HTMLElement): void {
     startX = e.clientX;
     startY = e.clientY;
 
+    const delay = e.pointerType === 'touch' ? GRID_LONG_PRESS_DELAY : LONG_PRESS_DELAY;
     timer = window.setTimeout(() => {
       timer = null;
       try { navigator.vibrate?.(50); } catch { /* ignored */ }
       dismissContextMenu();
       showUndoRedoMenu(e.clientX, e.clientY);
-    }, LONG_PRESS_DELAY);
+    }, delay);
   });
 
   grid.addEventListener('pointermove', (e: PointerEvent) => {

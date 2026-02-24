@@ -7,8 +7,12 @@
 
 // --- Timers (ms) ---
 
-/** Long-press activation delay for touch (bookmark cards, grid background). */
+/** Long-press activation delay for touch (bookmark cards). */
 export const LONG_PRESS_DELAY = 500;
+
+/** Long-press activation delay for grid background undo/redo menu (touch only).
+ *  Longer than card long-press to avoid accidental triggers on mobile. */
+export const GRID_LONG_PRESS_DELAY = 800;
 
 /** Hover-to-switch delay when dragging a bookmark over a tab. */
 export const HOVER_SWITCH_DELAY = 400;
