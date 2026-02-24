@@ -3,7 +3,7 @@ import type { Category, TabGroup } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
-import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initGridLongPress, consumeLongPressGuard } from './bookmark-card';
+import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initAddCardLongPress, consumeLongPressGuard } from './bookmark-card';
 import { dragController, initDragListeners } from '../features/drag-drop';
 import { TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
 import { attachDragTracking } from '../utils/pointer-tracker';
@@ -188,12 +188,13 @@ function wireBookmarkCards(el: HTMLElement): void {
     });
   });
 
-  // Long-press grid background → undo/redo (mobile only)
-  const grids = el.querySelectorAll<HTMLElement>('.bookmarks-grid');
+  // Long-press "+" card → undo/redo menu (mobile only)
   const isMobile = mobileQuery().matches;
-  grids.forEach((grid) => {
-    if (isMobile) initGridLongPress(grid);
-  });
+  if (isMobile) {
+    el.querySelectorAll<HTMLElement>('.bookmark-card.add-bookmark').forEach((addCard) => {
+      initAddCardLongPress(addCard);
+    });
+  }
 }
 
 /** Wire pointer-based drag on a drag handle (category/tab-group header). */

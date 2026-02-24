@@ -1,5 +1,5 @@
 import { dragController } from '../features/drag-drop';
-import { LONG_PRESS_DELAY, GRID_LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
+import { LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
 
 // Cache button element references per card to avoid repeated querySelector calls
 const btnCache = new WeakMap<HTMLElement, { edit: HTMLElement | null; delete: HTMLElement | null }>();
@@ -239,64 +239,70 @@ export function initLongPress(card: HTMLElement): void {
   });
 }
 
-export function initGridLongPress(grid: HTMLElement): void {
+/** Long-press on the "+" add-bookmark card → undo/redo menu (touch only). */
+export function initAddCardLongPress(card: HTMLElement): void {
   let timer: number | null = null;
   let startX = 0;
   let startY = 0;
-  let fingerDown = false;
+  let activated = false;
 
-  function cancelTimer(): void {
-    fingerDown = false;
+  function cancel(): void {
     if (timer !== null) { clearTimeout(timer); timer = null; }
+    activated = false;
   }
 
-  grid.addEventListener('pointerdown', (e: PointerEvent) => {
-    // Only fire on grid background (gaps / empty area), not on cards
-    if ((e.target as HTMLElement).closest('.bookmark-card')) return;
+  card.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0 || !e.isPrimary) return;
+    // Touch only — desktop uses keyboard shortcuts for undo/redo
+    if (e.pointerType !== 'touch') return;
     startX = e.clientX;
     startY = e.clientY;
-    fingerDown = true;
+    activated = false;
 
-    const delay = e.pointerType === 'touch' ? GRID_LONG_PRESS_DELAY : LONG_PRESS_DELAY;
     timer = window.setTimeout(() => {
       timer = null;
-      if (!fingerDown) return; // finger already lifted — don't show menu
+      activated = true;
       try { navigator.vibrate?.(50); } catch { /* ignored */ }
       dismissContextMenu();
       showUndoRedoMenu(e.clientX, e.clientY);
-      // Suppress the click event that fires on pointerup after long-press
       longPressClickGuard = true;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { longPressClickGuard = false; });
       });
-    }, delay);
+    }, LONG_PRESS_DELAY);
   });
 
-  grid.addEventListener('pointermove', (e: PointerEvent) => {
+  card.addEventListener('pointermove', (e: PointerEvent) => {
     if (!e.isPrimary || timer === null) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_CANCEL_DISTANCE) {
-      cancelTimer();
+      cancel();
     }
   });
 
-  // Cancel on all lift/cancel events.
-  // Grid-level listeners may not fire on Android if the browser reassigns
-  // the touch target, so also listen on document as a guaranteed fallback.
-  grid.addEventListener('pointerup', cancelTimer);
-  grid.addEventListener('pointercancel', cancelTimer);
-  grid.addEventListener('touchend', cancelTimer);
-  grid.addEventListener('touchcancel', cancelTimer);
-  document.addEventListener('pointerup', () => { if (timer !== null) cancelTimer(); });
-  document.addEventListener('touchend', () => { if (timer !== null) cancelTimer(); });
+  card.addEventListener('pointerup', () => cancel());
+  card.addEventListener('pointercancel', () => cancel());
+  // Document-level fallbacks for Android (touch target can shift)
+  document.addEventListener('pointerup', () => { if (timer !== null) cancel(); });
+  document.addEventListener('touchend', () => { if (timer !== null) cancel(); });
 
-  grid.addEventListener('contextmenu', (e) => {
-    if (!(e.target as HTMLElement).closest('.bookmark-card')) {
-      e.preventDefault();
+  // Prevent scroll from stealing the touch while timer is running
+  card.addEventListener('touchmove', (e: TouchEvent) => {
+    if (timer !== null) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.sqrt(dx * dx + dy * dy) <= LONG_PRESS_CANCEL_DISTANCE) {
+        e.preventDefault();
+      } else {
+        cancel();
+      }
     }
-  });
+  }, { passive: false });
+
+  // Prevent native context menu on long-press
+  card.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 function wireSwipeToDismiss(menu: HTMLElement): void {
