@@ -1298,6 +1298,8 @@ footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .footer-text {
