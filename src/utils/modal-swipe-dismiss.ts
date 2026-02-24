@@ -19,7 +19,7 @@ import { MODAL_SWIPE_DISMISS } from './interaction-constants';
  * @param modalId  The DOM id of the .modal element
  * @param closeFn  Function that closes/dismisses the modal
  */
-export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): (() => void) | undefined {
+export function wireModalSwipeDismiss(modalId: string, closeFn: () => void, headerOnly?: boolean): (() => void) | undefined {
   const modal = document.getElementById(modalId);
   if (!modal) return;
   const content = modal.querySelector('.modal-content') as HTMLElement | null;
@@ -70,7 +70,7 @@ export function wireModalSwipeDismiss(modalId: string, closeFn: () => void): (()
         // (b) content is scrolled to top
         const inHeader = isInHeaderZone(e.target);
         const atTop = content.scrollTop <= 0;
-        dismissing = inHeader || atTop;
+        dismissing = headerOnly ? inHeader : (inHeader || atTop);
       }
       // Pulling up or not eligible → let browser scroll normally
     }

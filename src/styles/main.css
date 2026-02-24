@@ -1561,6 +1561,11 @@ footer {
         -webkit-overflow-scrolling: touch;
     }
 
+    .help-body {
+        max-height: none;
+        overflow-y: visible;
+    }
+
     /* Accent color row — don't wrap */
     .accent-color-row {
         flex-shrink: 0;

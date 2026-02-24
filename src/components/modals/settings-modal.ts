@@ -80,6 +80,113 @@ function closeHelpModal(): void {
   document.getElementById('help-modal')!.classList.remove('active');
 }
 
+function getDesktopHelpContent(): string {
+  return `
+    <div class="help-section">
+      <h3>Bookmarks</h3>
+      <ul>
+        <li><strong>Add</strong> — Click the + card at the end of any category</li>
+        <li><strong>Edit</strong> — Hover near the top-left corner of a card (pen icon)</li>
+        <li><strong>Delete</strong> — Hover near the top-right corner (× icon)</li>
+        <li><strong>Open</strong> — Click a card to open in a new tab</li>
+        <li><strong>Reorder</strong> — Drag and drop cards within or between categories</li>
+        <li><strong>Move</strong> — Use the Category dropdown in the edit modal</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Categories</h3>
+      <ul>
+        <li><strong>Add</strong> — Click the + button in the header</li>
+        <li><strong>Edit/Delete</strong> — Click the pen icon on the category bar</li>
+        <li><strong>Reorder</strong> — Drag the ⠿ handle on the category bar</li>
+        <li><strong>Tab Groups</strong> — Drag a category onto another to group them as tabs</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Appearance</h3>
+      <ul>
+        <li><strong>Card Size & Page Width</strong> — Drag inside the 2D controller zone in the header</li>
+        <li><strong>Theme</strong> — ☀/☾ button toggles light/dark mode</li>
+        <li><strong>Accent Color</strong> — Color picker in Settings</li>
+        <li><strong>Wireframe Mode</strong> — Outlined UI style (cube icon in header)</li>
+        <li><strong>Bar Scale</strong> — Cycle category bar height (triangle icon in header)</li>
+        <li><strong>Card Names</strong> — Toggle in Settings</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Data</h3>
+      <ul>
+        <li><strong>Import</strong> — JSON backups or browser HTML exports</li>
+        <li><strong>Export</strong> — Download as JSON</li>
+        <li><strong>Smart Name</strong> — Auto-shorten bookmark titles</li>
+        <li><strong>Fetch Favicons</strong> — Refresh all bookmark icons</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Keyboard Shortcuts</h3>
+      <ul>
+        <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> — Undo</li>
+        <li><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> — Redo</li>
+        <li><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> — Toggle theme</li>
+        <li><kbd>Esc</kbd> — Close any open modal</li>
+      </ul>
+    </div>`;
+}
+
+function getMobileHelpContent(): string {
+  return `
+    <div class="help-section">
+      <h3>Bookmarks</h3>
+      <ul>
+        <li><strong>Add</strong> — Tap the + card at the end of any category</li>
+        <li><strong>Edit / Delete</strong> — Long-press a card for the context menu</li>
+        <li><strong>Open</strong> — Tap a card to open in a new tab</li>
+        <li><strong>Reorder</strong> — Long-press then drag to move cards</li>
+        <li><strong>Move</strong> — Use the Category dropdown in the edit modal</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Categories</h3>
+      <ul>
+        <li><strong>Add</strong> — Tap the + button in the toolbar</li>
+        <li><strong>Edit/Delete</strong> — Tap the pen icon on the category bar</li>
+        <li><strong>Reorder</strong> — Drag the ⠿ handle on the category bar</li>
+        <li><strong>Tab Groups</strong> — Drag a category onto another to group them as tabs</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Tab Navigation</h3>
+      <ul>
+        <li><strong>Switch Tabs</strong> — Swipe left or right to move between tabs</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Appearance</h3>
+      <ul>
+        <li><strong>Card Size & Page Width</strong> — Drag inside the 2D controller zone in the header</li>
+        <li><strong>Theme</strong> — ☀/☾ button toggles light/dark mode</li>
+        <li><strong>Accent Color</strong> — Color picker in Settings</li>
+        <li><strong>Wireframe Mode</strong> — Outlined UI style (cube icon in header)</li>
+        <li><strong>Bar Scale</strong> — Cycle category bar height (triangle icon in header)</li>
+        <li><strong>Card Names</strong> — Toggle in Settings</li>
+      </ul>
+    </div>
+    <div class="help-section">
+      <h3>Tips</h3>
+      <ul>
+        <li><strong>Undo / Redo</strong> — Long-press the + card</li>
+        <li><strong>Dismiss Modals</strong> — Swipe down on the header bar</li>
+      </ul>
+    </div>`;
+}
+
+function populateHelpModal(): void {
+  const body = document.querySelector('#help-modal .help-body');
+  if (!body) return;
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  body.innerHTML = isMobile ? getMobileHelpContent() : getDesktopHelpContent();
+}
+
 function exportData(): void {
   const dataStr = JSON.stringify(getCategories(), null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -460,6 +567,7 @@ export function initSettingsModal(): void {
 
   // Help modal
   document.getElementById('help-btn')!.addEventListener('click', () => {
+    populateHelpModal();
     document.getElementById('help-modal')!.classList.add('active');
   });
   document.getElementById('help-modal-close')!.addEventListener('click', closeHelpModal);
@@ -491,5 +599,5 @@ export function initSettingsModal(): void {
 
   // Mobile swipe-down to dismiss
   wireModalSwipeDismiss('settings-modal', closeSettingsModal);
-  wireModalSwipeDismiss('help-modal', closeHelpModal);
+  wireModalSwipeDismiss('help-modal', closeHelpModal, true);
 }
