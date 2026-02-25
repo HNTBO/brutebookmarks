@@ -89,10 +89,52 @@ async function getCurrentTab(): Promise<{ url: string; title: string } | null> {
 
 // --- Convex queries ---
 
+interface TabGroup {
+  _id: string;
+  name: string;
+  order: number;
+}
+
 async function fetchCategories(): Promise<Category[]> {
   const client = getClient();
-  const result = await client.query('categories:list' as any, {});
-  return (result as Category[]).sort((a, b) => a.order - b.order);
+  const [categories, tabGroups] = await Promise.all([
+    client.query('categories:list' as any, {}) as Promise<Category[]>,
+    client.query('tabGroups:list' as any, {}) as Promise<TabGroup[]>,
+  ]);
+
+  // Replicate main app visual order: ungrouped categories and tab groups
+  // are sorted together by their order values. Categories inside a group
+  // appear at the group's position, sorted by their own order within.
+  const groupMap = new Map<string, { order: number; categories: Category[] }>();
+  for (const g of tabGroups) {
+    groupMap.set(g._id, { order: g.order, categories: [] });
+  }
+
+  const ungrouped: Category[] = [];
+  for (const cat of categories) {
+    if (cat.groupId && groupMap.has(cat.groupId)) {
+      groupMap.get(cat.groupId)!.categories.push(cat);
+    } else {
+      ungrouped.push(cat);
+    }
+  }
+
+  // Sort categories within each group
+  for (const g of groupMap.values()) {
+    g.categories.sort((a, b) => a.order - b.order);
+  }
+
+  // Build flat list in visual order: mix ungrouped + groups, sorted by order
+  type Item = { order: number; cats: Category[] };
+  const items: Item[] = [
+    ...ungrouped.map((c) => ({ order: c.order, cats: [c] })),
+    ...Array.from(groupMap.values())
+      .filter((g) => g.categories.length > 0)
+      .map((g) => ({ order: g.order, cats: g.categories })),
+  ];
+  items.sort((a, b) => a.order - b.order);
+
+  return items.flatMap((item) => item.cats);
 }
 
 async function fetchBookmarks(): Promise<Bookmark[]> {
@@ -259,7 +301,7 @@ async function reconnect(): Promise<void> {
     if (tab.id) browser.tabs.remove(tab.id).catch(() => {});
   }
 
-  function onTokenChanged(changes: Record<string, browser.Storage.StorageChange>) {
+  function onTokenChanged(changes: Record<string, Browser.storage.StorageChange>) {
     if (changes[TOKEN_KEY]?.newValue) {
       cleanup();
       // Token refreshed — swap to Retry and auto-retry
