@@ -1,5 +1,5 @@
 /**
- * Content script — runs on the Brute Bookmarks website.
+ * Content script — runs on the BruteBookmarks website.
  *
  * Listens for auth token messages from the main app (posted via window.postMessage)
  * and relays them to the extension's background worker for storage.

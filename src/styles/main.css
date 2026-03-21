@@ -1188,6 +1188,11 @@ body:has(.modal.active) {
     justify-content: center;
 }
 
+.settings-row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
 /* Settings bookmarks section — grid layout */
 .settings-section-bookmarks .settings-row {
     display: grid;
