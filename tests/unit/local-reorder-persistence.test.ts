@@ -94,4 +94,33 @@ describe('local reorder persistence', () => {
     const persistedAfterFlush = JSON.parse(localStorage.getItem('speedDialData')!);
     expect(persistedAfterFlush.find((category: { id: string; order: number }) => category.id === 'c2')?.order).toBe(0.5);
   });
+
+  it('reorders local layout items by index even when existing orders are duplicated', async () => {
+    localStorage.setItem('speedDialData', JSON.stringify([
+      { id: 'c1', name: 'First', order: 1, bookmarks: [] },
+      { id: 'c2', name: 'Second', order: 1, bookmarks: [] },
+      { id: 'c3', name: 'Third', order: 1, bookmarks: [] },
+    ]));
+    localStorage.setItem('speedDialTabGroups', JSON.stringify([]));
+
+    const store = await loadStore();
+    await store.initializeData();
+
+    store.reorderLocalLayoutItem('category', 'c3', 0);
+
+    expect(store.getLayoutItems().map((item) => item.type === 'category' ? item.category.id : item.group.id)).toEqual([
+      'c3',
+      'c1',
+      'c2',
+    ]);
+
+    store.flushDeferredLocalPersistence();
+
+    const persistedAfterFlush = JSON.parse(localStorage.getItem('speedDialData')!);
+    expect(persistedAfterFlush.map((category: { id: string; order: number }) => [category.id, category.order])).toEqual([
+      ['c1', 2],
+      ['c2', 3],
+      ['c3', 1],
+    ]);
+  });
 });

@@ -196,6 +196,43 @@ function scheduleDeferredLocalSnapshotWrite(): void {
   }, 120);
 }
 
+function normalizeLocalLayoutItems(items: LayoutItem[]): void {
+  const categoriesById = new Map(_categories.map((category) => [category.id, category]));
+  const groupsById = new Map(_localTabGroups.map((group) => [group.id, group]));
+  const seenGroupIds = new Set<string>();
+  let layoutOrder = 1;
+
+  for (const item of items) {
+    if (item.type === 'category') {
+      const category = categoriesById.get(item.category.id);
+      if (category) {
+        category.order = layoutOrder++;
+      }
+      continue;
+    }
+
+    const group = groupsById.get(item.group.id);
+    if (group) {
+      group.order = layoutOrder++;
+      seenGroupIds.add(group.id);
+    }
+
+    let tabOrder = 1;
+    for (const category of item.group.categories) {
+      const storedCategory = categoriesById.get(category.id);
+      if (!storedCategory) continue;
+      storedCategory.groupId = item.group.id;
+      storedCategory.order = tabOrder++;
+    }
+  }
+
+  for (const group of _localTabGroups) {
+    if (!seenGroupIds.has(group.id)) {
+      group.order = layoutOrder++;
+    }
+  }
+}
+
 function applyLocalLayoutOrderChange(): void {
   rebuildLocalLayout();
   rerender();
@@ -208,6 +245,44 @@ export function flushDeferredLocalPersistence(): void {
     _deferredLocalSaveTimer = null;
     writeSnapshotCache();
   }
+}
+
+export function reorderLocalLayoutItem(
+  kind: 'category' | 'tabGroup',
+  id: string,
+  targetIndex: number,
+): void {
+  if (_convexActive) return;
+
+  const items = [..._layoutItems];
+  const sourceIndex = items.findIndex((item) => {
+    const itemId = item.type === 'category' ? item.category.id : item.group.id;
+    return item.type === kind && itemId === id;
+  });
+  if (sourceIndex === -1) return;
+
+  const [dragged] = items.splice(sourceIndex, 1);
+  const clampedTarget = Math.max(0, Math.min(targetIndex, items.length));
+  items.splice(clampedTarget, 0, dragged);
+
+  normalizeLocalLayoutItems(items);
+  applyLocalLayoutOrderChange();
+}
+
+export function moveLocalCategoryToLayout(categoryId: string, targetIndex: number): void {
+  if (_convexActive) return;
+
+  const category = _categories.find((item) => item.id === categoryId);
+  if (!category) return;
+
+  category.groupId = undefined;
+
+  const items = [..._layoutItems];
+  const clampedTarget = Math.max(0, Math.min(targetIndex, items.length));
+  items.splice(clampedTarget, 0, { type: 'category', category });
+
+  normalizeLocalLayoutItems(items);
+  applyLocalLayoutOrderChange();
 }
 
 // --- Initialize from localStorage cache (instant render before Convex arrives) ---

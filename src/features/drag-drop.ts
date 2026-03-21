@@ -9,6 +9,8 @@ import {
   createTabGroup,
   setCategoryGroup,
   mergeTabGroups,
+  reorderLocalLayoutItem,
+  moveLocalCategoryToLayout,
 } from '../data/store';
 import { pushUndo, isUndoing } from './undo';
 import { setActiveTab } from '../components/categories';
@@ -909,6 +911,11 @@ class DragController {
 
     // Category nested inside a tab group — ungroup with positioned order
     if (sourceIndex === -1 && layoutData.kind === 'category') {
+      if (!isConvexMode()) {
+        moveLocalCategoryToLayout(layoutData.id, targetIndex);
+        return;
+      }
+
       const orderList = items.map((item) =>
         item.type === 'category' ? (item.category.order ?? 0) : item.group.order
       );
@@ -919,14 +926,28 @@ class DragController {
       return;
     }
     if (sourceIndex === -1) return;
-    if (sourceIndex === targetIndex || sourceIndex === targetIndex - 1) return;
+
+    const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    if (sourceIndex === adjustedTarget) return;
+
+    if (!isConvexMode()) {
+      reorderLocalLayoutItem(layoutData.kind, layoutData.id, adjustedTarget);
+      if (!isUndoing()) {
+        const itemId = layoutData.id;
+        const itemType = layoutData.kind;
+        pushUndo({
+          undo: () => reorderLocalLayoutItem(itemType, itemId, sourceIndex),
+          redo: () => reorderLocalLayoutItem(itemType, itemId, adjustedTarget),
+        });
+      }
+      return;
+    }
 
     const orderList = items.map((item) =>
       item.type === 'category' ? (item.category.order ?? 0) : item.group.order
     );
 
     const withoutDragged = orderList.filter((_, i) => i !== sourceIndex);
-    const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
     const prev = adjustedTarget > 0 ? withoutDragged[adjustedTarget - 1] : 0;
     const next = adjustedTarget < withoutDragged.length ? withoutDragged[adjustedTarget] : prev + 2;
     const newOrder = (prev + next) / 2;
