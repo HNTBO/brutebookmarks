@@ -41,3 +41,7 @@ _drafts/
 # Environment variables
 .env
 .env.local
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
