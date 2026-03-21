@@ -43,6 +43,7 @@ let _prefsCallback: ((prefs: UserPreferences) => void) | null = null;
 let _prefsCollector: (() => UserPreferences) | null = null;
 let _prefsSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let _applyingFromConvex = false; // guard against save loops
+let _deferredLocalSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 // --- Public getters ---
 export function getCategories(): Category[] {
@@ -185,6 +186,28 @@ function writeSnapshotCache(): void {
   }
   localStorage.setItem(SPEED_DIAL_SNAPSHOT_META_KEY, JSON.stringify(meta));
   _snapshotMeta = meta;
+}
+
+function scheduleDeferredLocalSnapshotWrite(): void {
+  if (_deferredLocalSaveTimer) clearTimeout(_deferredLocalSaveTimer);
+  _deferredLocalSaveTimer = setTimeout(() => {
+    _deferredLocalSaveTimer = null;
+    writeSnapshotCache();
+  }, 120);
+}
+
+function applyLocalLayoutOrderChange(): void {
+  rebuildLocalLayout();
+  rerender();
+  scheduleDeferredLocalSnapshotWrite();
+}
+
+export function flushDeferredLocalPersistence(): void {
+  if (_deferredLocalSaveTimer) {
+    clearTimeout(_deferredLocalSaveTimer);
+    _deferredLocalSaveTimer = null;
+    writeSnapshotCache();
+  }
 }
 
 // --- Initialize from localStorage cache (instant render before Convex arrives) ---
@@ -893,9 +916,9 @@ export async function reorderCategory(id: string, order: number): Promise<void> 
     }
   } else {
     const cat = _categories.find((c) => c.id === id);
-    if (cat) cat.order = order;
-    saveData();
-    rerender();
+    if (!cat) return;
+    cat.order = order;
+    applyLocalLayoutOrderChange();
   }
 }
 
@@ -987,9 +1010,9 @@ export async function reorderTabGroup(id: string, order: number): Promise<void> 
     }
   } else {
     const group = _localTabGroups.find((g) => g.id === id);
-    if (group) group.order = order;
-    saveData();
-    rerender();
+    if (!group) return;
+    group.order = order;
+    applyLocalLayoutOrderChange();
   }
 }
 

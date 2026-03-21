@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems } from './data/store';
+import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence } from './data/store';
 import { renderCategories, renderStartupShell } from './components/categories';
 import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
@@ -203,6 +203,7 @@ document.addEventListener('keydown', (e) => {
 
 // Flush preferences to Convex when leaving the page (prevents lost saves on refresh)
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushDeferredLocalPersistence();
   if (document.visibilityState === 'hidden') flushSyncToConvex();
 });
 
