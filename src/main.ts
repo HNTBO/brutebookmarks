@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark } from './data/store';
+import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems } from './data/store';
 import { renderCategories, renderStartupShell } from './components/categories';
 import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
@@ -276,7 +276,21 @@ function logStartupMetrics(): void {
   }
 }
 
-async function maybeRenderSyncCache(convexClient: NonNullable<ReturnType<typeof initConvexClient>>): Promise<void> {
+function hasRenderableSyncSnapshot(): boolean {
+  if (!getSnapshotCacheMeta()) return false;
+  return getCategories().length > 0 || getLayoutItems().length > 0;
+}
+
+function markCacheRender(): void {
+  markStartup('bb:start:cache-render');
+  measureStartup('bb:start:time-to-cache-render', 'bb:start:init', 'bb:start:cache-render');
+  logStartupMetrics();
+}
+
+async function maybeRenderSyncCache(
+  convexClient: NonNullable<ReturnType<typeof initConvexClient>>,
+  cacheAlreadyRendered: boolean,
+): Promise<void> {
   const localMeta = getSnapshotCacheMeta();
   if (!localMeta) return;
 
@@ -299,13 +313,12 @@ async function maybeRenderSyncCache(convexClient: NonNullable<ReturnType<typeof 
     setSyncWatermark(watermark);
   }
 
+  if (cacheAlreadyRendered) return;
   if (!shouldRenderSnapshotCache(localMeta, watermark)) return;
   if (hasConvexHydrated()) return;
 
   renderCategories();
-  markStartup('bb:start:cache-render');
-  measureStartup('bb:start:time-to-cache-render', 'bb:start:init', 'bb:start:cache-render');
-  logStartupMetrics();
+  markCacheRender();
 }
 
 // Initialize app data and render
@@ -351,9 +364,14 @@ async function init(): Promise<void> {
 
   const mode = getAppMode();
   if (mode === 'sync') {
-    renderStartupShell();
-    markStartup('bb:start:shell-render');
-    measureStartup('bb:start:time-to-shell-render', 'bb:start:init', 'bb:start:shell-render');
+    if (hasRenderableSyncSnapshot()) {
+      renderCategories();
+      markCacheRender();
+    } else {
+      renderStartupShell();
+      markStartup('bb:start:shell-render');
+      measureStartup('bb:start:time-to-shell-render', 'bb:start:init', 'bb:start:shell-render');
+    }
   } else {
     renderCategories();
     markStartup('bb:start:local-render');
@@ -397,7 +415,7 @@ async function init(): Promise<void> {
       const convexClient = initConvexClient();
       if (convexClient) {
         setConvexAuth(() => getAuthToken({ template: 'convex' }));
-        void maybeRenderSyncCache(convexClient);
+        void maybeRenderSyncCache(convexClient, hasRenderableSyncSnapshot());
         activateConvex();
       }
       initExtensionBridge();

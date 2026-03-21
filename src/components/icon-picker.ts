@@ -1,12 +1,19 @@
 import { styledAlert } from './modals/confirm-modal';
-import { EMOJI_DATA } from '../data/emoji-data';
 import { escapeHtml } from '../utils/escape-html';
 
 let selectedIconUrl: string | null = null;
 let selectedIconPath: string | null = null;
 let emojiSearchTimeout: ReturnType<typeof setTimeout>;
+let emojiSearchGeneration = 0;
+let emojiDataPromise: Promise<EmojiEntry[]> | null = null;
 
 const TWEMOJI_BASE = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/';
+
+interface EmojiEntry {
+  emoji: string;
+  codepoint: string;
+  keywords: string[];
+}
 
 export type IconSourceType = 'favicon' | 'wikimedia' | 'emoji' | 'custom' | null;
 
@@ -236,19 +243,36 @@ export function toggleEmojiSearch(): void {
   iconContainer.classList.add('hidden');
   container.classList.toggle('hidden');
   setActiveIconButton('emoji');
+
+  if (!container.classList.contains('hidden')) {
+    void loadEmojiData();
+  }
+}
+
+async function loadEmojiData(): Promise<EmojiEntry[]> {
+  if (!emojiDataPromise) {
+    emojiDataPromise = import('../data/emoji-data').then((module) => module.EMOJI_DATA as EmojiEntry[]);
+  }
+  return emojiDataPromise;
 }
 
 export function searchEmojis(): void {
   const query = (document.getElementById('emoji-search-query') as HTMLInputElement).value;
   if (!query || query.length < 2) {
+    emojiSearchGeneration++;
+    clearTimeout(emojiSearchTimeout);
     document.getElementById('emoji-results')!.innerHTML = '';
     return;
   }
 
+  const generation = ++emojiSearchGeneration;
   clearTimeout(emojiSearchTimeout);
-  emojiSearchTimeout = setTimeout(() => {
+  emojiSearchTimeout = setTimeout(async () => {
     const lowerQuery = query.toLowerCase();
-    const matches = EMOJI_DATA.filter((entry) =>
+    const emojiData = await loadEmojiData();
+    if (generation !== emojiSearchGeneration) return;
+
+    const matches = emojiData.filter((entry) =>
       entry.keywords.some((kw) => kw.includes(lowerQuery) || lowerQuery.includes(kw)),
     ).slice(0, 40);
 

@@ -162,7 +162,7 @@ test.describe('Sync startup behavior', () => {
     expect(measureNames).toContain('bb:start:time-to-cache-render');
   });
 
-  test('mismatch never flashes stale local cache; shell stays until live data', async ({ page }) => {
+  test('stale local cache renders immediately, then live data replaces it', async ({ page }) => {
     await setupSyncStartupScenario(page, {
       localData: [
         {
@@ -194,12 +194,12 @@ test.describe('Sync startup behavior', () => {
 
     await page.goto('/');
 
-    await expect(page.locator('#categories-container.startup-loading')).toBeVisible();
-    await expect(page.locator('.category-title', { hasText: 'Stale Local' })).toHaveCount(0);
+    await expect(page.locator('.category-title', { hasText: 'Stale Local' })).toBeVisible({ timeout: 600 });
+    await expect(page.locator('#categories-container.startup-loading')).toHaveCount(0);
     await expect(page.locator('.category-title', { hasText: 'Fresh Remote' })).toBeVisible({ timeout: 2000 });
 
     const measureNames = await getStartupMeasureNames(page);
-    expect(measureNames).not.toContain('bb:start:time-to-cache-render');
+    expect(measureNames).toContain('bb:start:time-to-cache-render');
   });
 
   test('cold sync (no local cache) shows shell then hydrates live data', async ({ page }) => {
@@ -210,7 +210,7 @@ test.describe('Sync startup behavior', () => {
       watermarkResponse: { source: 'watermark', revision: 10, updatedAt: Date.now() },
       watermarkDelayMs: 20,
       emitLiveData: true,
-      liveDelayMs: 300,
+      liveDelayMs: 1200,
       live: {
         categories: [{ _id: 'c-cold', name: 'Cold Sync Remote', order: 1 }],
         bookmarks: [{ _id: 'b-cold', title: 'Cold Bookmark', url: 'https://cold.example', order: 1, categoryId: 'c-cold' }],
@@ -224,7 +224,7 @@ test.describe('Sync startup behavior', () => {
     await expect(page.locator('.category-title', { hasText: 'Cold Sync Remote' })).toBeVisible({ timeout: 2000 });
   });
 
-  test('watermark timeout keeps non-blank shell when live data is unavailable', async ({ page }) => {
+  test('watermark timeout still shows cached snapshot immediately when present', async ({ page }) => {
     await setupSyncStartupScenario(page, {
       localData: [
         {
@@ -252,9 +252,8 @@ test.describe('Sync startup behavior', () => {
 
     await page.goto('/');
 
-    await page.waitForTimeout(900);
-    await expect(page.locator('#categories-container.startup-loading')).toBeVisible();
-    await expect(page.locator('.startup-shell-group')).toHaveCount(2);
-    await expect(page.locator('.category-title')).toHaveCount(0);
+    await expect(page.locator('.category-title', { hasText: 'Timeout Local' })).toBeVisible({ timeout: 600 });
+    await expect(page.locator('#categories-container.startup-loading')).toHaveCount(0);
+    await expect(page.locator('.startup-shell-group')).toHaveCount(0);
   });
 });
