@@ -277,7 +277,29 @@ export function moveLocalCategoryToLayout(categoryId: string, targetIndex: numbe
 
   category.groupId = undefined;
 
-  const items = [..._layoutItems];
+  const items: LayoutItem[] = [];
+  for (const item of _layoutItems) {
+    if (item.type !== 'tabGroup') {
+      items.push(item);
+      continue;
+    }
+
+    const remainingCategories = item.group.categories.filter((entry) => entry.id !== categoryId);
+    if (remainingCategories.length === item.group.categories.length) {
+      items.push(item);
+      continue;
+    }
+    if (remainingCategories.length === 0) {
+      continue;
+    }
+    items.push({
+      type: 'tabGroup',
+      group: {
+        ...item.group,
+        categories: remainingCategories,
+      },
+    });
+  }
   const clampedTarget = Math.max(0, Math.min(targetIndex, items.length));
   items.splice(clampedTarget, 0, { type: 'category', category });
 

@@ -123,4 +123,34 @@ describe('local reorder persistence', () => {
       ['c3', 1],
     ]);
   });
+
+  it('ungroups a local category into the top-level layout without snapping back into its source group', async () => {
+    localStorage.setItem('speedDialData', JSON.stringify([
+      { id: 'c1', name: 'Grouped One', order: 1, groupId: 'g1', bookmarks: [] },
+      { id: 'c2', name: 'Grouped Two', order: 2, groupId: 'g1', bookmarks: [] },
+      { id: 'c3', name: 'Standalone', order: 3, bookmarks: [] },
+    ]));
+    localStorage.setItem('speedDialTabGroups', JSON.stringify([
+      { id: 'g1', name: 'Group One', order: 1 },
+    ]));
+
+    const store = await loadStore();
+    await store.initializeData();
+
+    store.moveLocalCategoryToLayout('c2', 1);
+
+    expect(store.getLayoutItems().map((item) => item.type === 'category' ? item.category.id : item.group.id)).toEqual([
+      'g1',
+      'c2',
+      'c3',
+    ]);
+
+    const movedCategory = store.getCategories().find((category) => category.id === 'c2');
+    expect(movedCategory?.groupId).toBeUndefined();
+
+    store.flushDeferredLocalPersistence();
+
+    const persistedCategories = JSON.parse(localStorage.getItem('speedDialData')!);
+    expect(persistedCategories.find((category: { id: string; groupId?: string }) => category.id === 'c2')?.groupId).toBeUndefined();
+  });
 });
