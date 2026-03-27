@@ -45,3 +45,11 @@ _drafts/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Local test and tool artifacts
+test-results/
+.claude/worktrees/
+tmpclaude-*
+
+# Sync conflict artifacts
+*.sync-conflict-*
