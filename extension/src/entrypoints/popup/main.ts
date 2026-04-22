@@ -1,5 +1,6 @@
 import { getClient, setAuthToken } from '../../lib/api';
-import { getStoredToken, isConnected, getAppUrl, TOKEN_KEY } from '../../lib/auth';
+import { getAppUrl } from '../../lib/auth';
+import { extensionAuth } from '../../lib/extension-auth';
 import type { Category, Bookmark, PopupView } from '../../lib/types';
 
 // --- Theme sync ---
@@ -282,47 +283,34 @@ async function reconnect(): Promise<void> {
   reconnectBtn.textContent = 'Reconnecting…';
   reconnectBtn.style.pointerEvents = 'none';
   reconnectBtn.style.opacity = '0.6';
-
-  const url = await getAppUrl();
-  const tab = await browser.tabs.create({ url, active: false });
-
-  // Listen for fresh token in storage
-  const timeout = setTimeout(() => {
-    cleanup();
-    reconnectBtn.textContent = 'Reconnect';
-    reconnectBtn.style.pointerEvents = '';
-    reconnectBtn.style.opacity = '';
-    document.getElementById('error-text')!.textContent = 'Reconnect timed out. Is the app open and signed in?';
-  }, 15_000);
-
-  function cleanup() {
-    browser.storage.onChanged.removeListener(onTokenChanged);
-    clearTimeout(timeout);
-    if (tab.id) browser.tabs.remove(tab.id).catch(() => {});
+  const refreshed = await extensionAuth.requestFreshTokenFromApp();
+  reconnectBtn.textContent = 'Reconnect';
+  reconnectBtn.style.pointerEvents = '';
+  reconnectBtn.style.opacity = '';
+  if (refreshed.ok) {
+    reconnectBtn.style.display = 'none';
+    document.getElementById('retry-btn')!.style.display = '';
+    run();
+    return;
   }
-
-  function onTokenChanged(changes: Record<string, Browser.storage.StorageChange>) {
-    if (changes[TOKEN_KEY]?.newValue) {
-      cleanup();
-      // Token refreshed — swap to Retry and auto-retry
-      reconnectBtn.style.display = 'none';
-      reconnectBtn.textContent = 'Reconnect';
-      reconnectBtn.style.pointerEvents = '';
-      reconnectBtn.style.opacity = '';
-      document.getElementById('retry-btn')!.style.display = '';
-      run();
-    }
-  }
-
-  browser.storage.onChanged.addListener(onTokenChanged);
+  document.getElementById('error-text')!.textContent = refreshed.message;
 }
 
 async function run(): Promise<void> {
   showView('loading');
 
-  // Check auth
-  const token = await getStoredToken();
-  if (!isConnected(token)) {
+  let token = await extensionAuth.getValidConvexToken();
+  if (!token) {
+    const authState = await extensionAuth.getAuthState();
+    if (authState.state === 'expired') {
+      const refreshed = await extensionAuth.requestFreshTokenFromApp();
+      if (refreshed.ok) {
+        token = refreshed.token;
+      }
+    }
+  }
+
+  if (!token) {
     showView('onboarding');
     return;
   }
