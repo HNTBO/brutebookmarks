@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **MANDATORY**: Read [AGENTS.md](AGENTS.md) before starting any work. It contains critical workflow rules for issue tracking with beads (`bd`) and session completion protocols.
+> **MANDATORY**: Read [AGENTS.md](AGENTS.md) before starting any work. It contains the repo's selective `bd` policy and session completion protocol.
 
 ## Project Conventions
 - This is a TypeScript-first workspace. Always use TypeScript (.ts/.tsx) over JavaScript unless explicitly told otherwise.
