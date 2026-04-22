@@ -1,7 +1,9 @@
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 const CLERK_FRONTEND_API = import.meta.env.VITE_CLERK_FRONTEND_API as string | undefined;
 const CLERK_SYNC_HOST = import.meta.env.VITE_CLERK_SYNC_HOST as string | undefined;
+const APP_ORIGIN = import.meta.env.VITE_APP_URL as string | undefined;
 const IS_CHROMIUM_BUILD = import.meta.env.BROWSER === 'chrome';
+const DEFAULT_APP_ORIGIN = 'https://brutebookmarks.com';
 
 function decodeFrontendApiFromPublishableKey(key?: string): string | null {
   if (!key) return null;
@@ -36,7 +38,7 @@ export function getClerkFrontendApi(): string | null {
 export function getClerkSyncHost(): string | null {
   const fromEnv = normalizeOrigin(CLERK_SYNC_HOST);
   if (fromEnv) return fromEnv;
-  return getClerkFrontendApi();
+  return normalizeOrigin(APP_ORIGIN) ?? DEFAULT_APP_ORIGIN;
 }
 
 export function isChromiumClerkRefreshSupported(): boolean {

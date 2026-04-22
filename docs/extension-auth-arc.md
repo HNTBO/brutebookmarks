@@ -77,11 +77,22 @@ This path is config-sensitive and remains additive until fully verified in produ
 ### Activation notes
 
 - The extension build reads Clerk extension auth config from `extension/.env`, not the repo-root `.env`.
+- Set `CRX_PUBLIC_KEY` in `extension/.env` once you have the Chrome Web Store public key so the unpacked build keeps a stable extension ID.
 - Chromium refresh only activates when the Chrome build has `VITE_CLERK_PUBLISHABLE_KEY`.
-- `VITE_CLERK_FRONTEND_API` and `VITE_CLERK_SYNC_HOST` stay optional; when omitted, the extension derives the frontend host from the publishable key and uses that as the sync host.
+- `VITE_CLERK_FRONTEND_API` stays optional; when omitted, the extension derives the Clerk frontend host from the publishable key.
+- `VITE_CLERK_SYNC_HOST` should point at the web app origin whose cookies carry the signed-in Clerk session.
+- If `VITE_CLERK_SYNC_HOST` is omitted, the extension defaults to `VITE_APP_URL`, then `https://brutebookmarks.com`.
 
 ### Remaining rollout work
 
 - configure a consistent extension ID/CRX key so Clerk allowed origins remain stable
 - add the extension origin to Clerk `allowed_origins`
 - validate the Chrome manifest with the final production Clerk host permissions before rollout
+
+### Operator checklist
+
+1. Upload the extension zip to the Chrome Developer Dashboard and copy the public key from the package page.
+2. Put that value in `extension/.env` as `CRX_PUBLIC_KEY=...`.
+3. Build or load the unpacked Chrome extension and note the resulting extension ID from `chrome://extensions`.
+4. Add `chrome-extension://<that-id>` to Clerk `allowed_origins` for the matching Clerk instance.
+5. Set `VITE_CLERK_SYNC_HOST` to the app origin that carries the Clerk session cookies if it differs from `https://brutebookmarks.com`.

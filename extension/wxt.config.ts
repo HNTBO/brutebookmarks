@@ -1,5 +1,7 @@
 import { defineConfig } from 'wxt';
 
+const DEFAULT_APP_ORIGIN = 'https://brutebookmarks.com';
+
 function normalizeHostPermission(value?: string): string | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -23,10 +25,12 @@ function decodeFrontendApiFromPublishableKey(key?: string): string | null {
 export default defineConfig({
   srcDir: 'src',
   manifest: ({ browser }) => {
+    const crxPublicKey = process.env.CRX_PUBLIC_KEY;
     const clerkPublishableKey = process.env.VITE_CLERK_PUBLISHABLE_KEY;
     const clerkFrontendApi =
       process.env.VITE_CLERK_FRONTEND_API || decodeFrontendApiFromPublishableKey(clerkPublishableKey);
-    const clerkSyncHost = process.env.VITE_CLERK_SYNC_HOST || clerkFrontendApi;
+    const appOrigin = process.env.VITE_APP_URL || DEFAULT_APP_ORIGIN;
+    const clerkSyncHost = process.env.VITE_CLERK_SYNC_HOST || appOrigin;
 
     const hostPermissions = new Set<string>(['https://*.convex.cloud/*']);
     const chromiumClerkEnabled = browser === 'chrome' && !!clerkPublishableKey;
@@ -40,6 +44,7 @@ export default defineConfig({
     return {
       name: 'BruteBookmarks',
       description: 'Quick-save any page to BruteBookmarks with one click.',
+      ...(browser === 'chrome' && crxPublicKey ? { key: crxPublicKey } : {}),
       permissions: chromiumClerkEnabled
         ? ['storage', 'bookmarks', 'tabs', 'cookies']
         : ['storage', 'bookmarks', 'tabs'],
