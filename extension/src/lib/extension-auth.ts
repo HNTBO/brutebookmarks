@@ -1,4 +1,5 @@
 import { clearToken, getAppUrl, getStoredToken, isConnected, TOKEN_KEY } from './auth';
+import { isChromiumClerkRefreshSupported } from './chromium-clerk';
 
 export type ExtensionAuthState = 'connected' | 'expired' | 'signed_out';
 
@@ -44,7 +45,11 @@ export async function getAuthState(): Promise<ExtensionAuthSnapshot> {
 
 export async function getValidConvexToken(): Promise<string | null> {
   const snapshot = await getAuthState();
-  return snapshot.state === 'connected' ? snapshot.token : null;
+  if (snapshot.state === 'connected') return snapshot.token;
+
+  const refreshed = await requestFreshTokenFromBackground();
+  if (refreshed) return refreshed;
+  return null;
 }
 
 export async function clearSession(): Promise<void> {
@@ -111,6 +116,24 @@ export async function requestFreshTokenFromApp(
 
     browser.storage.onChanged.addListener(onTokenChanged);
   });
+}
+
+async function requestFreshTokenFromBackground(): Promise<string | null> {
+  if (!isChromiumClerkRefreshSupported()) return null;
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'BB_GET_AUTH_TOKEN',
+    }) as { success?: boolean; token?: string | null };
+
+    if (typeof response?.token !== 'string' || !isConnected(response.token)) {
+      return null;
+    }
+
+    return response.token;
+  } catch {
+    return null;
+  }
 }
 
 function getTokenExpiry(token: string | null): number | null {

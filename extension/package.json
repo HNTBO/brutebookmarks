@@ -12,6 +12,7 @@
     "zip:firefox": "wxt zip --browser firefox"
   },
   "dependencies": {
+    "@clerk/chrome-extension": "^3.1.14",
     "convex": "^1.31.7"
   },
   "devDependencies": {

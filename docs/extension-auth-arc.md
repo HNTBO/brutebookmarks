@@ -63,3 +63,25 @@ Retain the existing site bridge for browsers where the Chromium path is unavaila
 - Introduced a shared extension auth module as the seam for future work.
 - Refactored the popup to ask the auth module for a valid token instead of treating storage as the source of truth.
 - Added one silent background refresh attempt for expired tokens before showing onboarding.
+
+## Chromium groundwork
+
+The next step is an optional Chromium-native refresh path:
+
+- background worker can try Clerk's extension client to mint a fresh Convex token
+- shared auth adapter tries that path first on Chromium
+- existing website bridge remains the fallback for Firefox and unsupported setups
+
+This path is config-sensitive and remains additive until fully verified in production.
+
+### Activation notes
+
+- The extension build reads Clerk extension auth config from `extension/.env`, not the repo-root `.env`.
+- Chromium refresh only activates when the Chrome build has `VITE_CLERK_PUBLISHABLE_KEY`.
+- `VITE_CLERK_FRONTEND_API` and `VITE_CLERK_SYNC_HOST` stay optional; when omitted, the extension derives the frontend host from the publishable key and uses that as the sync host.
+
+### Remaining rollout work
+
+- configure a consistent extension ID/CRX key so Clerk allowed origins remain stable
+- add the extension origin to Clerk `allowed_origins`
+- validate the Chrome manifest with the final production Clerk host permissions before rollout

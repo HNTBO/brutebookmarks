@@ -80,8 +80,14 @@ export interface RuntimeMsgRequestBookmarks {
   type: 'BB_REQUEST_BOOKMARKS';
 }
 
+/** Popup/background auth refresh request */
+export interface RuntimeMsgGetAuthToken {
+  type: 'BB_GET_AUTH_TOKEN';
+}
+
 /** Union of all runtime messages */
 export type RuntimeMessage =
   | RuntimeMsgAuthToken
   | RuntimeMsgDisconnect
-  | RuntimeMsgRequestBookmarks;
+  | RuntimeMsgRequestBookmarks
+  | RuntimeMsgGetAuthToken;
