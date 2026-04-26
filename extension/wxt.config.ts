@@ -1,6 +1,8 @@
 import { defineConfig } from 'wxt';
 
 const DEFAULT_APP_ORIGIN = 'https://brutebookmarks.com';
+const extensionVariant = process.env.BB_EXTENSION_VARIANT === 'newtab' ? 'newtab' : 'quick-save';
+const isNewTabVariant = extensionVariant === 'newtab';
 
 function normalizeHostPermission(value?: string): string | null {
   if (!value) return null;
@@ -24,8 +26,19 @@ function decodeFrontendApiFromPublishableKey(key?: string): string | null {
 
 export default defineConfig({
   srcDir: 'src',
+  filterEntrypoints: isNewTabVariant
+    ? ['background', 'content', 'ntp']
+    : ['background', 'content', 'popup'],
+  outDirTemplate: isNewTabVariant
+    ? `newtab/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
+    : `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`,
+  zip: {
+    name: isNewTabVariant ? 'brute-bookmarks-new-tab' : 'brute-bookmarks-quick-save',
+  },
   manifest: ({ browser }) => {
-    const crxPublicKey = process.env.CRX_PUBLIC_KEY;
+    const crxPublicKey = isNewTabVariant
+      ? process.env.CRX_PUBLIC_KEY_NEWTAB
+      : process.env.CRX_PUBLIC_KEY;
     const clerkPublishableKey = process.env.VITE_CLERK_PUBLISHABLE_KEY;
     const clerkFrontendApi =
       process.env.VITE_CLERK_FRONTEND_API || decodeFrontendApiFromPublishableKey(clerkPublishableKey);
@@ -42,8 +55,10 @@ export default defineConfig({
     }
 
     return {
-      name: 'BruteBookmarks',
-      description: 'Quick-save any page to BruteBookmarks with one click.',
+      name: isNewTabVariant ? 'BruteBookmarks New Tab' : 'BruteBookmarks',
+      description: isNewTabVariant
+        ? 'Replace your new tab with your BruteBookmarks library.'
+        : 'Quick-save any page to BruteBookmarks with one click.',
       ...(browser === 'chrome' && crxPublicKey ? { key: crxPublicKey } : {}),
       permissions: chromiumClerkEnabled
         ? ['storage', 'bookmarks', 'tabs', 'cookies']
@@ -63,9 +78,13 @@ export default defineConfig({
           128: '/icon-128.png',
         },
       },
-      chrome_url_overrides: {
-        newtab: 'newtab.html',
-      },
+      ...(isNewTabVariant
+        ? {
+            chrome_url_overrides: {
+              newtab: 'ntp.html',
+            },
+          }
+        : {}),
     };
   },
 });
