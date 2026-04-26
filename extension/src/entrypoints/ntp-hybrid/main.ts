@@ -28,33 +28,24 @@ const state: ViewModel = {
   query: '',
 };
 
-const pageTitle = document.getElementById('page-title') as HTMLElement;
-const searchRow = document.getElementById('search-row') as HTMLElement;
-const statusView = document.getElementById('status-view') as HTMLElement;
-const statusTitle = document.getElementById('status-title') as HTMLElement;
-const statusDetail = document.getElementById('status-detail') as HTMLElement;
-const statusAction = document.getElementById('status-action') as HTMLButtonElement;
-const contentView = document.getElementById('content-view') as HTMLElement;
-const categoryList = document.getElementById('category-list') as HTMLElement;
-const bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
-const searchInput = document.getElementById('search-input') as HTMLInputElement;
-const allCategoriesBtn = document.getElementById('all-categories-btn') as HTMLButtonElement;
-const refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement;
-const openAppBtn = document.getElementById('open-app-btn') as HTMLButtonElement;
+const app = document.getElementById('app') as HTMLElement;
+
+let pageTitle: HTMLElement;
+let searchRow: HTMLElement;
+let statusView: HTMLElement;
+let statusTitle: HTMLElement;
+let statusDetail: HTMLElement;
+let statusAction: HTMLButtonElement;
+let contentView: HTMLElement;
+let categoryList: HTMLElement;
+let bookmarkGrid: HTMLElement;
+let searchInput: HTMLInputElement;
+let allCategoriesBtn: HTMLButtonElement;
+let refreshBtn: HTMLButtonElement;
+let openAppBtn: HTMLButtonElement;
 
 async function init(): Promise<void> {
-  openAppBtn.addEventListener('click', openApp);
-  statusAction.addEventListener('click', openApp);
-  refreshBtn.addEventListener('click', () => loadNativeFallback());
-  allCategoriesBtn.addEventListener('click', () => {
-    state.selectedCategoryId = null;
-    render();
-  });
-  searchInput.addEventListener('input', () => {
-    state.query = searchInput.value.trim().toLowerCase();
-    renderBookmarks();
-  });
-
+  app.innerHTML = '';
   await openHostedAppOrFallback();
 }
 
@@ -101,6 +92,7 @@ async function probeApp(appUrl: string): Promise<boolean> {
 }
 
 async function loadNativeFallback(): Promise<void> {
+  mountFallbackShell();
   pageTitle.textContent = 'Fallback new tab';
   showStatus('Loading fallback', 'The hosted app did not answer quickly. Loading extension fallback…', false);
 
@@ -128,6 +120,72 @@ async function loadNativeFallback(): Promise<void> {
     console.error('[HybridNewTab] Failed to load fallback bookmarks:', err);
     showStatus('Could not load fallback', 'Refresh or open the app to reconnect.', true);
   }
+}
+
+function mountFallbackShell(): void {
+  if (app.classList.contains('shell')) return;
+
+  app.className = 'shell';
+  app.removeAttribute('aria-label');
+  app.innerHTML = `
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">BruteBookmarks</p>
+        <h1 id="page-title">Fallback new tab</h1>
+      </div>
+      <div class="actions">
+        <button id="refresh-btn" class="icon-btn" title="Refresh bookmarks" aria-label="Refresh bookmarks">
+          <span aria-hidden="true">↻</span>
+        </button>
+        <button id="open-app-btn" class="secondary-btn">Open app</button>
+      </div>
+    </section>
+
+    <section class="search-row" id="search-row" hidden>
+      <input id="search-input" type="search" autocomplete="off" placeholder="Search bookmarks" />
+    </section>
+
+    <section id="status-view" class="status-view">
+      <div class="loader"></div>
+      <p id="status-title">Loading fallback</p>
+      <p id="status-detail">Loading extension fallback…</p>
+      <button id="status-action" class="primary-btn" type="button">Open app</button>
+    </section>
+
+    <section id="content-view" class="content-view" hidden>
+      <aside class="category-rail">
+        <button id="all-categories-btn" class="category-pill active" type="button">All</button>
+        <div id="category-list"></div>
+      </aside>
+      <section id="bookmark-grid" class="bookmark-grid" aria-label="Bookmarks"></section>
+    </section>
+  `;
+
+  pageTitle = document.getElementById('page-title') as HTMLElement;
+  searchRow = document.getElementById('search-row') as HTMLElement;
+  statusView = document.getElementById('status-view') as HTMLElement;
+  statusTitle = document.getElementById('status-title') as HTMLElement;
+  statusDetail = document.getElementById('status-detail') as HTMLElement;
+  statusAction = document.getElementById('status-action') as HTMLButtonElement;
+  contentView = document.getElementById('content-view') as HTMLElement;
+  categoryList = document.getElementById('category-list') as HTMLElement;
+  bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
+  searchInput = document.getElementById('search-input') as HTMLInputElement;
+  allCategoriesBtn = document.getElementById('all-categories-btn') as HTMLButtonElement;
+  refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement;
+  openAppBtn = document.getElementById('open-app-btn') as HTMLButtonElement;
+
+  openAppBtn.addEventListener('click', openApp);
+  statusAction.addEventListener('click', openApp);
+  refreshBtn.addEventListener('click', () => loadNativeFallback());
+  allCategoriesBtn.addEventListener('click', () => {
+    state.selectedCategoryId = null;
+    render();
+  });
+  searchInput.addEventListener('input', () => {
+    state.query = searchInput.value.trim().toLowerCase();
+    renderBookmarks();
+  });
 }
 
 async function fetchCategories(): Promise<Category[]> {
