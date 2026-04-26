@@ -8,14 +8,20 @@
     "dev:firefox": "node ./scripts/wxt-variant.mjs quick-save --browser firefox",
     "dev:newtab": "node ./scripts/wxt-variant.mjs newtab",
     "dev:newtab:firefox": "node ./scripts/wxt-variant.mjs newtab --browser firefox",
+    "dev:newtab:native": "node ./scripts/wxt-variant.mjs newtab-native",
+    "dev:newtab:native:firefox": "node ./scripts/wxt-variant.mjs newtab-native --browser firefox",
     "build": "node ./scripts/wxt-variant.mjs quick-save build",
     "build:firefox": "node ./scripts/wxt-variant.mjs quick-save build --browser firefox",
     "build:newtab": "node ./scripts/wxt-variant.mjs newtab build",
     "build:newtab:firefox": "node ./scripts/wxt-variant.mjs newtab build --browser firefox",
+    "build:newtab:native": "node ./scripts/wxt-variant.mjs newtab-native build",
+    "build:newtab:native:firefox": "node ./scripts/wxt-variant.mjs newtab-native build --browser firefox",
     "zip": "node ./scripts/wxt-variant.mjs quick-save zip",
     "zip:firefox": "node ./scripts/wxt-variant.mjs quick-save zip --browser firefox",
     "zip:newtab": "node ./scripts/wxt-variant.mjs newtab zip",
-    "zip:newtab:firefox": "node ./scripts/wxt-variant.mjs newtab zip --browser firefox"
+    "zip:newtab:firefox": "node ./scripts/wxt-variant.mjs newtab zip --browser firefox",
+    "zip:newtab:native": "node ./scripts/wxt-variant.mjs newtab-native zip",
+    "zip:newtab:native:firefox": "node ./scripts/wxt-variant.mjs newtab-native zip --browser firefox"
   },
   "dependencies": {
     "@clerk/chrome-extension": "^3.1.14",

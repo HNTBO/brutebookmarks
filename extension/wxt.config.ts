@@ -1,8 +1,13 @@
 import { defineConfig } from 'wxt';
 
 const DEFAULT_APP_ORIGIN = 'https://brutebookmarks.com';
-const extensionVariant = process.env.BB_EXTENSION_VARIANT === 'newtab' ? 'newtab' : 'quick-save';
-const isNewTabVariant = extensionVariant === 'newtab';
+const requestedVariant = process.env.BB_EXTENSION_VARIANT;
+const extensionVariant =
+  requestedVariant === 'newtab' || requestedVariant === 'newtab-native'
+    ? requestedVariant
+    : 'quick-save';
+const isNewTabVariant = extensionVariant === 'newtab' || extensionVariant === 'newtab-native';
+const isNativeNewTabVariant = extensionVariant === 'newtab-native';
 
 function normalizeHostPermission(value?: string): string | null {
   if (!value) return null;
@@ -26,17 +31,27 @@ function decodeFrontendApiFromPublishableKey(key?: string): string | null {
 
 export default defineConfig({
   srcDir: 'src',
-  filterEntrypoints: isNewTabVariant
+  filterEntrypoints: extensionVariant === 'newtab'
     ? ['background', 'content', 'ntp']
-    : ['background', 'content', 'popup'],
-  outDirTemplate: isNewTabVariant
-    ? `newtab/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
-    : `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`,
+    : extensionVariant === 'newtab-native'
+      ? ['background', 'content', 'ntp-native']
+      : ['background', 'content', 'popup'],
+  outDirTemplate: extensionVariant === 'newtab'
+    ? `newtab-redirect/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
+    : extensionVariant === 'newtab-native'
+      ? `newtab-native/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
+      : `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`,
   zip: {
-    name: isNewTabVariant ? 'brute-bookmarks-new-tab' : 'brute-bookmarks-quick-save',
+    name: extensionVariant === 'newtab'
+      ? 'brute-bookmarks-new-tab-redirect'
+      : extensionVariant === 'newtab-native'
+        ? 'brute-bookmarks-new-tab-native'
+        : 'brute-bookmarks-quick-save',
   },
   manifest: ({ browser }) => {
-    const crxPublicKey = isNewTabVariant
+    const crxPublicKey = isNativeNewTabVariant
+      ? process.env.CRX_PUBLIC_KEY_NEWTAB_NATIVE
+      : isNewTabVariant
       ? process.env.CRX_PUBLIC_KEY_NEWTAB
       : process.env.CRX_PUBLIC_KEY;
     const clerkPublishableKey = process.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -55,10 +70,16 @@ export default defineConfig({
     }
 
     return {
-      name: isNewTabVariant ? 'BruteBookmarks New Tab' : 'BruteBookmarks',
-      description: isNewTabVariant
-        ? 'Replace your new tab with your BruteBookmarks library.'
-        : 'Quick-save any page to BruteBookmarks with one click.',
+      name: extensionVariant === 'newtab'
+        ? 'BruteBookmarks New Tab'
+        : extensionVariant === 'newtab-native'
+          ? 'BruteBookmarks Native New Tab'
+          : 'BruteBookmarks',
+      description: extensionVariant === 'newtab'
+        ? 'Open the BruteBookmarks app from your new tab.'
+        : extensionVariant === 'newtab-native'
+          ? 'Replace your new tab with a native BruteBookmarks extension page.'
+          : 'Quick-save any page to BruteBookmarks with one click.',
       ...(browser === 'chrome' && crxPublicKey ? { key: crxPublicKey } : {}),
       permissions: chromiumClerkEnabled
         ? ['storage', 'bookmarks', 'tabs', 'cookies']
@@ -81,7 +102,7 @@ export default defineConfig({
       ...(isNewTabVariant
         ? {
             chrome_url_overrides: {
-              newtab: 'ntp.html',
+              newtab: isNativeNewTabVariant ? 'ntp-native.html' : 'ntp.html',
             },
           }
         : {}),
