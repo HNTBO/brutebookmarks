@@ -63,6 +63,9 @@ export default defineConfig({
           128: '/icon-128.png',
         },
       },
+      chrome_url_overrides: {
+        newtab: 'newtab.html',
+      },
     };
   },
 });
