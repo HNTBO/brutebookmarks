@@ -46,12 +46,15 @@ let openAppBtn: HTMLButtonElement;
 
 async function init(): Promise<void> {
   app.innerHTML = '';
-  await openHostedAppOrFallback();
+  try {
+    await openHostedAppOrFallback();
+  } catch (err) {
+    console.error('[HybridNewTab] Startup failed:', err);
+    await loadNativeFallback();
+  }
 }
 
 async function openHostedAppOrFallback(): Promise<void> {
-  showStatus('Opening BruteBookmarks', 'Checking the hosted app…', false);
-
   const appUrl = await getAppUrl();
   if (await hasRecentSuccessfulProbe()) {
     window.location.replace(appUrl);
