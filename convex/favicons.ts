@@ -8,6 +8,7 @@ import { isPrivateHost, safeFetch } from "./ssrf_guard";
 const FETCH_TIMEOUT = 4000;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const USER_AGENT = "Mozilla/5.0 (compatible; BruteBookmarks/1.0)";
+const SVGL_API_URL = "https://api.svgl.app";
 
 function extractDomain(url: string): string | null {
   try {
@@ -15,6 +16,25 @@ function extractDomain(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+function normalizeHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
+function getRegistrableDomain(hostname: string): string {
+  const normalized = normalizeHostname(hostname);
+  const parts = normalized.split(".").filter(Boolean);
+  if (parts.length <= 2) return normalized;
+  return parts.slice(-2).join(".");
+}
+
+function normalizeBrandToken(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function getDomainLabel(domain: string): string {
+  return normalizeBrandToken(getRegistrableDomain(domain).split(".")[0] ?? "");
 }
 
 async function fetchWithTimeout(
@@ -134,6 +154,79 @@ function parseManifestIcons(
 
 type FaviconResult = { iconUrl: string; source: string };
 
+type SvglRoute = string | { light?: string; dark?: string };
+
+interface SvglIcon {
+  title?: string;
+  route?: SvglRoute;
+  url?: string;
+  brandUrl?: string;
+}
+
+function getSvglRoute(route: SvglRoute | undefined): string | null {
+  if (!route) return null;
+  if (typeof route === "string") return route;
+  return route.dark ?? route.light ?? null;
+}
+
+function extractHostname(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    return normalizeHostname(new URL(value).hostname);
+  } catch {
+    return null;
+  }
+}
+
+function svglDomainMatches(icon: SvglIcon, domain: string): boolean {
+  const targetDomain = getRegistrableDomain(domain);
+  const hostnames = [
+    extractHostname(icon.url),
+    extractHostname(icon.brandUrl),
+  ].filter((hostname): hostname is string => !!hostname);
+
+  return hostnames.some((hostname) => getRegistrableDomain(hostname) === targetDomain);
+}
+
+function svglTitleMatches(icon: SvglIcon, domain: string): boolean {
+  if (!icon.title) return false;
+  const domainLabel = getDomainLabel(domain);
+  if (!domainLabel || domainLabel.length < 3) return false;
+  return normalizeBrandToken(icon.title) === domainLabel;
+}
+
+function pickSvglIcon(icons: SvglIcon[], domain: string): SvglIcon | null {
+  return (
+    icons.find((icon) => svglDomainMatches(icon, domain)) ??
+    icons.find((icon) => svglTitleMatches(icon, domain)) ??
+    null
+  );
+}
+
+async function searchSvglIcon(domain: string): Promise<FaviconResult | null> {
+  try {
+    const query = getDomainLabel(domain);
+    if (!query || query.length < 3) return null;
+
+    const resp = await fetchWithTimeout(
+      `${SVGL_API_URL}?search=${encodeURIComponent(query)}`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (!resp.ok) return null;
+
+    const icons = await resp.json() as SvglIcon[];
+    if (!Array.isArray(icons)) return null;
+
+    const icon = pickSvglIcon(icons, domain);
+    const iconUrl = getSvglRoute(icon?.route);
+    if (!iconUrl) return null;
+
+    return { iconUrl, source: "svgl" };
+  } catch {
+    return null;
+  }
+}
+
 async function resolveForDomain(domain: string): Promise<FaviconResult> {
   const baseUrl = `https://${domain}`;
 
@@ -208,19 +301,25 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
     }
   }
 
-  // Tier 5: Icon Horse
+  // Tier 5: SVGL brand logo library
+  const svgl = await searchSvglIcon(domain);
+  if (svgl) {
+    return svgl;
+  }
+
+  // Tier 6: Icon Horse
   const iconHorse = `https://icon.horse/icon/${domain}`;
   if (await isValidIcon(iconHorse)) {
     return { iconUrl: iconHorse, source: "icon-horse" };
   }
 
-  // Tier 6: DuckDuckGo
+  // Tier 7: DuckDuckGo
   const ddg = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
   if (await isValidIcon(ddg)) {
     return { iconUrl: ddg, source: "duckduckgo" };
   }
 
-  // Tier 7: Google S2 (always available, even for garbage domains)
+  // Tier 8: Google S2 (always available, even for garbage domains)
   return {
     iconUrl: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
     source: "google-s2",
