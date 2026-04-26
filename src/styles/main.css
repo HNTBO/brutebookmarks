@@ -223,6 +223,11 @@ body::before {
     text-transform: uppercase;
 }
 
+html.fonts-pending:not(.fonts-ready) .header-title-box h1,
+html.fonts-pending:not(.fonts-ready) .welcome-gate-title {
+    visibility: hidden;
+}
+
 .header-title-box h1 em {
     font-style: normal;
     color: var(--bg-primary); /* Cutout look */
