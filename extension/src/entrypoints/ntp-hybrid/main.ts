@@ -42,9 +42,8 @@ let statusTitle: HTMLElement;
 let statusDetail: HTMLElement;
 let statusAction: HTMLButtonElement;
 let contentView: HTMLElement;
-let categoryList: HTMLElement;
 let bookmarkGrid: HTMLElement;
-let allCategoriesBtn: HTMLButtonElement;
+let categorySelect: HTMLSelectElement;
 let refreshBtn: HTMLButtonElement;
 let openAppBtn: HTMLButtonElement;
 
@@ -105,7 +104,7 @@ async function probeApp(appUrl: string): Promise<boolean> {
 
 async function loadNativeFallback(): Promise<void> {
   mountFallbackShell();
-  pageTitle.textContent = 'Fallback new tab';
+  pageTitle.textContent = 'BruteFallback';
   showStatus('Loading fallback', 'The hosted app did not answer quickly. Loading extension fallback…', false);
 
   const cachedSnapshot = await readFallbackSnapshot();
@@ -191,8 +190,7 @@ function mountFallbackShell(): void {
   app.innerHTML = `
     <section class="brute-header">
       <div class="title-box">
-        <h1>Brute<em>Bookmarks</em></h1>
-        <p id="page-title">Fallback new tab</p>
+        <h1 id="page-title">Brute<em>Fallback</em></h1>
       </div>
       <div class="actions">
         <button id="refresh-btn" class="icon-btn" title="Refresh bookmarks" aria-label="Refresh bookmarks">
@@ -210,10 +208,10 @@ function mountFallbackShell(): void {
     </section>
 
     <section id="content-view" class="content-view" hidden>
-      <aside class="category-rail">
-        <button id="all-categories-btn" class="category-pill active" type="button">All</button>
-        <div id="category-list"></div>
-      </aside>
+      <label class="category-select-wrap" for="category-select">
+        <span>Category</span>
+        <select id="category-select"></select>
+      </label>
       <section id="bookmark-grid" class="bookmark-grid" aria-label="Bookmarks"></section>
     </section>
   `;
@@ -224,17 +222,16 @@ function mountFallbackShell(): void {
   statusDetail = document.getElementById('status-detail') as HTMLElement;
   statusAction = document.getElementById('status-action') as HTMLButtonElement;
   contentView = document.getElementById('content-view') as HTMLElement;
-  categoryList = document.getElementById('category-list') as HTMLElement;
   bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
-  allCategoriesBtn = document.getElementById('all-categories-btn') as HTMLButtonElement;
+  categorySelect = document.getElementById('category-select') as HTMLSelectElement;
   refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement;
   openAppBtn = document.getElementById('open-app-btn') as HTMLButtonElement;
 
   openAppBtn.addEventListener('click', openApp);
   statusAction.addEventListener('click', openApp);
   refreshBtn.addEventListener('click', () => loadNativeFallback());
-  allCategoriesBtn.addEventListener('click', () => {
-    state.selectedCategoryId = null;
+  categorySelect.addEventListener('change', () => {
+    state.selectedCategoryId = categorySelect.value || null;
     render();
   });
 }
@@ -289,21 +286,21 @@ function render(): void {
 }
 
 function renderCategories(): void {
-  allCategoriesBtn.classList.toggle('active', state.selectedCategoryId === null);
-  categoryList.innerHTML = '';
+  categorySelect.innerHTML = '';
+
+  const allOption = document.createElement('option');
+  allOption.value = '';
+  allOption.textContent = 'All';
+  categorySelect.appendChild(allOption);
 
   for (const category of state.categories) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'category-pill';
-    button.classList.toggle('active', category._id === state.selectedCategoryId);
-    button.textContent = category.name;
-    button.addEventListener('click', () => {
-      state.selectedCategoryId = category._id;
-      render();
-    });
-    categoryList.appendChild(button);
+    const option = document.createElement('option');
+    option.value = category._id;
+    option.textContent = category.name;
+    categorySelect.appendChild(option);
   }
+
+  categorySelect.value = state.selectedCategoryId ?? '';
 }
 
 function renderBookmarks(): void {
@@ -328,7 +325,6 @@ function renderBookmarks(): void {
     card.innerHTML = `
       <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="" draggable="false">
       <span class="bookmark-title">${escapeHtml(bookmark.title)}</span>
-      <span class="bookmark-domain">${escapeHtml(formatUrl(bookmark.url))}</span>
     `;
     bookmarkGrid.appendChild(card);
   }
@@ -361,15 +357,6 @@ function getIconUrl(bookmark: Bookmark): string {
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
   } catch {
     return FALLBACK_ICON;
-  }
-}
-
-function formatUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl);
-    return url.hostname.replace(/^www\./, '');
-  } catch {
-    return rawUrl;
   }
 }
 
