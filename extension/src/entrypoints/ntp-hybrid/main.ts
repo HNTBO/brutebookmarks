@@ -9,6 +9,7 @@ const PROBE_TIMEOUT_MS = 750;
 const RECENT_SUCCESS_TTL_MS = 5 * 60 * 1000;
 const LAST_SUCCESS_KEY = 'bb_ntp_last_app_success';
 const FALLBACK_SNAPSHOT_KEY = 'bb_ntp_fallback_snapshot';
+const THEME_CACHE_KEY = 'bb_cached_theme';
 const FORCE_FALLBACK = import.meta.env.VITE_FORCE_NTP_FALLBACK === 'true';
 
 interface TabGroup {
@@ -29,6 +30,11 @@ interface FallbackSnapshot {
   categories: Category[];
   bookmarks: Bookmark[];
   fetchedAt: number;
+}
+
+interface CachedTheme {
+  theme: 'dark' | 'light';
+  accentColor: string | null;
 }
 
 const state: ViewModel = {
@@ -110,6 +116,7 @@ async function probeApp(appUrl: string): Promise<boolean> {
 
 async function loadNativeFallback(): Promise<void> {
   mountFallbackShell();
+  await applyCachedTheme();
   pageTitle.innerHTML = 'Brute<em>Fallback</em>';
   showStatus('App unavailable', 'Loading the extension fallback…', false);
 
@@ -138,7 +145,11 @@ async function loadNativeFallback(): Promise<void> {
   setAuthToken(token);
 
   try {
-    const [categories, bookmarks] = await Promise.all([fetchCategories(), fetchBookmarks()]);
+    const [categories, bookmarks] = await Promise.all([
+      fetchCategories(),
+      fetchBookmarks(),
+      fetchAndCacheTheme(),
+    ]);
     const snapshot = { categories, bookmarks, fetchedAt: Date.now() };
     await writeFallbackSnapshot(snapshot);
     applySnapshot(snapshot, 'fresh');
@@ -153,6 +164,50 @@ async function loadNativeFallback(): Promise<void> {
 
     showStatus('Bookmarks unavailable', 'The extension is connected, but Convex did not answer. Open the full app to continue.', true);
   }
+}
+
+async function applyCachedTheme(): Promise<void> {
+  const result = await browser.storage.local.get(THEME_CACHE_KEY);
+  const cached = result[THEME_CACHE_KEY] as CachedTheme | undefined;
+  if (cached) applyTheme(cached);
+}
+
+async function fetchAndCacheTheme(): Promise<void> {
+  try {
+    const client = getClient();
+    const prefs = await client.query('preferences:get' as any, {}) as any;
+    if (!prefs) return;
+
+    const theme = prefs.theme === 'light' ? 'light' : 'dark';
+    const accentColor = theme === 'dark' ? prefs.accentColorDark : prefs.accentColorLight;
+    const cached: CachedTheme = {
+      theme,
+      accentColor: isCssColor(accentColor) ? accentColor : null,
+    };
+
+    await browser.storage.local.set({ [THEME_CACHE_KEY]: cached });
+    applyTheme(cached);
+  } catch {
+    // Non-critical: keep the cached theme or fallback defaults.
+  }
+}
+
+function applyTheme(theme: CachedTheme): void {
+  if (theme.theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+
+  if (theme.accentColor) {
+    document.documentElement.style.setProperty('--accent', theme.accentColor);
+  } else {
+    document.documentElement.style.removeProperty('--accent');
+  }
+}
+
+function isCssColor(value: unknown): value is string {
+  return typeof value === 'string' && CSS.supports('color', value);
 }
 
 function applySnapshot(snapshot: FallbackSnapshot, status: ViewModel['snapshotStatus']): void {

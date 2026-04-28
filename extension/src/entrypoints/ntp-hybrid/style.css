@@ -22,6 +22,18 @@
     Outfit, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+[data-theme="light"] {
+  --bg: #fdf6e3;
+  --panel: #fdf6e3;
+  --panel-strong: #eee8d5;
+  --text: #586e75;
+  --muted: #93a1a1;
+  --line: #93a1a1;
+  --accent: #002b36;
+  --accent-soft: rgba(0, 43, 54, 0.12);
+  --shadow: 5px 5px 0 rgba(0, 0, 0, 0.05);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -138,6 +150,10 @@ img {
   width: 48px;
   height: 48px;
   display: block;
+}
+
+[data-theme="light"] .back-btn img {
+  filter: brightness(0) saturate(100%) invert(93%) sepia(9%) saturate(716%) hue-rotate(349deg) brightness(108%) contrast(98%);
 }
 
 .back-btn:hover img {
