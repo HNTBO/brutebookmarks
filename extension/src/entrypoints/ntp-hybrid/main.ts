@@ -1,4 +1,5 @@
 import './style.css';
+import backIconUrl from '../../../../src/assets/back.svg?url';
 import { getClient, setAuthToken } from '../../lib/api';
 import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
@@ -194,7 +195,9 @@ function mountFallbackShell(): void {
         <h1 id="page-title">Brute<em>Fallback</em></h1>
       </div>
       <div class="actions">
-        <button id="open-app-btn" class="secondary-btn">Open app</button>
+        <button id="open-app-btn" class="back-btn" type="button" aria-label="Open BruteBookmarks app">
+          <img src="${backIconUrl}" alt="" aria-hidden="true">
+        </button>
       </div>
     </section>
 

@@ -95,7 +95,7 @@ img {
   gap: 0;
 }
 
-.secondary-btn,
+.back-btn,
 .primary-btn,
 .category-button,
 .category-option {
@@ -105,17 +105,29 @@ img {
   cursor: pointer;
 }
 
-.secondary-btn,
+.back-btn,
 .primary-btn {
   min-height: var(--header-height);
   padding: 0 var(--space-lg);
   font-weight: 900;
 }
 
-.secondary-btn:hover,
+.back-btn:hover,
 .primary-btn:hover {
   background: var(--bg);
   color: var(--accent);
+}
+
+.back-btn {
+  display: grid;
+  place-items: center;
+  width: var(--header-height);
+}
+
+.back-btn img {
+  width: 30px;
+  height: 30px;
+  display: block;
 }
 
 .status-view {
@@ -190,8 +202,8 @@ img {
 }
 
 .category-button {
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--bg);
+  color: var(--accent);
 }
 
 .category-button:focus-visible {
@@ -323,7 +335,7 @@ img {
     border-top: 1px solid color-mix(in srgb, var(--bg) 22%, transparent);
   }
 
-  .secondary-btn {
+  .back-btn {
     min-height: 46px;
   }
 
