@@ -11,6 +11,7 @@ export interface Bookmark {
   _id: string;
   title: string;
   url: string;
+  iconPath?: string | null;
   categoryId: string;
   order: number;
 }

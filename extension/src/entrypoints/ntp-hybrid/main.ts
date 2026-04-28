@@ -7,6 +7,7 @@ import type { Bookmark, Category } from '../../lib/types';
 const PROBE_TIMEOUT_MS = 750;
 const RECENT_SUCCESS_TTL_MS = 5 * 60 * 1000;
 const LAST_SUCCESS_KEY = 'bb_ntp_last_app_success';
+const FALLBACK_SNAPSHOT_KEY = 'bb_ntp_fallback_snapshot';
 const FORCE_FALLBACK = import.meta.env.VITE_FORCE_NTP_FALLBACK === 'true';
 
 interface TabGroup {
@@ -19,20 +20,23 @@ interface ViewModel {
   categories: Category[];
   bookmarks: Bookmark[];
   selectedCategoryId: string | null;
-  query: string;
+}
+
+interface FallbackSnapshot {
+  categories: Category[];
+  bookmarks: Bookmark[];
+  fetchedAt: number;
 }
 
 const state: ViewModel = {
   categories: [],
   bookmarks: [],
   selectedCategoryId: null,
-  query: '',
 };
 
 const app = document.getElementById('app') as HTMLElement;
 
 let pageTitle: HTMLElement;
-let searchRow: HTMLElement;
 let statusView: HTMLElement;
 let statusTitle: HTMLElement;
 let statusDetail: HTMLElement;
@@ -40,7 +44,6 @@ let statusAction: HTMLButtonElement;
 let contentView: HTMLElement;
 let categoryList: HTMLElement;
 let bookmarkGrid: HTMLElement;
-let searchInput: HTMLInputElement;
 let allCategoriesBtn: HTMLButtonElement;
 let refreshBtn: HTMLButtonElement;
 let openAppBtn: HTMLButtonElement;
@@ -105,8 +108,19 @@ async function loadNativeFallback(): Promise<void> {
   pageTitle.textContent = 'Fallback new tab';
   showStatus('Loading fallback', 'The hosted app did not answer quickly. Loading extension fallback…', false);
 
+  const cachedSnapshot = await readFallbackSnapshot();
+  let showingCachedSnapshot = false;
+  if (cachedSnapshot) {
+    applySnapshot(cachedSnapshot);
+    hideStatus();
+    render();
+    showingCachedSnapshot = true;
+  }
+
   const token = await extensionAuth.getValidConvexToken();
   if (!token) {
+    if (showingCachedSnapshot) return;
+
     showStatus(
       'Connect BruteBookmarks',
       'Open the app once while signed in to make the native fallback available.',
@@ -119,16 +133,54 @@ async function loadNativeFallback(): Promise<void> {
 
   try {
     const [categories, bookmarks] = await Promise.all([fetchCategories(), fetchBookmarks()]);
-    state.categories = categories;
-    state.bookmarks = bookmarks;
-    state.selectedCategoryId = null;
-    searchRow.hidden = false;
+    const snapshot = { categories, bookmarks, fetchedAt: Date.now() };
+    await writeFallbackSnapshot(snapshot);
+    applySnapshot(snapshot);
     hideStatus();
     render();
   } catch (err) {
     console.error('[HybridNewTab] Failed to load fallback bookmarks:', err);
+    if (showingCachedSnapshot) return;
+
     showStatus('Could not load fallback', 'Refresh or open the app to reconnect.', true);
   }
+}
+
+function applySnapshot(snapshot: FallbackSnapshot): void {
+  state.categories = snapshot.categories;
+  state.bookmarks = snapshot.bookmarks;
+  if (
+    state.selectedCategoryId &&
+    !snapshot.categories.some((category) => category._id === state.selectedCategoryId)
+  ) {
+    state.selectedCategoryId = null;
+  }
+}
+
+async function readFallbackSnapshot(): Promise<FallbackSnapshot | null> {
+  const result = await browser.storage.local.get(FALLBACK_SNAPSHOT_KEY);
+  const snapshot = result[FALLBACK_SNAPSHOT_KEY];
+
+  if (!isFallbackSnapshot(snapshot)) {
+    return null;
+  }
+
+  return snapshot;
+}
+
+async function writeFallbackSnapshot(snapshot: FallbackSnapshot): Promise<void> {
+  await browser.storage.local.set({ [FALLBACK_SNAPSHOT_KEY]: snapshot });
+}
+
+function isFallbackSnapshot(value: unknown): value is FallbackSnapshot {
+  if (!value || typeof value !== 'object') return false;
+
+  const snapshot = value as Partial<FallbackSnapshot>;
+  return (
+    Array.isArray(snapshot.categories) &&
+    Array.isArray(snapshot.bookmarks) &&
+    typeof snapshot.fetchedAt === 'number'
+  );
 }
 
 function mountFallbackShell(): void {
@@ -137,10 +189,10 @@ function mountFallbackShell(): void {
   app.className = 'shell';
   app.removeAttribute('aria-label');
   app.innerHTML = `
-    <section class="topbar">
-      <div>
-        <p class="eyebrow">BruteBookmarks</p>
-        <h1 id="page-title">Fallback new tab</h1>
+    <section class="brute-header">
+      <div class="title-box">
+        <h1>Brute<em>Bookmarks</em></h1>
+        <p id="page-title">Fallback new tab</p>
       </div>
       <div class="actions">
         <button id="refresh-btn" class="icon-btn" title="Refresh bookmarks" aria-label="Refresh bookmarks">
@@ -148,10 +200,6 @@ function mountFallbackShell(): void {
         </button>
         <button id="open-app-btn" class="secondary-btn">Open app</button>
       </div>
-    </section>
-
-    <section class="search-row" id="search-row" hidden>
-      <input id="search-input" type="search" autocomplete="off" placeholder="Search bookmarks" />
     </section>
 
     <section id="status-view" class="status-view">
@@ -171,7 +219,6 @@ function mountFallbackShell(): void {
   `;
 
   pageTitle = document.getElementById('page-title') as HTMLElement;
-  searchRow = document.getElementById('search-row') as HTMLElement;
   statusView = document.getElementById('status-view') as HTMLElement;
   statusTitle = document.getElementById('status-title') as HTMLElement;
   statusDetail = document.getElementById('status-detail') as HTMLElement;
@@ -179,7 +226,6 @@ function mountFallbackShell(): void {
   contentView = document.getElementById('content-view') as HTMLElement;
   categoryList = document.getElementById('category-list') as HTMLElement;
   bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
-  searchInput = document.getElementById('search-input') as HTMLInputElement;
   allCategoriesBtn = document.getElementById('all-categories-btn') as HTMLButtonElement;
   refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement;
   openAppBtn = document.getElementById('open-app-btn') as HTMLButtonElement;
@@ -190,10 +236,6 @@ function mountFallbackShell(): void {
   allCategoriesBtn.addEventListener('click', () => {
     state.selectedCategoryId = null;
     render();
-  });
-  searchInput.addEventListener('input', () => {
-    state.query = searchInput.value.trim().toLowerCase();
-    renderBookmarks();
   });
 }
 
@@ -269,16 +311,12 @@ function renderBookmarks(): void {
 
   const filtered = state.bookmarks
     .filter((bookmark) => !state.selectedCategoryId || bookmark.categoryId === state.selectedCategoryId)
-    .filter((bookmark) => {
-      if (!state.query) return true;
-      return `${bookmark.title} ${bookmark.url}`.toLowerCase().includes(state.query);
-    })
     .sort((a, b) => a.order - b.order);
 
   if (filtered.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.textContent = state.query ? 'No matching bookmarks.' : 'No bookmarks in this view.';
+    empty.textContent = 'No bookmarks in this view.';
     bookmarkGrid.appendChild(empty);
     return;
   }
@@ -288,18 +326,15 @@ function renderBookmarks(): void {
     card.className = 'bookmark-card';
     card.href = bookmark.url;
     card.innerHTML = `
-      <span class="favicon">${getInitial(bookmark.title)}</span>
-      <span class="bookmark-text">
-        <strong>${escapeHtml(bookmark.title)}</strong>
-        <small>${escapeHtml(formatUrl(bookmark.url))}</small>
-      </span>
+      <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="" draggable="false">
+      <span class="bookmark-title">${escapeHtml(bookmark.title)}</span>
+      <span class="bookmark-domain">${escapeHtml(formatUrl(bookmark.url))}</span>
     `;
     bookmarkGrid.appendChild(card);
   }
 }
 
 function showStatus(title: string, detail: string, showAction: boolean): void {
-  searchRow.hidden = true;
   contentView.hidden = true;
   statusView.hidden = false;
   statusTitle.textContent = title;
@@ -318,8 +353,15 @@ async function openApp(): Promise<void> {
   window.location.replace(url);
 }
 
-function getInitial(title: string): string {
-  return title.trim().charAt(0).toUpperCase() || 'B';
+function getIconUrl(bookmark: Bookmark): string {
+  if (bookmark.iconPath) return bookmark.iconPath;
+
+  try {
+    const domain = new URL(bookmark.url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  } catch {
+    return FALLBACK_ICON;
+  }
 }
 
 function formatUrl(rawUrl: string): string {
@@ -336,5 +378,8 @@ function escapeHtml(str: string): string {
   div.textContent = str;
   return div.innerHTML;
 }
+
+const FALLBACK_ICON =
+  'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23101c27%22 width=%22100%22 height=%22100%22/><text y=%2265%22 x=%2250%22 text-anchor=%22middle%22 font-size=%2250%22 fill=%22%230AEBFB%22>?</text></svg>';
 
 document.addEventListener('DOMContentLoaded', init);
