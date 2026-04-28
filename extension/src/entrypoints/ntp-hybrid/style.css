@@ -15,6 +15,9 @@
   --header-button-size: 32px;
   --header-height: calc((var(--header-button-size) * 3) + (var(--header-cutout) * 2));
   --control-height: 44px;
+  --card-size: 108px;
+  --card-gap: 12px;
+  --content-max-width: 1188px;
   font-family:
     Outfit, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -32,13 +35,12 @@ body {
 }
 
 button,
-img,
-select {
+img {
   font: inherit;
 }
 
 .shell {
-  width: min(1600px, calc(100vw - (var(--space-xl) * 2)));
+  width: min(var(--content-max-width), calc(100vw - (var(--space-xl) * 2)));
   margin: 0 auto;
   padding: var(--space-xl) 0;
 }
@@ -95,7 +97,8 @@ select {
 
 .secondary-btn,
 .primary-btn,
-.category-select-wrap select {
+.category-button,
+.category-option {
   border: 0;
   background: var(--accent);
   color: var(--bg);
@@ -165,38 +168,65 @@ select {
   gap: var(--space-lg);
 }
 
-.category-select-wrap {
+.category-menu {
+  position: relative;
   width: 100%;
 }
 
-.category-select-wrap select {
-  appearance: none;
-  -webkit-appearance: none;
+.category-button,
+.category-option {
   width: 100%;
   min-height: var(--control-height);
   border: 1px solid var(--accent);
   border-radius: 0;
   padding: 0 var(--space-lg);
-  background: color-mix(in srgb, var(--bg) 96%, transparent);
-  color: var(--accent);
   font-family: Outfit, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 1.7rem;
   font-weight: 400;
   line-height: 1;
   outline: none;
   text-align: center;
-  text-align-last: center;
   text-transform: uppercase;
 }
 
-.category-select-wrap select:focus {
-  border-color: var(--accent);
+.category-button {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.category-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.category-options {
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 0;
+  z-index: 10;
+  width: 100%;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+}
+
+.category-option {
+  display: block;
+  border: 0;
+  background: var(--bg);
+  color: var(--accent);
+}
+
+.category-option[aria-selected="true"],
+.category-option:hover,
+.category-option:focus-visible {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 .bookmark-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-size), 1fr));
+  gap: var(--card-gap);
 }
 
 .bookmark-card {
@@ -276,7 +306,7 @@ select {
 
 @media (max-width: 720px) {
   .shell {
-    width: min(100vw - 28px, 1600px);
+    width: min(100vw - 28px, var(--content-max-width));
     padding-top: 20px;
   }
 

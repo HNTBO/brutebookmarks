@@ -43,7 +43,9 @@ let statusDetail: HTMLElement;
 let statusAction: HTMLButtonElement;
 let contentView: HTMLElement;
 let bookmarkGrid: HTMLElement;
-let categorySelect: HTMLSelectElement;
+let categoryMenu: HTMLElement;
+let categoryButton: HTMLButtonElement;
+let categoryValue: HTMLElement;
 let openAppBtn: HTMLButtonElement;
 
 async function init(): Promise<void> {
@@ -204,9 +206,12 @@ function mountFallbackShell(): void {
     </section>
 
     <section id="content-view" class="content-view" hidden>
-      <label class="category-select-wrap" for="category-select">
-        <select id="category-select"></select>
-      </label>
+      <div id="category-menu" class="category-menu">
+        <button id="category-button" class="category-button" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span id="category-value">All</span>
+        </button>
+        <div id="category-options" class="category-options" role="listbox" hidden></div>
+      </div>
       <section id="bookmark-grid" class="bookmark-grid" aria-label="Bookmarks"></section>
     </section>
   `;
@@ -218,15 +223,16 @@ function mountFallbackShell(): void {
   statusAction = document.getElementById('status-action') as HTMLButtonElement;
   contentView = document.getElementById('content-view') as HTMLElement;
   bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
-  categorySelect = document.getElementById('category-select') as HTMLSelectElement;
+  categoryMenu = document.getElementById('category-options') as HTMLElement;
+  categoryButton = document.getElementById('category-button') as HTMLButtonElement;
+  categoryValue = document.getElementById('category-value') as HTMLElement;
   openAppBtn = document.getElementById('open-app-btn') as HTMLButtonElement;
 
   openAppBtn.addEventListener('click', openApp);
   statusAction.addEventListener('click', openApp);
-  categorySelect.addEventListener('change', () => {
-    state.selectedCategoryId = categorySelect.value || null;
-    render();
-  });
+  categoryButton.addEventListener('click', toggleCategoryMenu);
+  document.addEventListener('click', closeCategoryMenuOnOutsideClick);
+  document.addEventListener('keydown', closeCategoryMenuOnEscape);
 }
 
 async function fetchCategories(): Promise<Category[]> {
@@ -279,21 +285,57 @@ function render(): void {
 }
 
 function renderCategories(): void {
-  categorySelect.innerHTML = '';
+  categoryMenu.innerHTML = '';
 
-  const allOption = document.createElement('option');
-  allOption.value = '';
-  allOption.textContent = 'All';
-  categorySelect.appendChild(allOption);
+  const selectedCategory = state.categories.find((category) => category._id === state.selectedCategoryId);
+  categoryValue.textContent = selectedCategory?.name ?? 'All';
+  categoryButton.setAttribute('aria-label', `Category: ${categoryValue.textContent}`);
+
+  categoryMenu.appendChild(createCategoryOption(null, 'All'));
 
   for (const category of state.categories) {
-    const option = document.createElement('option');
-    option.value = category._id;
-    option.textContent = category.name;
-    categorySelect.appendChild(option);
+    categoryMenu.appendChild(createCategoryOption(category._id, category.name));
   }
+}
 
-  categorySelect.value = state.selectedCategoryId ?? '';
+function createCategoryOption(categoryId: string | null, name: string): HTMLButtonElement {
+  const option = document.createElement('button');
+  option.type = 'button';
+  option.className = 'category-option';
+  option.role = 'option';
+  option.textContent = name;
+  option.dataset.categoryId = categoryId ?? '';
+  option.setAttribute('aria-selected', String(categoryId === state.selectedCategoryId));
+  option.addEventListener('click', () => {
+    state.selectedCategoryId = categoryId;
+    closeCategoryMenu();
+    render();
+  });
+  return option;
+}
+
+function toggleCategoryMenu(): void {
+  const willOpen = !categoryMenu.hidden;
+  categoryMenu.hidden = willOpen;
+  categoryButton.setAttribute('aria-expanded', String(!willOpen));
+}
+
+function closeCategoryMenu(): void {
+  categoryMenu.hidden = true;
+  categoryButton.setAttribute('aria-expanded', 'false');
+}
+
+function closeCategoryMenuOnOutsideClick(event: MouseEvent): void {
+  const target = event.target;
+  if (target instanceof Node && !categoryMenu.parentElement?.contains(target)) {
+    closeCategoryMenu();
+  }
+}
+
+function closeCategoryMenuOnEscape(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    closeCategoryMenu();
+  }
 }
 
 function renderBookmarks(): void {
