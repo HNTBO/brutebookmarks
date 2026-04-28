@@ -7,6 +7,7 @@ import type { Bookmark, Category } from '../../lib/types';
 const PROBE_TIMEOUT_MS = 750;
 const RECENT_SUCCESS_TTL_MS = 5 * 60 * 1000;
 const LAST_SUCCESS_KEY = 'bb_ntp_last_app_success';
+const FORCE_FALLBACK = import.meta.env.VITE_FORCE_NTP_FALLBACK === 'true';
 
 interface TabGroup {
   _id: string;
@@ -55,6 +56,11 @@ async function init(): Promise<void> {
 }
 
 async function openHostedAppOrFallback(): Promise<void> {
+  if (FORCE_FALLBACK) {
+    await loadNativeFallback();
+    return;
+  }
+
   const appUrl = await getAppUrl();
   if (await hasRecentSuccessfulProbe()) {
     window.location.replace(appUrl);
