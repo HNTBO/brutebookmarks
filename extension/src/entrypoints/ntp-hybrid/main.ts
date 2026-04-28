@@ -103,7 +103,7 @@ async function probeApp(appUrl: string): Promise<boolean> {
 
 async function loadNativeFallback(): Promise<void> {
   mountFallbackShell();
-  pageTitle.textContent = 'BruteFallback';
+  pageTitle.innerHTML = 'Brute<em>Fallback</em>';
   showStatus('Loading fallback', 'The hosted app did not answer quickly. Loading extension fallback…', false);
 
   const cachedSnapshot = await readFallbackSnapshot();
