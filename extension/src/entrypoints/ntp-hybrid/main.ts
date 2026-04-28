@@ -312,6 +312,8 @@ function createCategoryOption(categoryId: string | null, name: string): HTMLButt
   option.addEventListener('click', () => {
     state.selectedCategoryId = categoryId;
     closeCategoryMenu();
+    option.blur();
+    categoryButton.blur();
     render();
   });
   return option;
@@ -338,6 +340,7 @@ function closeCategoryMenuOnOutsideClick(event: MouseEvent): void {
 function closeCategoryMenuOnEscape(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     closeCategoryMenu();
+    categoryButton.blur();
   }
 }
 

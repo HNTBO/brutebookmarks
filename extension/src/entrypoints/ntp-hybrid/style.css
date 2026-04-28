@@ -99,7 +99,7 @@ img {
 .primary-btn,
 .category-button,
 .category-option {
-  border: 0;
+  border: 1px solid transparent;
   background: var(--accent);
   color: var(--bg);
   cursor: pointer;
@@ -108,8 +108,11 @@ img {
 .back-btn,
 .primary-btn {
   min-height: var(--header-height);
-  padding: 0 var(--space-lg);
   font-weight: 900;
+}
+
+.primary-btn {
+  padding: 0 var(--space-lg);
 }
 
 .back-btn:hover,
@@ -120,14 +123,25 @@ img {
 
 .back-btn {
   display: grid;
+  flex: 0 0 var(--header-height);
   place-items: center;
   width: var(--header-height);
+  height: var(--header-height);
+  padding: 0;
+}
+
+.back-btn:hover {
+  border-color: var(--accent);
 }
 
 .back-btn img {
-  width: 30px;
-  height: 30px;
+  width: 48px;
+  height: 48px;
   display: block;
+}
+
+.back-btn:hover img {
+  filter: brightness(0) saturate(100%) invert(77%) sepia(92%) saturate(1992%) hue-rotate(137deg) brightness(103%) contrast(102%);
 }
 
 .status-view {
@@ -336,6 +350,9 @@ img {
   }
 
   .back-btn {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
     min-height: 46px;
   }
 
