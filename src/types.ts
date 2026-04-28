@@ -26,7 +26,7 @@ export type LayoutItem =
   | { type: 'tabGroup'; group: TabGroup };
 
 export interface UserPreferences {
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'auto';
   accentColorDark: string | null;
   accentColorLight: string | null;
   wireframeDark: boolean;

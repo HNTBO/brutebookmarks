@@ -366,6 +366,13 @@ html.fonts-pending:not(.fonts-ready) .welcome-gate-title {
     opacity: 1;
 }
 
+.theme-auto-icon {
+    font-family: var(--font-display);
+    font-weight: 100;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
 /* Legacy h1 styles for modals */
 h1 {
     font-family: var(--font-display);

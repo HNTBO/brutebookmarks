@@ -464,7 +464,7 @@ export function activateConvex(): void {
     }
     if (!_prefsCallback) return;
     const prefs: UserPreferences = {
-      theme: result.theme === 'light' ? 'light' : 'dark',
+      theme: result.theme === 'light' || result.theme === 'auto' ? result.theme : 'dark',
       accentColorDark: result.accentColorDark ?? null,
       accentColorLight: result.accentColorLight ?? null,
       wireframeDark: result.wireframeDark ?? false,

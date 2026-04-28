@@ -1,6 +1,6 @@
 import type { UserPreferences } from '../types';
 import { savePreferencesToConvex, flushPreferencesToConvex } from '../data/store';
-import { getCurrentTheme, getAccentColorDark, getAccentColorLight } from './theme';
+import { getCurrentTheme, getResolvedTheme, getAccentColorDark, getAccentColorLight } from './theme';
 import { pushUndo, isUndoing } from './undo';
 
 let currentCardSize = 90;
@@ -54,7 +54,7 @@ function ensurePrefsInit(): void {
 
 function getCurrentWireframe(): boolean {
   ensurePrefsInit();
-  const theme = getCurrentTheme();
+  const theme = getResolvedTheme();
   return theme === 'dark' ? wireframeDark : wireframeLight;
 }
 
@@ -113,7 +113,7 @@ export function toggleEasterEggs(enabled: boolean): void {
 export function collectPreferences(): UserPreferences {
   ensurePrefsInit();
   return {
-    theme: getCurrentTheme() as 'dark' | 'light',
+    theme: getCurrentTheme(),
     accentColorDark: getAccentColorDark(),
     accentColorLight: getAccentColorLight(),
     wireframeDark,
@@ -333,7 +333,7 @@ function setWireframeState(theme: string, val: boolean): void {
 
 export function toggleWireframe(): void {
   ensurePrefsInit();
-  const theme = getCurrentTheme();
+  const theme = getResolvedTheme();
   const oldVal = theme === 'dark' ? wireframeDark : wireframeLight;
   if (theme === 'dark') {
     wireframeDark = !wireframeDark;
@@ -353,7 +353,7 @@ export function toggleWireframe(): void {
 
 export function randomizeWireframe(): void {
   ensurePrefsInit();
-  const theme = getCurrentTheme();
+  const theme = getResolvedTheme();
   const oldVal = theme === 'dark' ? wireframeDark : wireframeLight;
   const val = Math.random() > 0.5;
   if (theme === 'dark') {

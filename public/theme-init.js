@@ -4,10 +4,14 @@
   document.documentElement.classList.add('fonts-pending');
 
   var theme = localStorage.getItem('theme');
-  if (theme !== 'light' && theme !== 'dark') theme = 'dark';
-  document.documentElement.setAttribute('data-theme', theme);
+  if (theme !== 'light' && theme !== 'dark' && theme !== 'auto') theme = 'dark';
+  var resolvedTheme = theme === 'auto' && window.matchMedia
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : (theme === 'auto' ? 'dark' : theme);
+  document.documentElement.setAttribute('data-theme', resolvedTheme);
+  document.documentElement.setAttribute('data-theme-mode', theme);
 
-  var accent = localStorage.getItem('accentColor_' + theme);
+  var accent = localStorage.getItem('accentColor_' + resolvedTheme);
   if (accent && /^#[0-9a-fA-F]{3,8}$/.test(accent)) {
     document.documentElement.style.setProperty('--accent', accent);
   }

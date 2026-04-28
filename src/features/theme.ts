@@ -2,17 +2,43 @@ import { savePreferencesToConvex, isApplyingFromConvex } from '../data/store';
 import { collectPreferences, applyWireframeForCurrentTheme } from './preferences';
 import { pushUndo, isUndoing } from './undo';
 
-let currentTheme: string | null = null;
+export type ThemeMode = 'dark' | 'light' | 'auto';
+export type ResolvedTheme = 'dark' | 'light';
 
-function getTheme(): string {
+let currentTheme: ThemeMode | null = null;
+let systemThemeQuery: MediaQueryList | null = null;
+let systemThemeListenerAttached = false;
+
+function isThemeMode(value: string | null): value is ThemeMode {
+  return value === 'dark' || value === 'light' || value === 'auto';
+}
+
+function getSystemThemeQuery(): MediaQueryList {
+  if (!systemThemeQuery) {
+    systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  }
+  return systemThemeQuery;
+}
+
+function getSystemTheme(): ResolvedTheme {
+  return getSystemThemeQuery().matches ? 'dark' : 'light';
+}
+
+function getTheme(): ThemeMode {
   if (currentTheme === null) {
-    currentTheme = localStorage.getItem('theme') || 'dark';
+    const stored = localStorage.getItem('theme');
+    currentTheme = isThemeMode(stored) ? stored : 'dark';
   }
   return currentTheme;
 }
 
-export function getCurrentTheme(): string {
+export function getCurrentTheme(): ThemeMode {
   return getTheme();
+}
+
+export function getResolvedTheme(): ResolvedTheme {
+  const theme = getTheme();
+  return theme === 'auto' ? getSystemTheme() : theme;
 }
 
 export function getAccentColorDark(): string | null {
@@ -27,7 +53,7 @@ function syncToConvex(): void {
   savePreferencesToConvex(collectPreferences);
 }
 
-function setThemeDirectly(theme: string): void {
+function setThemeDirectly(theme: ThemeMode): void {
   currentTheme = theme;
   applyThemeToDOM();
   localStorage.setItem('theme', currentTheme);
@@ -37,7 +63,7 @@ function setThemeDirectly(theme: string): void {
 
 export function toggleTheme(): void {
   const oldTheme = getTheme();
-  currentTheme = getTheme() === 'dark' ? 'light' : 'dark';
+  currentTheme = oldTheme === 'light' ? 'dark' : oldTheme === 'dark' ? 'auto' : 'light';
   applyThemeToDOM();
   localStorage.setItem('theme', currentTheme);
   // Re-apply wireframe for the new theme (each theme has its own wireframe state)
@@ -53,9 +79,9 @@ export function toggleTheme(): void {
 }
 
 /** Apply theme from Convex subscription — updates state + DOM + localStorage, no save back. */
-export function applyTheme(theme: 'dark' | 'light', accentDark: string | null, accentLight: string | null): void {
-  currentTheme = theme;
-  localStorage.setItem('theme', theme);
+export function applyTheme(theme: ThemeMode, accentDark: string | null, accentLight: string | null): void {
+  currentTheme = isThemeMode(theme) ? theme : 'dark';
+  localStorage.setItem('theme', currentTheme);
 
   if (accentDark) {
     localStorage.setItem('accentColor_dark', accentDark);
@@ -72,13 +98,15 @@ export function applyTheme(theme: 'dark' | 'light', accentDark: string | null, a
 }
 
 function applyThemeToDOM(): void {
+  ensureSystemThemeListener();
   const theme = getTheme();
-  document.documentElement.setAttribute('data-theme', theme);
+  const resolvedTheme = getResolvedTheme();
+  document.documentElement.setAttribute('data-theme', resolvedTheme);
+  document.documentElement.setAttribute('data-theme-mode', theme);
 
-  const btn = document.getElementById('theme-toggle-btn')!;
-  btn.innerHTML = theme === 'dark' ? '☀' : '☾';
+  syncThemeButtons();
 
-  const storageKey = `accentColor_${theme}`;
+  const storageKey = `accentColor_${resolvedTheme}`;
   const savedAccent = localStorage.getItem(storageKey);
   const picker = document.getElementById('accent-color-picker') as HTMLInputElement | null;
 
@@ -95,9 +123,38 @@ function applyThemeToDOM(): void {
   }
 }
 
+function ensureSystemThemeListener(): void {
+  if (systemThemeListenerAttached) return;
+  systemThemeListenerAttached = true;
+
+  getSystemThemeQuery().addEventListener('change', () => {
+    if (getTheme() !== 'auto') return;
+    applyThemeToDOM();
+    applyWireframeForCurrentTheme();
+  });
+}
+
+function getThemeIcon(theme: ThemeMode): string {
+  if (theme === 'light') return '☀';
+  if (theme === 'dark') return '☾';
+  return '<span class="theme-auto-icon">A</span>';
+}
+
+function syncThemeButtons(): void {
+  const icon = getThemeIcon(getTheme());
+  const label = `Theme: ${getTheme()}`;
+  for (const id of ['theme-toggle-btn', 'mobile-theme-btn']) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.innerHTML = icon;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
+  }
+}
+
 export function updateAccentColor(color: string): void {
   document.documentElement.style.setProperty('--accent', color);
-  localStorage.setItem(`accentColor_${getTheme()}`, color);
+  localStorage.setItem(`accentColor_${getResolvedTheme()}`, color);
   syncToConvex();
 }
 
@@ -223,8 +280,9 @@ function syncPickerToAccent(color: string): void {
 }
 
 export function resetAccentColor(): void {
-  const oldColor = localStorage.getItem(`accentColor_${getTheme()}`);
-  localStorage.removeItem(`accentColor_${getTheme()}`);
+  const storageKey = `accentColor_${getResolvedTheme()}`;
+  const oldColor = localStorage.getItem(storageKey);
+  localStorage.removeItem(storageKey);
   document.documentElement.style.removeProperty('--accent');
 
   setTimeout(() => {
@@ -242,7 +300,7 @@ export function resetAccentColor(): void {
 }
 
 export function syncThemeUI(): void {
-  document.getElementById('theme-toggle-btn')!.innerHTML = getTheme() === 'dark' ? '☀' : '☾';
+  applyThemeToDOM();
   const picker = document.getElementById('accent-color-picker') as HTMLInputElement | null;
   if (picker) {
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();

@@ -37,7 +37,7 @@ interface FallbackSnapshot {
 }
 
 interface CachedTheme {
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'auto';
   accentColorDark: string | null;
   accentColorLight: string | null;
 }
@@ -183,7 +183,7 @@ async function fetchAndCacheTheme(): Promise<void> {
     const prefs = await client.query('preferences:get' as any, {}) as any;
     if (!prefs) return;
 
-    const theme = prefs.theme === 'light' ? 'light' : 'dark';
+    const theme = prefs.theme === 'light' || prefs.theme === 'auto' ? prefs.theme : 'dark';
     const cached: CachedTheme = {
       theme,
       accentColorDark: isCssColor(prefs.accentColorDark) ? prefs.accentColorDark : null,
@@ -198,18 +198,24 @@ async function fetchAndCacheTheme(): Promise<void> {
 }
 
 function applyTheme(theme: CachedTheme): void {
-  if (theme.theme === 'light') {
+  const resolvedTheme = resolveTheme(theme.theme);
+  if (resolvedTheme === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
 
-  const accentColor = theme.theme === 'dark' ? theme.accentColorDark : theme.accentColorLight;
+  const accentColor = resolvedTheme === 'dark' ? theme.accentColorDark : theme.accentColorLight;
   if (accentColor) {
     document.documentElement.style.setProperty('--accent', accentColor);
   } else {
     document.documentElement.style.removeProperty('--accent');
   }
+}
+
+function resolveTheme(theme: CachedTheme['theme']): 'dark' | 'light' {
+  if (theme !== 'auto') return theme;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 function isCssColor(value: unknown): value is string {
