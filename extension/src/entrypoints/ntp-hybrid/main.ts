@@ -9,7 +9,7 @@ const PROBE_TIMEOUT_MS = 750;
 const RECENT_SUCCESS_TTL_MS = 5 * 60 * 1000;
 const LAST_SUCCESS_KEY = 'bb_ntp_last_app_success';
 const FALLBACK_SNAPSHOT_KEY = 'bb_ntp_fallback_snapshot';
-const THEME_CACHE_KEY = 'bb_cached_theme';
+const THEME_CACHE_KEY = 'bb_ntp_cached_theme';
 const FORCE_FALLBACK = import.meta.env.VITE_FORCE_NTP_FALLBACK === 'true';
 
 interface TabGroup {
@@ -34,7 +34,8 @@ interface FallbackSnapshot {
 
 interface CachedTheme {
   theme: 'dark' | 'light';
-  accentColor: string | null;
+  accentColorDark: string | null;
+  accentColorLight: string | null;
 }
 
 const state: ViewModel = {
@@ -179,10 +180,10 @@ async function fetchAndCacheTheme(): Promise<void> {
     if (!prefs) return;
 
     const theme = prefs.theme === 'light' ? 'light' : 'dark';
-    const accentColor = theme === 'dark' ? prefs.accentColorDark : prefs.accentColorLight;
     const cached: CachedTheme = {
       theme,
-      accentColor: isCssColor(accentColor) ? accentColor : null,
+      accentColorDark: isCssColor(prefs.accentColorDark) ? prefs.accentColorDark : null,
+      accentColorLight: isCssColor(prefs.accentColorLight) ? prefs.accentColorLight : null,
     };
 
     await browser.storage.local.set({ [THEME_CACHE_KEY]: cached });
@@ -199,8 +200,9 @@ function applyTheme(theme: CachedTheme): void {
     document.documentElement.removeAttribute('data-theme');
   }
 
-  if (theme.accentColor) {
-    document.documentElement.style.setProperty('--accent', theme.accentColor);
+  const accentColor = theme.theme === 'dark' ? theme.accentColorDark : theme.accentColorLight;
+  if (accentColor) {
+    document.documentElement.style.setProperty('--accent', accentColor);
   } else {
     document.documentElement.style.removeProperty('--accent');
   }
@@ -261,7 +263,7 @@ function mountFallbackShell(): void {
       </div>
       <div class="actions">
         <button id="open-app-btn" class="back-btn" type="button" aria-label="Open BruteBookmarks app">
-          <img src="${backIconUrl}" alt="" aria-hidden="true">
+          <span class="back-icon" style="--back-icon: url('${backIconUrl}')" aria-hidden="true"></span>
         </button>
       </div>
     </section>
