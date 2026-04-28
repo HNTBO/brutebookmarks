@@ -191,7 +191,7 @@ img {
 
 .content-view {
   display: grid;
-  gap: var(--space-lg);
+  gap: var(--space-md, 16px);
 }
 
 .category-menu {
@@ -249,7 +249,20 @@ img {
   color: var(--bg);
 }
 
+.cache-meta {
+  margin: calc(var(--space-lg) * -0.25) 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+}
+
+.cache-meta[hidden] {
+  display: none;
+}
+
 .bookmark-grid {
+  margin-top: calc(var(--space-lg) - var(--space-md, 16px));
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--card-size), 1fr));
   gap: var(--card-gap);

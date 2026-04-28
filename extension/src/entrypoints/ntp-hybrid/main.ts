@@ -21,6 +21,8 @@ interface ViewModel {
   categories: Category[];
   bookmarks: Bookmark[];
   selectedCategoryId: string | null;
+  snapshotFetchedAt: number | null;
+  snapshotStatus: 'none' | 'cached' | 'fresh' | 'stale';
 }
 
 interface FallbackSnapshot {
@@ -33,6 +35,8 @@ const state: ViewModel = {
   categories: [],
   bookmarks: [],
   selectedCategoryId: null,
+  snapshotFetchedAt: null,
+  snapshotStatus: 'none',
 };
 
 const app = document.getElementById('app') as HTMLElement;
@@ -44,6 +48,7 @@ let statusDetail: HTMLElement;
 let statusAction: HTMLButtonElement;
 let contentView: HTMLElement;
 let bookmarkGrid: HTMLElement;
+let cacheMeta: HTMLElement;
 let categoryMenu: HTMLElement;
 let categoryButton: HTMLButtonElement;
 let categoryValue: HTMLElement;
@@ -107,12 +112,12 @@ async function probeApp(appUrl: string): Promise<boolean> {
 async function loadNativeFallback(): Promise<void> {
   mountFallbackShell();
   pageTitle.innerHTML = 'Brute<em>Fallback</em>';
-  showStatus('Loading fallback', 'The hosted app did not answer quickly. Loading extension fallback…', false);
+  showStatus('App unavailable', 'Loading the extension fallback…', false);
 
   const cachedSnapshot = await readFallbackSnapshot();
   let showingCachedSnapshot = false;
   if (cachedSnapshot) {
-    applySnapshot(cachedSnapshot);
+    applySnapshot(cachedSnapshot, 'cached');
     hideStatus();
     render();
     showingCachedSnapshot = true;
@@ -122,11 +127,12 @@ async function loadNativeFallback(): Promise<void> {
   if (!token) {
     if (showingCachedSnapshot) return;
 
-    showStatus(
-      'Connect BruteBookmarks',
-      'Open the app once while signed in to make the native fallback available.',
-      true,
-    );
+    const authState = await extensionAuth.getAuthState();
+    if (authState.state === 'expired') {
+      showStatus('Session expired', 'Open BruteBookmarks once to reconnect the extension fallback.', true);
+    } else {
+      showStatus('Connect BruteBookmarks', 'Open BruteBookmarks once while signed in to make this fallback available.', true);
+    }
     return;
   }
 
@@ -136,20 +142,26 @@ async function loadNativeFallback(): Promise<void> {
     const [categories, bookmarks] = await Promise.all([fetchCategories(), fetchBookmarks()]);
     const snapshot = { categories, bookmarks, fetchedAt: Date.now() };
     await writeFallbackSnapshot(snapshot);
-    applySnapshot(snapshot);
+    applySnapshot(snapshot, 'fresh');
     hideStatus();
     render();
   } catch (err) {
     console.error('[HybridNewTab] Failed to load fallback bookmarks:', err);
-    if (showingCachedSnapshot) return;
+    if (showingCachedSnapshot) {
+      state.snapshotStatus = 'stale';
+      renderCacheMeta();
+      return;
+    }
 
-    showStatus('Could not load fallback', 'Refresh or open the app to reconnect.', true);
+    showStatus('Bookmarks unavailable', 'The extension is connected, but Convex did not answer. Open the full app to continue.', true);
   }
 }
 
-function applySnapshot(snapshot: FallbackSnapshot): void {
+function applySnapshot(snapshot: FallbackSnapshot, status: ViewModel['snapshotStatus']): void {
   state.categories = snapshot.categories;
   state.bookmarks = snapshot.bookmarks;
+  state.snapshotFetchedAt = snapshot.fetchedAt;
+  state.snapshotStatus = status;
   if (
     state.selectedCategoryId &&
     !snapshot.categories.some((category) => category._id === state.selectedCategoryId)
@@ -215,6 +227,7 @@ function mountFallbackShell(): void {
         </button>
         <div id="category-options" class="category-options" role="listbox" hidden></div>
       </div>
+      <p id="cache-meta" class="cache-meta" aria-live="polite"></p>
       <section id="bookmark-grid" class="bookmark-grid" aria-label="Bookmarks"></section>
     </section>
   `;
@@ -226,6 +239,7 @@ function mountFallbackShell(): void {
   statusAction = document.getElementById('status-action') as HTMLButtonElement;
   contentView = document.getElementById('content-view') as HTMLElement;
   bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
+  cacheMeta = document.getElementById('cache-meta') as HTMLElement;
   categoryMenu = document.getElementById('category-options') as HTMLElement;
   categoryButton = document.getElementById('category-button') as HTMLButtonElement;
   categoryValue = document.getElementById('category-value') as HTMLElement;
@@ -284,7 +298,25 @@ function orderCategories(categories: Category[], tabGroups: TabGroup[]): Categor
 
 function render(): void {
   renderCategories();
+  renderCacheMeta();
   renderBookmarks();
+}
+
+function renderCacheMeta(): void {
+  if (!state.snapshotFetchedAt) {
+    cacheMeta.textContent = '';
+    cacheMeta.hidden = true;
+    return;
+  }
+
+  const age = formatRelativeTime(state.snapshotFetchedAt);
+  const prefix = state.snapshotStatus === 'stale'
+    ? 'Using cached bookmarks'
+    : state.snapshotStatus === 'cached'
+      ? 'Loaded cached bookmarks'
+      : 'Updated';
+  cacheMeta.textContent = `${prefix} ${age}`;
+  cacheMeta.hidden = false;
 }
 
 function renderCategories(): void {
@@ -405,6 +437,20 @@ function escapeHtml(str: string): string {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function formatRelativeTime(timestamp: number): string {
+  const elapsedMs = Math.max(0, Date.now() - timestamp);
+  const elapsedMinutes = Math.floor(elapsedMs / 60_000);
+
+  if (elapsedMinutes < 1) return 'just now';
+  if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${elapsedHours}h ago`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `${elapsedDays}d ago`;
 }
 
 const FALLBACK_ICON =
