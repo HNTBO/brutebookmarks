@@ -1,5 +1,5 @@
 import './style.css';
-import backIconUrl from '../../../../src/assets/back.svg?url';
+import backIconSvg from '../../../../src/assets/back.svg?raw';
 import { getClient, setAuthToken } from '../../lib/api';
 import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
@@ -11,6 +11,10 @@ const LAST_SUCCESS_KEY = 'bb_ntp_last_app_success';
 const FALLBACK_SNAPSHOT_KEY = 'bb_ntp_fallback_snapshot';
 const THEME_CACHE_KEY = 'bb_ntp_cached_theme';
 const FORCE_FALLBACK = import.meta.env.VITE_FORCE_NTP_FALLBACK === 'true';
+const BACK_ICON_MARKUP = backIconSvg
+  .replace(/<\?xml[^>]*>/i, '')
+  .replace(/<!DOCTYPE[^>]*>/i, '')
+  .replace('<svg ', '<svg class="back-icon" aria-hidden="true" focusable="false" ');
 
 interface TabGroup {
   _id: string;
@@ -263,7 +267,7 @@ function mountFallbackShell(): void {
       </div>
       <div class="actions">
         <button id="open-app-btn" class="back-btn" type="button" aria-label="Open BruteBookmarks app">
-          <span class="back-icon" style="--back-icon: url('${backIconUrl}')" aria-hidden="true"></span>
+          ${BACK_ICON_MARKUP}
         </button>
       </div>
     </section>

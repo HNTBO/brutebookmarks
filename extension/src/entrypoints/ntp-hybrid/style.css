@@ -150,9 +150,10 @@ img {
   width: 48px;
   height: 48px;
   display: block;
-  background: currentColor;
-  mask: var(--back-icon) center / contain no-repeat;
-  -webkit-mask: var(--back-icon) center / contain no-repeat;
+}
+
+.back-icon path {
+  fill: currentColor !important;
 }
 
 .status-view {
