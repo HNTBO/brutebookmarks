@@ -92,7 +92,7 @@ export default defineConfig({
           ? 'BruteBookmarks Native New Tab'
           : extensionVariant === 'newtab-hybrid'
             ? 'BruteBookmarks Hybrid New Tab'
-          : 'BruteBookmarks',
+          : 'BruteBookmarks Quick Save',
       description: extensionVariant === 'newtab'
         ? 'Open the BruteBookmarks app from your new tab.'
         : extensionVariant === 'newtab-native'
@@ -118,6 +118,7 @@ export default defineConfig({
           48: '/icon-48.png',
           128: '/icon-128.png',
         },
+        ...(isNewTabVariant ? {} : { default_title: 'BruteBookmarks Quick Save' }),
       },
       ...(isNewTabVariant
         ? {
