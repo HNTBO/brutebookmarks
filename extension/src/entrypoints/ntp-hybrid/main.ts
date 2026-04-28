@@ -44,7 +44,6 @@ let statusAction: HTMLButtonElement;
 let contentView: HTMLElement;
 let bookmarkGrid: HTMLElement;
 let categorySelect: HTMLSelectElement;
-let refreshBtn: HTMLButtonElement;
 let openAppBtn: HTMLButtonElement;
 
 async function init(): Promise<void> {
@@ -193,9 +192,6 @@ function mountFallbackShell(): void {
         <h1 id="page-title">Brute<em>Fallback</em></h1>
       </div>
       <div class="actions">
-        <button id="refresh-btn" class="icon-btn" title="Refresh bookmarks" aria-label="Refresh bookmarks">
-          <span aria-hidden="true">↻</span>
-        </button>
         <button id="open-app-btn" class="secondary-btn">Open app</button>
       </div>
     </section>
@@ -209,7 +205,6 @@ function mountFallbackShell(): void {
 
     <section id="content-view" class="content-view" hidden>
       <label class="category-select-wrap" for="category-select">
-        <span>Category</span>
         <select id="category-select"></select>
       </label>
       <section id="bookmark-grid" class="bookmark-grid" aria-label="Bookmarks"></section>
@@ -224,12 +219,10 @@ function mountFallbackShell(): void {
   contentView = document.getElementById('content-view') as HTMLElement;
   bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
   categorySelect = document.getElementById('category-select') as HTMLSelectElement;
-  refreshBtn = document.getElementById('refresh-btn') as HTMLButtonElement;
   openAppBtn = document.getElementById('open-app-btn') as HTMLButtonElement;
 
   openAppBtn.addEventListener('click', openApp);
   statusAction.addEventListener('click', openApp);
-  refreshBtn.addEventListener('click', () => loadNativeFallback());
   categorySelect.addEventListener('change', () => {
     state.selectedCategoryId = categorySelect.value || null;
     render();
