@@ -48,7 +48,6 @@ let statusDetail: HTMLElement;
 let statusAction: HTMLButtonElement;
 let contentView: HTMLElement;
 let bookmarkGrid: HTMLElement;
-let cacheMeta: HTMLElement;
 let categoryMenu: HTMLElement;
 let categoryButton: HTMLButtonElement;
 let categoryValue: HTMLElement;
@@ -149,7 +148,6 @@ async function loadNativeFallback(): Promise<void> {
     console.error('[HybridNewTab] Failed to load fallback bookmarks:', err);
     if (showingCachedSnapshot) {
       state.snapshotStatus = 'stale';
-      renderCacheMeta();
       return;
     }
 
@@ -203,7 +201,7 @@ function mountFallbackShell(): void {
   app.removeAttribute('aria-label');
   app.innerHTML = `
     <section class="brute-header">
-      <div class="title-box">
+      <div class="title-box" title="BruteBookmarks could not open on this network, so this fallback is showing your cached bookmarks. Use the arrow to try the full app again.">
         <h1 id="page-title">Brute<em>Fallback</em></h1>
       </div>
       <div class="actions">
@@ -227,7 +225,6 @@ function mountFallbackShell(): void {
         </button>
         <div id="category-options" class="category-options" role="listbox" hidden></div>
       </div>
-      <p id="cache-meta" class="cache-meta" aria-live="polite"></p>
       <section id="bookmark-grid" class="bookmark-grid" aria-label="Bookmarks"></section>
     </section>
   `;
@@ -239,7 +236,6 @@ function mountFallbackShell(): void {
   statusAction = document.getElementById('status-action') as HTMLButtonElement;
   contentView = document.getElementById('content-view') as HTMLElement;
   bookmarkGrid = document.getElementById('bookmark-grid') as HTMLElement;
-  cacheMeta = document.getElementById('cache-meta') as HTMLElement;
   categoryMenu = document.getElementById('category-options') as HTMLElement;
   categoryButton = document.getElementById('category-button') as HTMLButtonElement;
   categoryValue = document.getElementById('category-value') as HTMLElement;
@@ -298,25 +294,7 @@ function orderCategories(categories: Category[], tabGroups: TabGroup[]): Categor
 
 function render(): void {
   renderCategories();
-  renderCacheMeta();
   renderBookmarks();
-}
-
-function renderCacheMeta(): void {
-  if (!state.snapshotFetchedAt) {
-    cacheMeta.textContent = '';
-    cacheMeta.hidden = true;
-    return;
-  }
-
-  const age = formatRelativeTime(state.snapshotFetchedAt);
-  const prefix = state.snapshotStatus === 'stale'
-    ? 'Using cached bookmarks'
-    : state.snapshotStatus === 'cached'
-      ? 'Loaded cached bookmarks'
-      : 'Updated';
-  cacheMeta.textContent = `${prefix} ${age}`;
-  cacheMeta.hidden = false;
 }
 
 function renderCategories(): void {
@@ -437,20 +415,6 @@ function escapeHtml(str: string): string {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
-}
-
-function formatRelativeTime(timestamp: number): string {
-  const elapsedMs = Math.max(0, Date.now() - timestamp);
-  const elapsedMinutes = Math.floor(elapsedMs / 60_000);
-
-  if (elapsedMinutes < 1) return 'just now';
-  if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return `${elapsedHours}h ago`;
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  return `${elapsedDays}d ago`;
 }
 
 const FALLBACK_ICON =
