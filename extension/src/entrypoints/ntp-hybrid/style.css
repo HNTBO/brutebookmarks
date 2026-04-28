@@ -160,6 +160,14 @@ img {
   filter: brightness(0) saturate(100%) invert(77%) sepia(92%) saturate(1992%) hue-rotate(137deg) brightness(103%) contrast(102%);
 }
 
+[data-theme="light"] .back-btn:hover {
+  background: var(--accent);
+}
+
+[data-theme="light"] .back-btn:hover img {
+  filter: brightness(0) saturate(100%) invert(93%) sepia(9%) saturate(716%) hue-rotate(349deg) brightness(108%) contrast(98%);
+}
+
 .status-view {
   display: grid;
   place-items: center;
