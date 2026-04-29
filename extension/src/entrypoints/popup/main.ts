@@ -8,8 +8,10 @@ import type { Category, Bookmark, PopupView } from '../../lib/types';
 const THEME_CACHE_KEY = 'bb_cached_theme';
 
 interface CachedTheme {
-  theme: 'dark' | 'light';
-  accentColor: string | null;
+  theme: 'dark' | 'light' | 'auto';
+  accentColor?: string | null;
+  accentColorDark: string | null;
+  accentColorLight: string | null;
   wireframe: boolean;
 }
 
@@ -20,12 +22,20 @@ async function applyCachedTheme(): Promise<void> {
 }
 
 function applyTheme(t: CachedTheme): void {
-  if (t.theme === 'light') {
+  const resolvedTheme = resolveTheme(t.theme);
+  if (resolvedTheme === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
-  if (t.accentColor) {
+
+  const accentColor = resolvedTheme === 'dark' ? t.accentColorDark : t.accentColorLight;
+  if (accentColor) {
+    document.documentElement.style.setProperty('--accent', accentColor);
+    document.documentElement.style.setProperty('--accent-dim', `color-mix(in srgb, ${accentColor}, black 20%)`);
+    document.documentElement.style.setProperty('--accent-glow', `color-mix(in srgb, ${accentColor}, transparent 85%)`);
+    document.documentElement.style.setProperty('--border-strong', accentColor);
+  } else if (t.accentColor) {
     document.documentElement.style.setProperty('--accent', t.accentColor);
     document.documentElement.style.setProperty('--accent-dim', `color-mix(in srgb, ${t.accentColor}, black 20%)`);
     document.documentElement.style.setProperty('--accent-glow', `color-mix(in srgb, ${t.accentColor}, transparent 85%)`);
@@ -44,16 +54,30 @@ async function fetchAndCacheTheme(): Promise<void> {
     const prefs = await client.query('preferences:get' as any, {}) as any;
     if (!prefs) return;
 
-    const theme = (prefs.theme ?? 'dark') as 'dark' | 'light';
-    const accentColor = theme === 'dark' ? prefs.accentColorDark : prefs.accentColorLight;
-    const wireframe = theme === 'dark' ? !!prefs.wireframeDark : !!prefs.wireframeLight;
-    const cached: CachedTheme = { theme, accentColor: accentColor ?? null, wireframe };
+    const theme = prefs.theme === 'light' || prefs.theme === 'auto' ? prefs.theme : 'dark';
+    const resolvedTheme = resolveTheme(theme);
+    const wireframe = resolvedTheme === 'dark' ? !!prefs.wireframeDark : !!prefs.wireframeLight;
+    const cached: CachedTheme = {
+      theme,
+      accentColorDark: isCssColor(prefs.accentColorDark) ? prefs.accentColorDark : null,
+      accentColorLight: isCssColor(prefs.accentColorLight) ? prefs.accentColorLight : null,
+      wireframe,
+    };
 
     await browser.storage.local.set({ [THEME_CACHE_KEY]: cached });
     applyTheme(cached);
   } catch {
     // Non-critical — keep using cached or defaults
   }
+}
+
+function resolveTheme(theme: CachedTheme['theme']): 'dark' | 'light' {
+  if (theme !== 'auto') return theme;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function isCssColor(value: unknown): value is string {
+  return typeof value === 'string' && CSS.supports('color', value);
 }
 
 // --- DOM helpers ---

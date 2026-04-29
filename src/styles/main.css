@@ -368,7 +368,7 @@ html.fonts-pending:not(.fonts-ready) .welcome-gate-title {
 
 .theme-auto-icon {
     font-family: var(--font-display);
-    font-weight: 200;
+    font-weight: 300;
     letter-spacing: 0;
     line-height: 1;
 }
