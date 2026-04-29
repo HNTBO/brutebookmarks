@@ -43,7 +43,11 @@ let _prefsCallback: ((prefs: UserPreferences) => void) | null = null;
 let _prefsCollector: (() => UserPreferences) | null = null;
 let _prefsSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let _applyingFromConvex = false; // guard against save loops
+let _pendingLocalPrefs: UserPreferences | null = null;
+let _pendingLocalPrefsExpiresAt = 0;
 let _deferredLocalSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const PENDING_PREFS_STALE_MS = 10000;
 
 // --- Public getters ---
 export function getCategories(): Category[] {
@@ -352,6 +356,36 @@ export function setPreferencesCollector(fn: () => UserPreferences): void {
   _prefsCollector = fn;
 }
 
+function preferencesEqual(a: UserPreferences, b: UserPreferences): boolean {
+  return a.theme === b.theme
+    && a.accentColorDark === b.accentColorDark
+    && a.accentColorLight === b.accentColorLight
+    && a.wireframeDark === b.wireframeDark
+    && a.wireframeLight === b.wireframeLight
+    && a.cardSize === b.cardSize
+    && a.pageWidth === b.pageWidth
+    && a.showCardNames === b.showCardNames
+    && a.autofillUrl === b.autofillUrl;
+}
+
+function markPendingLocalPrefs(prefs: UserPreferences): void {
+  _pendingLocalPrefs = prefs;
+  _pendingLocalPrefsExpiresAt = Date.now() + PENDING_PREFS_STALE_MS;
+}
+
+function shouldIgnoreIncomingPrefs(prefs: UserPreferences): boolean {
+  if (!_pendingLocalPrefs) return false;
+  if (preferencesEqual(prefs, _pendingLocalPrefs)) {
+    _pendingLocalPrefs = null;
+    _pendingLocalPrefsExpiresAt = 0;
+    return false;
+  }
+  if (Date.now() < _pendingLocalPrefsExpiresAt) return true;
+  _pendingLocalPrefs = null;
+  _pendingLocalPrefsExpiresAt = 0;
+  return false;
+}
+
 /**
  * Called by theme.ts / preferences.ts after any user-initiated preference change.
  * Debounced — collects current state and saves to Convex after 500ms of inactivity.
@@ -359,11 +393,12 @@ export function setPreferencesCollector(fn: () => UserPreferences): void {
 export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
   if (!_convexActive || _applyingFromConvex) return;
 
+  const prefs = getPrefs();
+  markPendingLocalPrefs(prefs);
   if (_prefsSaveTimer) clearTimeout(_prefsSaveTimer);
   _prefsSaveTimer = setTimeout(async () => {
     const client = getConvexClient();
     if (!client) return;
-    const prefs = getPrefs();
     try {
       await client.mutation(api.preferences.set, {
         theme: prefs.theme,
@@ -377,6 +412,10 @@ export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
         autofillUrl: prefs.autofillUrl ?? undefined,
       });
     } catch (err) {
+      if (_pendingLocalPrefs && preferencesEqual(_pendingLocalPrefs, prefs)) {
+        _pendingLocalPrefs = null;
+        _pendingLocalPrefsExpiresAt = 0;
+      }
       console.error('[Store] Failed to save preferences:', err);
     }
   }, 500);
@@ -396,6 +435,7 @@ export function flushPreferencesToConvex(getPrefs: () => UserPreferences): void 
   const client = getConvexClient();
   if (!client) return;
   const prefs = getPrefs();
+  markPendingLocalPrefs(prefs);
   client.mutation(api.preferences.set, {
     theme: prefs.theme,
     accentColorDark: prefs.accentColorDark ?? undefined,
@@ -406,7 +446,13 @@ export function flushPreferencesToConvex(getPrefs: () => UserPreferences): void 
     pageWidth: prefs.pageWidth,
     showCardNames: prefs.showCardNames,
     autofillUrl: prefs.autofillUrl ?? undefined,
-  }).catch((err) => console.error('[Store] Failed to flush preferences:', err));
+  }).catch((err) => {
+    if (_pendingLocalPrefs && preferencesEqual(_pendingLocalPrefs, prefs)) {
+      _pendingLocalPrefs = null;
+      _pendingLocalPrefsExpiresAt = 0;
+    }
+    console.error('[Store] Failed to flush preferences:', err);
+  });
 }
 
 /** True when applying preferences from a Convex subscription (prevents save loops). */
@@ -474,6 +520,7 @@ export function activateConvex(): void {
       showCardNames: result.showCardNames ?? true,
       autofillUrl: result.autofillUrl ?? false,
     };
+    if (shouldIgnoreIncomingPrefs(prefs)) return;
     _applyingFromConvex = true;
     try {
       _prefsCallback(prefs);

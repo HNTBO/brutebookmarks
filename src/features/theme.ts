@@ -41,6 +41,11 @@ export function getResolvedTheme(): ResolvedTheme {
   return theme === 'auto' ? getSystemTheme() : theme;
 }
 
+function getAppliedResolvedTheme(): ResolvedTheme {
+  const applied = document.documentElement.getAttribute('data-theme');
+  return applied === 'light' || applied === 'dark' ? applied : getResolvedTheme();
+}
+
 export function getAccentColorDark(): string | null {
   return localStorage.getItem('accentColor_dark');
 }
@@ -153,8 +158,15 @@ function syncThemeButtons(): void {
 }
 
 export function updateAccentColor(color: string): void {
-  document.documentElement.style.setProperty('--accent', color);
-  localStorage.setItem(`accentColor_${getResolvedTheme()}`, color);
+  const theme = getAppliedResolvedTheme();
+  setAccentColorForTheme(theme, color);
+}
+
+function setAccentColorForTheme(theme: ResolvedTheme, color: string): void {
+  if (getAppliedResolvedTheme() === theme) {
+    document.documentElement.style.setProperty('--accent', color);
+  }
+  localStorage.setItem(`accentColor_${theme}`, color);
   syncToConvex();
 }
 
@@ -257,6 +269,7 @@ function hslToHex(h: number, s: number, l: number): string {
 }
 
 export function randomizeAccentHue(): void {
+  const theme = getAppliedResolvedTheme();
   const currentAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
   const rgb = parseColorToRgb(currentAccent);
   if (!rgb) return;
@@ -268,8 +281,8 @@ export function randomizeAccentHue(): void {
   updateAccentColor(newColor);
   if (!isUndoing()) {
     pushUndo({
-      undo: () => { updateAccentColor(oldColor); syncPickerToAccent(oldColor); },
-      redo: () => { updateAccentColor(newColor); syncPickerToAccent(newColor); },
+      undo: () => { setAccentColorForTheme(theme, oldColor); syncPickerToAccent(oldColor); },
+      redo: () => { setAccentColorForTheme(theme, newColor); syncPickerToAccent(newColor); },
     });
   }
 }
@@ -280,7 +293,8 @@ function syncPickerToAccent(color: string): void {
 }
 
 export function resetAccentColor(): void {
-  const storageKey = `accentColor_${getResolvedTheme()}`;
+  const theme = getAppliedResolvedTheme();
+  const storageKey = `accentColor_${theme}`;
   const oldColor = localStorage.getItem(storageKey);
   localStorage.removeItem(storageKey);
   document.documentElement.style.removeProperty('--accent');
@@ -293,7 +307,7 @@ export function resetAccentColor(): void {
   syncToConvex();
   if (!isUndoing() && oldColor) {
     pushUndo({
-      undo: () => { updateAccentColor(oldColor); syncPickerToAccent(oldColor); },
+      undo: () => { setAccentColorForTheme(theme, oldColor); syncPickerToAccent(oldColor); },
       redo: () => resetAccentColor(),
     });
   }
