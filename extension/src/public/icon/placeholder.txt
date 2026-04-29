@@ -1,7 +1,8 @@
-Extension icons needed:
-- icon-16.png  (16x16)
-- icon-48.png  (48x48)
-- icon-128.png (128x128)
+Extension icons are generated in extension/public:
+- quicksave-icon-16.png, quicksave-icon-32.png, quicksave-icon-48.png, quicksave-icon-128.png, quicksave-icon-300.png
+- newtab-icon-16.png, newtab-icon-32.png, newtab-icon-48.png, newtab-icon-128.png, newtab-icon-300.png
+
+The legacy icon-*.png files mirror the quick-save artwork for compatibility.
 
 These should be the Brute Bookmarks logo/icon in a square format.
 For store listings, also create a 440x280 promotional tile.

@@ -12,6 +12,7 @@ const isNewTabVariant =
   extensionVariant === 'newtab-hybrid';
 const isNativeNewTabVariant = extensionVariant === 'newtab-native';
 const isHybridNewTabVariant = extensionVariant === 'newtab-hybrid';
+const extensionIconBase = isNewTabVariant ? 'newtab-icon' : 'quicksave-icon';
 
 function normalizeHostPermission(value?: string): string | null {
   if (!value) return null;
@@ -106,17 +107,18 @@ export default defineConfig({
         : ['storage', 'bookmarks', 'tabs'],
       host_permissions: Array.from(hostPermissions),
       icons: {
-        16: '/icon-16.png',
-        32: '/icon-32.png',
-        48: '/icon-48.png',
-        128: '/icon-128.png',
+        16: `/${extensionIconBase}-16.png`,
+        32: `/${extensionIconBase}-32.png`,
+        48: `/${extensionIconBase}-48.png`,
+        128: `/${extensionIconBase}-128.png`,
+        300: `/${extensionIconBase}-300.png`,
       },
       action: {
         default_icon: {
-          16: '/icon-16.png',
-          32: '/icon-32.png',
-          48: '/icon-48.png',
-          128: '/icon-128.png',
+          16: `/${extensionIconBase}-16.png`,
+          32: `/${extensionIconBase}-32.png`,
+          48: `/${extensionIconBase}-48.png`,
+          128: `/${extensionIconBase}-128.png`,
         },
         ...(isNewTabVariant ? {} : { default_title: 'BruteBookmarks Quick Save' }),
       },
