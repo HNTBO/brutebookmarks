@@ -131,21 +131,16 @@ function mountUserButton(): void {
   for (const id of targets) {
     const container = document.getElementById(id) as HTMLDivElement | null;
     if (!container) continue;
-    container.innerHTML = '';
-    clerk.mountUserButton(container, { afterSignOutUrl: '/' });
+    const mount = container.querySelector<HTMLDivElement>('.clerk-user-button-mount') ?? container;
+    mount.innerHTML = '';
+    clerk.mountUserButton(mount, { afterSignOutUrl: '/' });
 
     // Overlay custom avatar when user hasn't uploaded a profile photo
     if (!clerk.user?.hasImage) {
       container.classList.add('no-custom-avatar');
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 512 512');
-      svg.setAttribute('aria-hidden', 'true');
-      svg.classList.add('default-avatar-overlay');
-      svg.innerHTML =
-        '<rect class="avatar-bg" width="512" height="512"/>' +
-        '<rect class="avatar-shape" x="189.69" y="97.61" width="132.63" height="113.62"/>' +
-        '<rect class="avatar-shape" x="110.55" y="225.59" width="290.89" height="188.81"/>';
-      container.appendChild(svg);
+    } else {
+      container.classList.remove('no-custom-avatar');
+      container.querySelector('.default-avatar-overlay')?.remove();
     }
   }
 }

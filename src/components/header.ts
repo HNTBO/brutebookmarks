@@ -131,7 +131,7 @@ export function initSizeController(): void {
     }
   });
 
-  setTimeout(updateHandlePosition, 0);
+  updateHandlePosition();
 
   // Expose for external callers (e.g. randomizeXY easter egg)
   (window as any).__refreshSizeHandle = updateHandlePosition;

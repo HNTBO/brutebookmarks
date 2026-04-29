@@ -21,6 +21,15 @@
     document.documentElement.style.setProperty('--page-width', (800 + (pw / 100) * 800) + 'px');
   }
 
+  var cs = Number(localStorage.getItem('cardSize'));
+  if (isNaN(cs) || cs < 60 || cs > 120) cs = 90;
+  if (isNaN(pw) || pw < 50 || pw > 100) pw = 100;
+
+  var handleX = ((pw - 50) / 50) * 100;
+  var handleY = ((cs - 60) / 60) * 100;
+  document.documentElement.style.setProperty('--size-handle-left', 'calc(' + handleX + '% + ' + (8 - 0.16 * handleX) + 'px)');
+  document.documentElement.style.setProperty('--size-handle-top', 'calc(' + handleY + '% + ' + (8 - 0.16 * handleY) + 'px)');
+
   function finishFontGate() {
     document.documentElement.classList.add('fonts-ready');
     document.documentElement.classList.remove('fonts-pending');

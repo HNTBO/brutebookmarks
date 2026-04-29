@@ -265,8 +265,8 @@ html.fonts-pending:not(.fonts-ready) .welcome-gate-title {
     background: var(--accent); /* Accent color */
     cursor: grab;
     transform: translate(-50%, -50%);
-    left: 50%;
-    top: 50%;
+    left: var(--size-handle-left, 50%);
+    top: var(--size-handle-top, 50%);
     transition: box-shadow 0.15s ease;
     touch-action: none; /* prevent browser scroll/pan during drag */
 }
@@ -1483,7 +1483,8 @@ footer {
 
     #mobile-avatar-btn .cl-userButtonRootBox,
     #mobile-avatar-btn .cl-userButtonTrigger,
-    #mobile-avatar-btn .cl-avatarBox {
+    #mobile-avatar-btn .cl-avatarBox,
+    #mobile-avatar-btn .clerk-user-button-mount {
         width: 100%;
         height: 100%;
     }
@@ -2248,7 +2249,8 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
 
 #clerk-user-button .cl-userButtonRootBox,
 #clerk-user-button .cl-userButtonTrigger,
-#clerk-user-button .cl-avatarBox {
+#clerk-user-button .cl-avatarBox,
+#clerk-user-button .clerk-user-button-mount {
     width: 100%;
     height: 100%;
 }
