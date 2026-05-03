@@ -37,6 +37,7 @@ convex/_generated/
 
 # Scratch / WIP graphics
 _drafts/
+_graphics/
 
 # Environment variables
 .env
