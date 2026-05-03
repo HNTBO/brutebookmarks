@@ -6,20 +6,29 @@
  */
 import { storeToken, clearToken } from '../lib/auth';
 import { getFreshChromiumConvexToken } from '../lib/chromium-clerk';
-import { updateActionIconForTheme, type ActionIconTheme } from '../lib/action-icon';
+import { updateActionIconForTheme, type ActionIconGlyph, type ActionIconTheme } from '../lib/action-icon';
 
-const THEME_CACHE_KEY = 'bb_cached_theme';
+const QUICK_SAVE_THEME_CACHE_KEY = 'bb_cached_theme';
+const NEW_TAB_THEME_CACHE_KEY = 'bb_ntp_cached_theme';
 
-function isQuickSaveVariant(): boolean {
-  return browser.runtime.getManifest().name.includes('Quick Save');
+function getActionIconConfig(): { cacheKey: string; glyph: ActionIconGlyph } | null {
+  const name = browser.runtime.getManifest().name;
+  if (name.includes('Quick Save')) {
+    return { cacheKey: QUICK_SAVE_THEME_CACHE_KEY, glyph: 'quicksave' };
+  }
+  if (name.includes('New Tab')) {
+    return { cacheKey: NEW_TAB_THEME_CACHE_KEY, glyph: 'newtab' };
+  }
+  return null;
 }
 
 async function applyCachedActionIcon(): Promise<void> {
-  if (!isQuickSaveVariant()) return;
+  const config = getActionIconConfig();
+  if (!config) return;
   try {
-    const result = await browser.storage.local.get(THEME_CACHE_KEY);
-    const cached = result[THEME_CACHE_KEY] as ActionIconTheme | undefined;
-    if (cached) await updateActionIconForTheme(cached);
+    const result = await browser.storage.local.get(config.cacheKey);
+    const cached = result[config.cacheKey] as ActionIconTheme | undefined;
+    if (cached) await updateActionIconForTheme(cached, config.glyph);
   } catch {
     // Non-critical: keep the packaged static icon.
   }

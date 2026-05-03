@@ -3,6 +3,7 @@ import backIconSvg from '../../../../src/assets/back.svg?raw';
 import { getClient, setAuthToken } from '../../lib/api';
 import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
+import { updateActionIconForTheme } from '../../lib/action-icon';
 import type { Bookmark, Category } from '../../lib/types';
 
 const PROBE_TIMEOUT_MS = 750;
@@ -211,6 +212,9 @@ function applyTheme(theme: CachedTheme): void {
   } else {
     document.documentElement.style.removeProperty('--accent');
   }
+  updateActionIconForTheme(theme, 'newtab').catch(() => {
+    // Non-critical: the packaged static toolbar icon remains the fallback.
+  });
 }
 
 function resolveTheme(theme: CachedTheme['theme']): 'dark' | 'light' {

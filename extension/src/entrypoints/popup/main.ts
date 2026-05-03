@@ -47,7 +47,7 @@ function applyTheme(t: CachedTheme): void {
   } else {
     document.documentElement.removeAttribute('data-wireframe');
   }
-  updateActionIconForTheme(t).catch(() => {
+  updateActionIconForTheme(t, 'quicksave').catch(() => {
     // Non-critical: the packaged static toolbar icon remains the fallback.
   });
 }

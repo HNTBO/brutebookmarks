@@ -1,5 +1,6 @@
 type ThemeMode = 'dark' | 'light' | 'auto';
 type ResolvedTheme = 'dark' | 'light';
+export type ActionIconGlyph = 'quicksave' | 'newtab';
 
 export interface ActionIconTheme {
   theme: ThemeMode;
@@ -22,7 +23,10 @@ export function resolveActionIconTheme(theme: ThemeMode): ResolvedTheme {
   return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export async function updateActionIconForTheme(theme: ActionIconTheme): Promise<void> {
+export async function updateActionIconForTheme(
+  theme: ActionIconTheme,
+  glyph: ActionIconGlyph = 'quicksave',
+): Promise<void> {
   if (!browser.action?.setIcon) return;
 
   const resolvedTheme = resolveActionIconTheme(theme.theme);
@@ -31,10 +35,10 @@ export async function updateActionIconForTheme(theme: ActionIconTheme): Promise<
     theme.accentColor ||
     (resolvedTheme === 'dark' ? DEFAULT_DARK_ACCENT : DEFAULT_LIGHT_ACCENT);
   const background = resolvedTheme === 'dark' ? DARK_BACKGROUND : LIGHT_BACKGROUND;
-  const key = `${resolvedTheme}:${background}:${accent}`;
+  const key = `${glyph}:${resolvedTheme}:${background}:${accent}`;
   if (key === lastIconKey) return;
 
-  const imageData = createActionIconImageData(background, accent);
+  const imageData = createActionIconImageData(background, accent, glyph);
   if (!imageData) return;
 
   await browser.action.setIcon({ imageData });
@@ -44,6 +48,7 @@ export async function updateActionIconForTheme(theme: ActionIconTheme): Promise<
 function createActionIconImageData(
   background: string,
   accent: string,
+  glyph: ActionIconGlyph,
 ): Record<number, ImageData> | null {
   const result: Record<number, ImageData> = {};
   for (const size of ICON_SIZES) {
@@ -56,7 +61,7 @@ function createActionIconImageData(
       | null;
     if (!ctx) return null;
 
-    drawQuickSaveIcon(ctx, size, background, accent);
+    drawActionIcon(ctx, size, background, accent, glyph);
     result[size] = ctx.getImageData(0, 0, size, size);
   }
   return result;
@@ -75,11 +80,12 @@ function createCanvas(size: number): OffscreenCanvas | HTMLCanvasElement | null 
   return null;
 }
 
-function drawQuickSaveIcon(
+function drawActionIcon(
   ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D,
   size: number,
   background: string,
   accent: string,
+  glyph: ActionIconGlyph,
 ): void {
   const scale = size / 128;
   ctx.clearRect(0, 0, size, size);
@@ -87,6 +93,17 @@ function drawQuickSaveIcon(
   ctx.fillRect(6 * scale, 6 * scale, 116 * scale, 116 * scale);
 
   ctx.fillStyle = accent;
+  if (glyph === 'newtab') {
+    drawNewTabGlyph(ctx, scale);
+  } else {
+    drawQuickSaveGlyph(ctx, scale);
+  }
+}
+
+function drawQuickSaveGlyph(
+  ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D,
+  scale: number,
+): void {
   ctx.beginPath();
   ctx.moveTo(69.22 * scale, 76.128 * scale);
   ctx.lineTo(81.852 * scale, 76.128 * scale);
@@ -96,6 +113,28 @@ function drawQuickSaveIcon(
   ctx.lineTo(58.778 * scale, 28.958 * scale);
   ctx.lineTo(69.219 * scale, 28.958 * scale);
   ctx.lineTo(69.22 * scale, 76.128 * scale);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawNewTabGlyph(
+  ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D,
+  scale: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(58.127 * scale, 69.873 * scale);
+  ctx.lineTo(28.981 * scale, 69.873 * scale);
+  ctx.lineTo(28.981 * scale, 58.127 * scale);
+  ctx.lineTo(58.127 * scale, 58.127 * scale);
+  ctx.lineTo(58.127 * scale, 28.981 * scale);
+  ctx.lineTo(69.873 * scale, 28.981 * scale);
+  ctx.lineTo(69.873 * scale, 58.127 * scale);
+  ctx.lineTo(99.019 * scale, 58.127 * scale);
+  ctx.lineTo(99.019 * scale, 69.873 * scale);
+  ctx.lineTo(69.873 * scale, 69.873 * scale);
+  ctx.lineTo(69.873 * scale, 99.019 * scale);
+  ctx.lineTo(58.127 * scale, 99.019 * scale);
+  ctx.lineTo(58.127 * scale, 69.873 * scale);
   ctx.closePath();
   ctx.fill();
 }
