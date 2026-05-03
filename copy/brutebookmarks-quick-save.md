@@ -43,6 +43,45 @@ You can export all your data as JSON at any time, and delete everything with one
 - "Read your bookmarks" - Used only when you choose to import Chrome bookmarks into BruteBookmarks.
 - "Connect to convex.cloud" - Syncs your bookmark data across devices via an encrypted connection when you're signed in.
 
+## Chrome Web Store Privacy Form
+
+### Permission Justifications
+
+Storage justification:
+Stores bookmark data, category structure, user preferences, and cached theme settings locally on the user's device.
+
+Bookmarks justification:
+Imports bookmarks from Chrome's built-in bookmark manager only when the user explicitly requests it in the main app. Never accessed otherwise.
+
+Tabs justification:
+Reads the active tab's URL and title only when the user clicks the extension to save a bookmark or check for duplicates. Also opens BruteBookmarks in the background when needed to refresh authentication.
+
+Host permission justification:
+Connects to Convex Cloud over encrypted HTTPS/WSS to sync bookmark data across the user's devices. Only used when the user is signed in.
+
+### User Data Disclosures
+
+Recommended checked categories:
+
+- Authentication information - The extension handles authentication/session tokens.
+- Web history - Saved bookmarks include URLs and page titles. BruteBookmarks does not track browsing history, but Chrome Web Store may classify saved URLs as web-history-related data.
+
+Recommended unchecked categories:
+
+- Personally identifiable information - Leave unchecked if the extension privacy form is scoped to extension-collected data and the extension does not collect or display the user's name or email. If the form is treated as covering the wider BruteBookmarks service, checking this is the more conservative option because account authentication may involve an email address through Clerk.
+- Health information
+- Financial and payment information
+- Personal communications
+- Location
+- User activity
+- Website content
+
+Required certifications:
+
+- I do not sell or transfer user data to third parties, outside of approved use cases.
+- I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
+- I do not use or transfer user data to determine creditworthiness or for lending purposes.
+
 ## Open Source
 
 BruteBookmarks is open source under the MIT license. You can read every line of code on GitHub.
