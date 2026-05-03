@@ -34,6 +34,13 @@ async function applyCachedActionIcon(): Promise<void> {
   }
 }
 
+async function applyThemeMessage(theme: ActionIconTheme): Promise<void> {
+  const config = getActionIconConfig();
+  if (!config) return;
+  await browser.storage.local.set({ [config.cacheKey]: theme });
+  await updateActionIconForTheme(theme, config.glyph);
+}
+
 export default defineBackground(() => {
   applyCachedActionIcon();
   browser.runtime.onStartup?.addListener(() => {
@@ -45,7 +52,17 @@ export default defineBackground(() => {
 
   // Listen for auth token from the web app (sent via content script)
   browser.runtime.onMessage.addListener(
-    (message: { type: string; token?: string }, _sender, sendResponse) => {
+    (
+      message: {
+        type: string;
+        token?: string;
+        theme?: ActionIconTheme['theme'];
+        accentColorDark?: string | null;
+        accentColorLight?: string | null;
+      },
+      _sender,
+      sendResponse,
+    ) => {
       if (message.type === 'BB_GET_AUTH_TOKEN') {
         getFreshChromiumConvexToken()
           .then(async (token) => {
@@ -85,6 +102,21 @@ export default defineBackground(() => {
             sendResponse({ success: false, error: String(err) });
           });
         return true; // async response
+      }
+
+      if (message.type === 'BB_THEME') {
+        if (message.theme !== 'dark' && message.theme !== 'light' && message.theme !== 'auto') {
+          sendResponse({ success: false, error: 'Invalid theme' });
+          return true;
+        }
+        applyThemeMessage({
+          theme: message.theme,
+          accentColorDark: typeof message.accentColorDark === 'string' ? message.accentColorDark : null,
+          accentColorLight: typeof message.accentColorLight === 'string' ? message.accentColorLight : null,
+        })
+          .then(() => sendResponse({ success: true }))
+          .catch((err) => sendResponse({ success: false, error: String(err) }));
+        return true;
       }
     },
   );

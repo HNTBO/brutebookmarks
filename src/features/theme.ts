@@ -2,6 +2,7 @@ import { savePreferencesToConvex, isApplyingFromConvex } from '../data/store';
 import { collectPreferences, applyWireframeForCurrentTheme } from './preferences';
 import { pushUndo, isUndoing } from './undo';
 import { updateAccentFavicon } from './favicon';
+import { syncExtensionThemePreference } from '../utils/extension-bridge';
 
 export type ThemeMode = 'dark' | 'light' | 'auto';
 export type ResolvedTheme = 'dark' | 'light';
@@ -45,6 +46,10 @@ export function getResolvedTheme(): ResolvedTheme {
 function getAppliedResolvedTheme(): ResolvedTheme {
   const applied = document.documentElement.getAttribute('data-theme');
   return applied === 'light' || applied === 'dark' ? applied : getResolvedTheme();
+}
+
+function syncThemeToExtension(): void {
+  syncExtensionThemePreference(getTheme(), getAccentColorDark(), getAccentColorLight());
 }
 
 export function getAccentColorDark(): string | null {
@@ -128,6 +133,7 @@ function applyThemeToDOM(): void {
     }
   }
   updateAccentFavicon(resolvedTheme);
+  syncThemeToExtension();
 }
 
 function ensureSystemThemeListener(): void {
@@ -170,6 +176,7 @@ function setAccentColorForTheme(theme: ResolvedTheme, color: string): void {
     updateAccentFavicon(theme);
   }
   localStorage.setItem(`accentColor_${theme}`, color);
+  syncThemeToExtension();
   syncToConvex();
 }
 
@@ -308,6 +315,7 @@ export function resetAccentColor(): void {
     if (picker) picker.value = defaultColor;
     updateAccentFavicon(theme);
   }, 10);
+  syncThemeToExtension();
   syncToConvex();
   if (!isUndoing() && oldColor) {
     pushUndo({

@@ -1,5 +1,5 @@
 import { BRIDGE_VERSION } from '../shared/bridge-types';
-import type { BridgeMsgRequestBookmarks, BridgeMsgBookmarksResult } from '../shared/bridge-types';
+import type { BridgeMsgRequestBookmarks, BridgeMsgBookmarksResult, BridgeMsgTheme } from '../shared/bridge-types';
 
 let extensionInstalled = false;
 let _detectionInitialized = false;
@@ -18,6 +18,21 @@ export function initExtensionDetection(): void {
 
 export function isExtensionInstalled(): boolean {
   return extensionInstalled;
+}
+
+export function syncExtensionThemePreference(
+  theme: BridgeMsgTheme['theme'],
+  accentColorDark: string | null,
+  accentColorLight: string | null,
+): void {
+  const msg: BridgeMsgTheme = {
+    type: 'BB_EXT_THEME',
+    v: BRIDGE_VERSION,
+    theme,
+    accentColorDark,
+    accentColorLight,
+  };
+  window.postMessage(msg, window.location.origin);
 }
 
 export interface BookmarkTreeNode {

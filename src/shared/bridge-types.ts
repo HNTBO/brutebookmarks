@@ -53,6 +53,15 @@ export interface BridgeMsgDisconnect {
   v: typeof BRIDGE_VERSION;
 }
 
+/** Page → Content script: current theme/accent preferences */
+export interface BridgeMsgTheme {
+  type: 'BB_EXT_THEME';
+  v: typeof BRIDGE_VERSION;
+  theme: 'dark' | 'light' | 'auto';
+  accentColorDark: string | null;
+  accentColorLight: string | null;
+}
+
 /** Union of all page ↔ content script messages */
 export type BridgeMessage =
   | BridgeMsgInstalled
@@ -60,7 +69,8 @@ export type BridgeMessage =
   | BridgeMsgRequestBookmarks
   | BridgeMsgBookmarksResult
   | BridgeMsgRequestToken
-  | BridgeMsgDisconnect;
+  | BridgeMsgDisconnect
+  | BridgeMsgTheme;
 
 // --- Content Script ↔ Background (runtime.sendMessage) ---
 
@@ -85,9 +95,18 @@ export interface RuntimeMsgGetAuthToken {
   type: 'BB_GET_AUTH_TOKEN';
 }
 
+/** Content script → Background: current theme/accent preferences */
+export interface RuntimeMsgTheme {
+  type: 'BB_THEME';
+  theme: 'dark' | 'light' | 'auto';
+  accentColorDark: string | null;
+  accentColorLight: string | null;
+}
+
 /** Union of all runtime messages */
 export type RuntimeMessage =
   | RuntimeMsgAuthToken
   | RuntimeMsgDisconnect
   | RuntimeMsgRequestBookmarks
-  | RuntimeMsgGetAuthToken;
+  | RuntimeMsgGetAuthToken
+  | RuntimeMsgTheme;

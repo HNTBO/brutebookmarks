@@ -43,6 +43,16 @@ export default defineContentScript({
         return;
       }
 
+      if (event.data?.type === 'BB_EXT_THEME') {
+        browser.runtime.sendMessage({
+          type: 'BB_THEME',
+          theme: event.data.theme,
+          accentColorDark: event.data.accentColorDark,
+          accentColorLight: event.data.accentColorLight,
+        });
+        return;
+      }
+
       // Browser bookmarks request relay
       if (event.data?.type === 'BB_EXT_REQUEST_BOOKMARKS') {
         const requestId = event.data.requestId;
