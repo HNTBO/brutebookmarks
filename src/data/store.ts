@@ -365,7 +365,8 @@ function preferencesEqual(a: UserPreferences, b: UserPreferences): boolean {
     && a.cardSize === b.cardSize
     && a.pageWidth === b.pageWidth
     && a.showCardNames === b.showCardNames
-    && a.autofillUrl === b.autofillUrl;
+    && a.autofillUrl === b.autofillUrl
+    && a.openBookmarksInNewTab === b.openBookmarksInNewTab;
 }
 
 function markPendingLocalPrefs(prefs: UserPreferences): void {
@@ -410,6 +411,7 @@ export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
         pageWidth: prefs.pageWidth,
         showCardNames: prefs.showCardNames,
         autofillUrl: prefs.autofillUrl ?? undefined,
+        openBookmarksInNewTab: prefs.openBookmarksInNewTab,
       });
     } catch (err) {
       if (_pendingLocalPrefs && preferencesEqual(_pendingLocalPrefs, prefs)) {
@@ -446,6 +448,7 @@ export function flushPreferencesToConvex(getPrefs: () => UserPreferences): void 
     pageWidth: prefs.pageWidth,
     showCardNames: prefs.showCardNames,
     autofillUrl: prefs.autofillUrl ?? undefined,
+    openBookmarksInNewTab: prefs.openBookmarksInNewTab,
   }).catch((err) => {
     if (_pendingLocalPrefs && preferencesEqual(_pendingLocalPrefs, prefs)) {
       _pendingLocalPrefs = null;
@@ -519,6 +522,7 @@ export function activateConvex(): void {
       pageWidth: result.pageWidth ?? 100,
       showCardNames: result.showCardNames ?? true,
       autofillUrl: result.autofillUrl ?? false,
+      openBookmarksInNewTab: result.openBookmarksInNewTab ?? true,
     };
     if (shouldIgnoreIncomingPrefs(prefs)) return;
     _applyingFromConvex = true;

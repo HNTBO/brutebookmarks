@@ -7,6 +7,7 @@ let currentCardSize = 90;
 let currentPageWidth = 100;
 let showCardNames = true;
 let autofillUrl = false;
+let openBookmarksInNewTab = true;
 let easterEggs = true;
 let showNameOnHover = true;
 let mobileColumns: 3 | 4 | 5 = 5;
@@ -36,6 +37,7 @@ function ensurePrefsInit(): void {
   currentPageWidth = Math.max(50, Math.min(100, parseInt(localStorage.getItem('pageWidth') || '100') || 100));
   showCardNames = localStorage.getItem('showCardNames') !== 'false';
   autofillUrl = localStorage.getItem('autofillUrl') === 'true';
+  openBookmarksInNewTab = localStorage.getItem('openBookmarksInNewTab') !== 'false';
   easterEggs = localStorage.getItem('easterEggs') !== 'false';
   showNameOnHover = localStorage.getItem('showNameOnHover') !== 'false';
   mobileColumns = (parseInt(localStorage.getItem('mobileColumns') || '5') || 5) as 3 | 4 | 5;
@@ -76,6 +78,11 @@ export function getShowCardNames(): boolean {
 export function getAutofillUrl(): boolean {
   ensurePrefsInit();
   return autofillUrl;
+}
+
+export function getOpenBookmarksInNewTab(): boolean {
+  ensurePrefsInit();
+  return openBookmarksInNewTab;
 }
 
 export function getEasterEggs(): boolean {
@@ -122,6 +129,7 @@ export function collectPreferences(): UserPreferences {
     pageWidth: currentPageWidth,
     showCardNames,
     autofillUrl,
+    openBookmarksInNewTab,
   };
 }
 
@@ -168,6 +176,12 @@ export function toggleAutofillUrl(enabled: boolean): void {
   syncToConvex();
 }
 
+export function toggleOpenBookmarksInNewTab(enabled: boolean): void {
+  openBookmarksInNewTab = enabled;
+  localStorage.setItem('openBookmarksInNewTab', String(openBookmarksInNewTab));
+  syncToConvex();
+}
+
 /** Apply preferences from Convex subscription — updates state + DOM + localStorage, no save back. */
 export function applyPreferences(prefs: UserPreferences, renderCallback: () => void): void {
   ensurePrefsInit();
@@ -180,6 +194,7 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   currentPageWidth = prefs.pageWidth;
   showCardNames = prefs.showCardNames;
   autofillUrl = prefs.autofillUrl;
+  openBookmarksInNewTab = prefs.openBookmarksInNewTab;
   wireframeDark = prefs.wireframeDark;
   wireframeLight = prefs.wireframeLight;
 
@@ -187,6 +202,7 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   localStorage.setItem('pageWidth', String(currentPageWidth));
   localStorage.setItem('showCardNames', String(showCardNames));
   localStorage.setItem('autofillUrl', String(autofillUrl));
+  localStorage.setItem('openBookmarksInNewTab', String(openBookmarksInNewTab));
   localStorage.setItem('wireframe_dark', String(wireframeDark));
   localStorage.setItem('wireframe_light', String(wireframeLight));
 
@@ -234,6 +250,8 @@ export function syncPreferencesUI(): void {
   if (checkbox) checkbox.checked = showCardNames;
   const autofillCheckbox = document.getElementById('autofill-url') as HTMLInputElement | null;
   if (autofillCheckbox) autofillCheckbox.checked = autofillUrl;
+  const openInNewTabCheckbox = document.getElementById('open-bookmarks-in-new-tab') as HTMLInputElement | null;
+  if (openInNewTabCheckbox) openInNewTabCheckbox.checked = openBookmarksInNewTab;
   const easterEggsCheckbox = document.getElementById('easter-eggs') as HTMLInputElement | null;
   if (easterEggsCheckbox) easterEggsCheckbox.checked = easterEggs;
   const hoverCheckbox = document.getElementById('show-name-on-hover') as HTMLInputElement | null;

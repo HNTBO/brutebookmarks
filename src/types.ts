@@ -35,4 +35,5 @@ export interface UserPreferences {
   pageWidth: number;
   showCardNames: boolean;
   autofillUrl: boolean;
+  openBookmarksInNewTab: boolean;
 }

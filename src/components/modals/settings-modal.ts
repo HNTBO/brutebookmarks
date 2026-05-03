@@ -4,7 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 import { registerModal } from '../../utils/modal-manager';
 import { renderCategories } from '../categories';
-import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
+import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleOpenBookmarksInNewTab, getOpenBookmarksInNewTab, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
@@ -22,6 +22,7 @@ export function openSettingsModal(): void {
   document.getElementById('settings-modal')!.classList.add('active');
   (document.getElementById('show-card-names') as HTMLInputElement).checked = getShowCardNames();
   (document.getElementById('autofill-url') as HTMLInputElement).checked = getAutofillUrl();
+  (document.getElementById('open-bookmarks-in-new-tab') as HTMLInputElement).checked = getOpenBookmarksInNewTab();
   (document.getElementById('easter-eggs') as HTMLInputElement).checked = getEasterEggs();
   (document.getElementById('show-name-on-hover') as HTMLInputElement).checked = getShowNameOnHover();
   syncColumnPicker();
@@ -88,7 +89,7 @@ function getDesktopHelpContent(): string {
         <li><strong>Add</strong> — Click the + card at the end of any category</li>
         <li><strong>Edit</strong> — Hover near the top-left corner of a card (pen icon)</li>
         <li><strong>Delete</strong> — Hover near the top-right corner (× icon)</li>
-        <li><strong>Open</strong> — Click a card to open in a new tab</li>
+        <li><strong>Open</strong> — Click a card to open the bookmark</li>
         <li><strong>Reorder</strong> — Drag and drop cards within or between categories</li>
         <li><strong>Move</strong> — Use the Category dropdown in the edit modal</li>
       </ul>
@@ -140,7 +141,7 @@ function getMobileHelpContent(): string {
       <ul>
         <li><strong>Add</strong> — Tap the + card at the end of any category</li>
         <li><strong>Edit / Delete</strong> — Long-press a card for the context menu</li>
-        <li><strong>Open</strong> — Tap a card to open in a new tab</li>
+        <li><strong>Open</strong> — Tap a card to open the bookmark</li>
         <li><strong>Reorder</strong> — Long-press then drag to move cards</li>
         <li><strong>Move</strong> — Use the Category dropdown in the edit modal</li>
       </ul>
@@ -510,6 +511,10 @@ export function initSettingsModal(): void {
 
   document.getElementById('autofill-url')!.addEventListener('change', (e) => {
     toggleAutofillUrl((e.target as HTMLInputElement).checked);
+  });
+
+  document.getElementById('open-bookmarks-in-new-tab')!.addEventListener('change', (e) => {
+    toggleOpenBookmarksInNewTab((e.target as HTMLInputElement).checked);
   });
 
   document.getElementById('easter-eggs')!.addEventListener('change', (e) => {

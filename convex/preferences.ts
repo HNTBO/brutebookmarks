@@ -34,6 +34,7 @@ export const set = mutation({
     pageWidth: v.float64(),
     showCardNames: v.boolean(),
     autofillUrl: v.optional(v.boolean()),
+    openBookmarksInNewTab: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -55,6 +56,7 @@ export const set = mutation({
       pageWidth: args.pageWidth,
       showCardNames: args.showCardNames,
       autofillUrl: args.autofillUrl,
+      openBookmarksInNewTab: args.openBookmarksInNewTab,
       userId,
       updatedAt: Date.now(),
     };

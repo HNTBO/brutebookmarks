@@ -3,7 +3,7 @@ import type { Category, TabGroup } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
-import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initAddCardLongPress, consumeLongPressGuard } from './bookmark-card';
+import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initAddCardLongPress, consumeLongPressGuard, openBookmark } from './bookmark-card';
 import { dragController, initDragListeners } from '../features/drag-drop';
 import { TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
 import { attachDragTracking } from '../utils/pointer-tracker';
@@ -176,14 +176,14 @@ function wireBookmarkCards(el: HTMLElement): void {
       const target = e.target as HTMLElement;
       if (target.closest('[data-action]')) return;
       const url = card.dataset.url;
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      if (url) openBookmark(url);
     });
 
     card.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         const url = card.dataset.url;
-        if (url) window.open(url, '_blank', 'noopener,noreferrer');
+        if (url) openBookmark(url);
       }
     });
   });

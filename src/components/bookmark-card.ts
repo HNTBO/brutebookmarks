@@ -1,4 +1,5 @@
 import { dragController } from '../features/drag-drop';
+import { getOpenBookmarksInNewTab } from '../features/preferences';
 import { LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
 
 // Cache button element references per card to avoid repeated querySelector calls
@@ -54,7 +55,11 @@ export function handleCardPointerLeave(e: PointerEvent): void {
 }
 
 export function openBookmark(url: string): void {
-  window.open(url, '_blank', 'noopener,noreferrer');
+  if (getOpenBookmarksInNewTab()) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } else {
+    window.location.assign(url);
+  }
 }
 
 // --- Long-press context menu (mobile) ---
