@@ -1,6 +1,7 @@
 import { getClient, setAuthToken } from '../../lib/api';
 import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
+import { updateActionIconForTheme } from '../../lib/action-icon';
 import type { Category, Bookmark, PopupView } from '../../lib/types';
 
 // --- Theme sync ---
@@ -46,6 +47,9 @@ function applyTheme(t: CachedTheme): void {
   } else {
     document.documentElement.removeAttribute('data-wireframe');
   }
+  updateActionIconForTheme(t).catch(() => {
+    // Non-critical: the packaged static toolbar icon remains the fallback.
+  });
 }
 
 async function fetchAndCacheTheme(): Promise<void> {

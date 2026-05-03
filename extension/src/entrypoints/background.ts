@@ -6,8 +6,34 @@
  */
 import { storeToken, clearToken } from '../lib/auth';
 import { getFreshChromiumConvexToken } from '../lib/chromium-clerk';
+import { updateActionIconForTheme, type ActionIconTheme } from '../lib/action-icon';
+
+const THEME_CACHE_KEY = 'bb_cached_theme';
+
+function isQuickSaveVariant(): boolean {
+  return browser.runtime.getManifest().name.includes('Quick Save');
+}
+
+async function applyCachedActionIcon(): Promise<void> {
+  if (!isQuickSaveVariant()) return;
+  try {
+    const result = await browser.storage.local.get(THEME_CACHE_KEY);
+    const cached = result[THEME_CACHE_KEY] as ActionIconTheme | undefined;
+    if (cached) await updateActionIconForTheme(cached);
+  } catch {
+    // Non-critical: keep the packaged static icon.
+  }
+}
 
 export default defineBackground(() => {
+  applyCachedActionIcon();
+  browser.runtime.onStartup?.addListener(() => {
+    applyCachedActionIcon();
+  });
+  browser.runtime.onInstalled?.addListener(() => {
+    applyCachedActionIcon();
+  });
+
   // Listen for auth token from the web app (sent via content script)
   browser.runtime.onMessage.addListener(
     (message: { type: string; token?: string }, _sender, sendResponse) => {
