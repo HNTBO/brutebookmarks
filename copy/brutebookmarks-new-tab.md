@@ -20,7 +20,7 @@ Use BruteBookmarks as your flexible bookmark dashboard, right from every new tab
 
 ## Customization
 
-- Dark & Light Themes - Toggle with one click.
+- Light, Dark & Auto Themes - Choose a theme directly, or let BruteBookmarks follow your system setting.
 - Accent Colors - Pick any color. The interface, favicon, and extension icon adapt.
 - Wireframe Mode - A stripped-back, outlined UI style that looks like a blueprint.
 - Card Size & Page Width - Resize cards and page width from the header.
