@@ -15,6 +15,13 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   main() {
+    function sendRuntimeMessage(message: unknown): void {
+      browser.runtime.sendMessage(message).catch(() => {
+        // The page may outlive an extension reload or service worker restart.
+        // These bridge messages are retried by later page/theme/auth events.
+      });
+    }
+
     // Tell the page the extension is installed
     window.postMessage({ type: 'BB_EXT_INSTALLED' }, window.location.origin);
 
@@ -30,7 +37,7 @@ export default defineContentScript({
       if (event.data?.type === 'BB_EXT_AUTH') {
         const token = event.data.token as string;
         if (!token) return;
-        browser.runtime.sendMessage({
+        sendRuntimeMessage({
           type: 'BB_AUTH_TOKEN',
           token,
         });
@@ -39,12 +46,12 @@ export default defineContentScript({
 
       // Disconnect relay (sign-out)
       if (event.data?.type === 'BB_EXT_DISCONNECT') {
-        browser.runtime.sendMessage({ type: 'BB_DISCONNECT' });
+        sendRuntimeMessage({ type: 'BB_DISCONNECT' });
         return;
       }
 
       if (event.data?.type === 'BB_EXT_THEME') {
-        browser.runtime.sendMessage({
+        sendRuntimeMessage({
           type: 'BB_THEME',
           theme: event.data.theme,
           resolvedTheme: event.data.resolvedTheme,
