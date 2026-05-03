@@ -47,6 +47,7 @@ export default defineContentScript({
         browser.runtime.sendMessage({
           type: 'BB_THEME',
           theme: event.data.theme,
+          resolvedTheme: event.data.resolvedTheme,
           accentColorDark: event.data.accentColorDark,
           accentColorLight: event.data.accentColorLight,
         });

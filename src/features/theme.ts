@@ -49,7 +49,7 @@ function getAppliedResolvedTheme(): ResolvedTheme {
 }
 
 function syncThemeToExtension(): void {
-  syncExtensionThemePreference(getTheme(), getAccentColorDark(), getAccentColorLight());
+  syncExtensionThemePreference(getTheme(), getResolvedTheme(), getAccentColorDark(), getAccentColorLight());
 }
 
 export function getAccentColorDark(): string | null {

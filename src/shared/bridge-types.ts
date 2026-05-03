@@ -58,6 +58,7 @@ export interface BridgeMsgTheme {
   type: 'BB_EXT_THEME';
   v: typeof BRIDGE_VERSION;
   theme: 'dark' | 'light' | 'auto';
+  resolvedTheme: 'dark' | 'light';
   accentColorDark: string | null;
   accentColorLight: string | null;
 }
@@ -99,6 +100,7 @@ export interface RuntimeMsgGetAuthToken {
 export interface RuntimeMsgTheme {
   type: 'BB_THEME';
   theme: 'dark' | 'light' | 'auto';
+  resolvedTheme: 'dark' | 'light';
   accentColorDark: string | null;
   accentColorLight: string | null;
 }

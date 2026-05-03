@@ -57,6 +57,7 @@ export default defineBackground(() => {
         type: string;
         token?: string;
         theme?: ActionIconTheme['theme'];
+        resolvedTheme?: ActionIconTheme['resolvedTheme'];
         accentColorDark?: string | null;
         accentColorLight?: string | null;
       },
@@ -111,6 +112,9 @@ export default defineBackground(() => {
         }
         applyThemeMessage({
           theme: message.theme,
+          resolvedTheme: message.resolvedTheme === 'dark' || message.resolvedTheme === 'light'
+            ? message.resolvedTheme
+            : undefined,
           accentColorDark: typeof message.accentColorDark === 'string' ? message.accentColorDark : null,
           accentColorLight: typeof message.accentColorLight === 'string' ? message.accentColorLight : null,
         })

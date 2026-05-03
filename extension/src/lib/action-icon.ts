@@ -4,6 +4,7 @@ export type ActionIconGlyph = 'quicksave' | 'newtab';
 
 export interface ActionIconTheme {
   theme: ThemeMode;
+  resolvedTheme?: ResolvedTheme;
   accentColor?: string | null;
   accentColorDark: string | null;
   accentColorLight: string | null;
@@ -23,13 +24,20 @@ export function resolveActionIconTheme(theme: ThemeMode): ResolvedTheme {
   return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function getResolvedActionIconTheme(theme: ActionIconTheme): ResolvedTheme {
+  if (theme.resolvedTheme === 'dark' || theme.resolvedTheme === 'light') {
+    return theme.resolvedTheme;
+  }
+  return resolveActionIconTheme(theme.theme);
+}
+
 export async function updateActionIconForTheme(
   theme: ActionIconTheme,
   glyph: ActionIconGlyph = 'quicksave',
 ): Promise<void> {
   if (!browser.action?.setIcon) return;
 
-  const resolvedTheme = resolveActionIconTheme(theme.theme);
+  const resolvedTheme = getResolvedActionIconTheme(theme);
   const accent =
     (resolvedTheme === 'dark' ? theme.accentColorDark : theme.accentColorLight) ||
     theme.accentColor ||

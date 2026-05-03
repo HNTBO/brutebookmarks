@@ -22,6 +22,7 @@ export function isExtensionInstalled(): boolean {
 
 export function syncExtensionThemePreference(
   theme: BridgeMsgTheme['theme'],
+  resolvedTheme: BridgeMsgTheme['resolvedTheme'],
   accentColorDark: string | null,
   accentColorLight: string | null,
 ): void {
@@ -29,6 +30,7 @@ export function syncExtensionThemePreference(
     type: 'BB_EXT_THEME',
     v: BRIDGE_VERSION,
     theme,
+    resolvedTheme,
     accentColorDark,
     accentColorLight,
   };
