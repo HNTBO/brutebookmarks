@@ -82,6 +82,34 @@ Required certifications:
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes.
 
+## Chrome Web Store Test Instructions
+
+### With Provided Reviewer Credentials
+
+A free BruteBookmarks account is required to test synced extension functionality.
+
+To test:
+
+1. Visit https://brutebookmarks.com and sign in with the provided credentials.
+2. Leave the BruteBookmarks web app open until the extension shows as connected.
+3. Navigate to any webpage.
+4. Click the BruteBookmarks Quick Save extension icon.
+5. Choose a category if prompted, then save the page.
+6. Return to BruteBookmarks to confirm the bookmark was added.
+
+### Without Provided Reviewer Credentials
+
+A free BruteBookmarks account is required to test synced extension functionality. No credit card is required.
+
+To test:
+
+1. Visit https://brutebookmarks.com and create a free account.
+2. Leave the BruteBookmarks web app open until the extension shows as connected.
+3. Navigate to any webpage.
+4. Click the BruteBookmarks Quick Save extension icon.
+5. Choose a category if prompted, then save the page.
+6. Return to BruteBookmarks to confirm the bookmark was added.
+
 ## Open Source
 
 BruteBookmarks is open source under the MIT license. You can read every line of code on GitHub.
