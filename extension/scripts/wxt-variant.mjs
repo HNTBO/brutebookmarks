@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 
 const [, , variant, ...args] = process.argv;
 
-if (!['quick-save', 'newtab', 'newtab-native', 'newtab-hybrid'].includes(variant)) {
-  console.error('Usage: node scripts/wxt-variant.mjs <quick-save|newtab|newtab-native|newtab-hybrid> <wxt args...>');
+if (!['quick-save', 'newtab'].includes(variant)) {
+  console.error('Usage: node scripts/wxt-variant.mjs <quick-save|newtab> <wxt args...>');
   process.exit(1);
 }
 

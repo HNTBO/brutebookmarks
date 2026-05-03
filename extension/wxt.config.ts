@@ -2,16 +2,8 @@ import { defineConfig } from 'wxt';
 
 const DEFAULT_APP_ORIGIN = 'https://brutebookmarks.com';
 const requestedVariant = process.env.BB_EXTENSION_VARIANT;
-const extensionVariant =
-  requestedVariant === 'newtab' || requestedVariant === 'newtab-native' || requestedVariant === 'newtab-hybrid'
-    ? requestedVariant
-    : 'quick-save';
-const isNewTabVariant =
-  extensionVariant === 'newtab' ||
-  extensionVariant === 'newtab-native' ||
-  extensionVariant === 'newtab-hybrid';
-const isNativeNewTabVariant = extensionVariant === 'newtab-native';
-const isHybridNewTabVariant = extensionVariant === 'newtab-hybrid';
+const extensionVariant = requestedVariant === 'newtab' ? 'newtab' : 'quick-save';
+const isNewTabVariant = extensionVariant === 'newtab';
 const extensionIconBase = isNewTabVariant ? 'newtab-icon' : 'quicksave-icon';
 
 function normalizeHostPermission(value?: string): string | null {
@@ -36,35 +28,17 @@ function decodeFrontendApiFromPublishableKey(key?: string): string | null {
 
 export default defineConfig({
   srcDir: 'src',
-  filterEntrypoints: extensionVariant === 'newtab'
+  filterEntrypoints: isNewTabVariant
     ? ['background', 'content', 'ntp']
-    : extensionVariant === 'newtab-native'
-      ? ['background', 'content', 'ntp-native']
-      : extensionVariant === 'newtab-hybrid'
-        ? ['background', 'content', 'ntp-hybrid']
-      : ['background', 'content', 'popup'],
-  outDirTemplate: extensionVariant === 'newtab'
-    ? `newtab-redirect/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
-    : extensionVariant === 'newtab-native'
-      ? `newtab-native/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
-      : extensionVariant === 'newtab-hybrid'
-        ? `newtab-hybrid/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
-      : `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`,
+    : ['background', 'content', 'popup'],
+  outDirTemplate: isNewTabVariant
+    ? `newtab/{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`
+    : `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}`,
   zip: {
-    name: extensionVariant === 'newtab'
-      ? 'brute-bookmarks-new-tab-redirect'
-      : extensionVariant === 'newtab-native'
-        ? 'brute-bookmarks-new-tab-native'
-        : extensionVariant === 'newtab-hybrid'
-          ? 'brute-bookmarks-new-tab-hybrid'
-        : 'brute-bookmarks-quick-save',
+    name: isNewTabVariant ? 'brute-bookmarks-new-tab' : 'brute-bookmarks-quick-save',
   },
   manifest: ({ browser }) => {
-    const crxPublicKey = isNativeNewTabVariant
-      ? process.env.CRX_PUBLIC_KEY_NEWTAB_NATIVE
-      : isHybridNewTabVariant
-        ? process.env.CRX_PUBLIC_KEY_NEWTAB_HYBRID
-      : isNewTabVariant
+    const crxPublicKey = isNewTabVariant
       ? process.env.CRX_PUBLIC_KEY_NEWTAB
       : process.env.CRX_PUBLIC_KEY;
     const clerkPublishableKey = process.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -75,7 +49,7 @@ export default defineConfig({
 
     const hostPermissions = new Set<string>(['https://*.convex.cloud/*']);
     const chromiumClerkEnabled = browser === 'chrome' && !!clerkPublishableKey;
-    if (isHybridNewTabVariant) {
+    if (isNewTabVariant) {
       const appPermission = normalizeHostPermission(appOrigin);
       if (appPermission) hostPermissions.add(appPermission);
     }
@@ -87,20 +61,12 @@ export default defineConfig({
     }
 
     return {
-      name: extensionVariant === 'newtab'
+      name: isNewTabVariant
         ? 'BruteBookmarks New Tab'
-        : extensionVariant === 'newtab-native'
-          ? 'BruteBookmarks Native New Tab'
-          : extensionVariant === 'newtab-hybrid'
-            ? 'BruteBookmarks Hybrid New Tab'
-          : 'BruteBookmarks Quick Save',
-      description: extensionVariant === 'newtab'
-        ? 'Open the BruteBookmarks app from your new tab.'
-        : extensionVariant === 'newtab-native'
-          ? 'Replace your new tab with a native BruteBookmarks extension page.'
-          : extensionVariant === 'newtab-hybrid'
-            ? 'Open BruteBookmarks from your new tab with a native fallback when the app is unreachable.'
-          : 'Quick-save any page to BruteBookmarks with one click.',
+        : 'BruteBookmarks Quick Save',
+      description: isNewTabVariant
+        ? 'Open BruteBookmarks from your new tab with a native fallback when the app is unreachable.'
+        : 'Quick-save any page to BruteBookmarks with one click.',
       ...(browser === 'chrome' && crxPublicKey ? { key: crxPublicKey } : {}),
       permissions: chromiumClerkEnabled
         ? ['storage', 'bookmarks', 'tabs', 'cookies']
@@ -125,11 +91,7 @@ export default defineConfig({
       ...(isNewTabVariant
         ? {
             chrome_url_overrides: {
-              newtab: isNativeNewTabVariant
-                ? 'ntp-native.html'
-                : isHybridNewTabVariant
-                  ? 'ntp-hybrid.html'
-                  : 'ntp.html',
+              newtab: 'ntp.html',
             },
           }
         : {}),
