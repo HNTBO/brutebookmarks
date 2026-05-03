@@ -5,6 +5,7 @@ const requestedVariant = process.env.BB_EXTENSION_VARIANT;
 const extensionVariant = requestedVariant === 'newtab' ? 'newtab' : 'quick-save';
 const isNewTabVariant = extensionVariant === 'newtab';
 const extensionIconBase = isNewTabVariant ? 'newtab-icon' : 'quicksave-icon';
+const storeIconBase = isNewTabVariant ? 'cws-newtab-icon' : 'cws-quicksave-icon';
 
 function normalizeHostPermission(value?: string): string | null {
   if (!value) return null;
@@ -73,11 +74,11 @@ export default defineConfig({
         : ['storage', 'bookmarks', 'tabs'],
       host_permissions: Array.from(hostPermissions),
       icons: {
-        16: `/${extensionIconBase}-16.png`,
-        32: `/${extensionIconBase}-32.png`,
-        48: `/${extensionIconBase}-48.png`,
-        128: `/${extensionIconBase}-128.png`,
-        300: `/${extensionIconBase}-300.png`,
+        16: `/${storeIconBase}-16.png`,
+        32: `/${storeIconBase}-32.png`,
+        48: `/${storeIconBase}-48.png`,
+        128: `/${storeIconBase}-128.png`,
+        300: `/${storeIconBase}-300.png`,
       },
       action: {
         default_icon: {

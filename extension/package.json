@@ -12,6 +12,7 @@
     "build:firefox": "node ./scripts/wxt-variant.mjs quick-save build --browser firefox",
     "build:newtab": "node ./scripts/wxt-variant.mjs newtab build",
     "build:newtab:firefox": "node ./scripts/wxt-variant.mjs newtab build --browser firefox",
+    "icons:cws": "node ./scripts/generate-cws-icons.mjs",
     "zip": "node ./scripts/wxt-variant.mjs quick-save zip",
     "zip:firefox": "node ./scripts/wxt-variant.mjs quick-save zip --browser firefox",
     "zip:newtab": "node ./scripts/wxt-variant.mjs newtab zip",
