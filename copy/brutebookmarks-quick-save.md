@@ -1,8 +1,16 @@
 # BruteBookmarks Quick Save
 
+## Submission Status
+
+Submitted to the Chrome Web Store on 2026-05-03.
+
 ## Short Description
 
 Save pages to BruteBookmarks without breaking your flow.
+
+## Single Purpose
+
+BruteBookmarks Quick Save lets users save the current page to their BruteBookmarks bookmark dashboard, choose a category, and avoid duplicate saved links.
 
 ## Full Description
 
