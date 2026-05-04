@@ -1,4 +1,4 @@
-# Brute Bookmarks
+# BruteBookmarks
 
 A visual bookmark dashboard with a brutalist design. Organize your bookmarks into categories and tab groups, rearrange everything with drag and drop, and sync across all your devices in real time.
 
