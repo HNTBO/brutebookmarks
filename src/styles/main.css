@@ -1201,8 +1201,20 @@ body:has(.modal.active) {
 }
 
 .settings-row-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-md);
+}
+
+.settings-row-actions .btn {
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .settings-row-actions {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Settings bookmarks section — grid layout */

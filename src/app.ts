@@ -222,7 +222,7 @@ export function renderApp(): void {
             <h3>Info</h3>
             <div class="settings-row settings-row-actions">
               <button class="btn" id="help-btn">Feature Overview</button>
-              <a href="https://chromewebstore.google.com/detail/brutebookmarks/opkpophbbkkmdjnfedbpcmoajhfebbho" target="_blank" rel="noopener noreferrer" class="btn">Install Chrome Extension</a>
+              <a href="https://chromewebstore.google.com/search/root%20bookmark" target="_blank" rel="noopener noreferrer" class="btn">Install Chrome Extensions</a>
               <a href="https://www.brutebookmarks.com/privacy" target="_blank" rel="noopener noreferrer" class="btn">Privacy Policy</a>
             </div>
           </div>
