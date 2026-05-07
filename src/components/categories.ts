@@ -3,7 +3,7 @@ import type { Category, TabGroup } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
-import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initAddCardLongPress, consumeLongPressGuard, openBookmark } from './bookmark-card';
+import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initAddCardLongPress, consumeLongPressGuard, openBookmark, shouldOpenBookmarkInNewTab } from './bookmark-card';
 import { dragController, initDragListeners } from '../features/drag-drop';
 import { TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
 import { attachDragTracking } from '../utils/pointer-tracker';
@@ -164,6 +164,8 @@ function wireBookmarkCards(el: HTMLElement): void {
 
   const bookmarkCards = el.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)');
   bookmarkCards.forEach((card) => {
+    let middleClickHandled = false;
+
     // Pointer events: long-press (mobile) / immediate drag (desktop) handled in initLongPress
     card.addEventListener('pointermove', handleCardPointerMove);
     card.addEventListener('pointerleave', handleCardPointerLeave);
@@ -176,7 +178,31 @@ function wireBookmarkCards(el: HTMLElement): void {
       const target = e.target as HTMLElement;
       if (target.closest('[data-action]')) return;
       const url = card.dataset.url;
-      if (url) openBookmark(url);
+      if (url) openBookmark(url, { forceNewTab: shouldOpenBookmarkInNewTab(e) });
+    });
+
+    card.addEventListener('pointerup', (e) => {
+      if (e.button !== 1) return;
+      if (consumeLongPressGuard()) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-action]')) return;
+      middleClickHandled = true;
+      const url = card.dataset.url;
+      if (url) openBookmark(url, { forceNewTab: true });
+    });
+
+    card.addEventListener('auxclick', (e) => {
+      if (consumeLongPressGuard()) return;
+      if (e.button !== 1) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-action]')) return;
+      e.preventDefault();
+      if (middleClickHandled) {
+        middleClickHandled = false;
+        return;
+      }
+      const url = card.dataset.url;
+      if (url) openBookmark(url, { forceNewTab: true });
     });
 
     card.addEventListener('keydown', (e: KeyboardEvent) => {

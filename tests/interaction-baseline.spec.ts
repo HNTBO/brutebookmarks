@@ -54,12 +54,15 @@ const SEED_TAB_GROUPS = JSON.stringify([
 ]);
 
 /** Set app to local mode and navigate, waiting for categories to render. */
-async function setupLocalMode(page: Page): Promise<void> {
+async function setupLocalMode(page: Page, options: { openBookmarksInNewTab?: boolean } = {}): Promise<void> {
   // Set local mode + seed data before navigating so the welcome gate is skipped
-  await page.addInitScript((seedData: string) => {
+  await page.addInitScript((args: { seedData: string; openBookmarksInNewTab?: boolean }) => {
     localStorage.setItem('appMode', 'local');
-    localStorage.setItem('speedDialData', seedData);
-  }, SEED_CATEGORIES);
+    localStorage.setItem('speedDialData', args.seedData);
+    if (args.openBookmarksInNewTab !== undefined) {
+      localStorage.setItem('openBookmarksInNewTab', String(args.openBookmarksInNewTab));
+    }
+  }, { seedData: SEED_CATEGORIES, openBookmarksInNewTab: options.openBookmarksInNewTab });
   await page.goto('/');
   // Wait for the app to render categories
   await page.waitForSelector('.category', { timeout: 10_000 });
@@ -120,6 +123,40 @@ test.describe('Bookmark card click', () => {
     ]);
     // The new page should target the bookmark URL
     expect(newPage.url()).toContain(new URL(url!).hostname);
+    await newPage.close();
+  });
+
+  test('Ctrl-click opens a new tab when the new-tab setting is off', async ({ page, context }) => {
+    await setupLocalMode(page, { openBookmarksInNewTab: false });
+
+    const firstCard = bookmarkCards(page).first();
+    const url = await firstCard.getAttribute('data-url');
+    expect(url).toBeTruthy();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent('page'),
+      firstCard.click({ modifiers: ['Control'] }),
+    ]);
+
+    expect(newPage.url()).toContain(new URL(url!).hostname);
+    expect(page.url()).toContain('localhost');
+    await newPage.close();
+  });
+
+  test('middle-click opens a new tab when the new-tab setting is off', async ({ page, context }) => {
+    await setupLocalMode(page, { openBookmarksInNewTab: false });
+
+    const firstCard = bookmarkCards(page).first();
+    const url = await firstCard.getAttribute('data-url');
+    expect(url).toBeTruthy();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent('page'),
+      firstCard.click({ button: 'middle' }),
+    ]);
+
+    expect(newPage.url()).toContain(new URL(url!).hostname);
+    expect(page.url()).toContain('localhost');
     await newPage.close();
   });
 });

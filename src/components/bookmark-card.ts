@@ -54,12 +54,20 @@ export function handleCardPointerLeave(e: PointerEvent): void {
   if (deleteBtn) deleteBtn.classList.remove('visible');
 }
 
-export function openBookmark(url: string): void {
-  if (getOpenBookmarksInNewTab()) {
+type BookmarkOpenOptions = {
+  forceNewTab?: boolean;
+};
+
+export function openBookmark(url: string, options: BookmarkOpenOptions = {}): void {
+  if (options.forceNewTab || getOpenBookmarksInNewTab()) {
     window.open(url, '_blank', 'noopener,noreferrer');
   } else {
     window.location.assign(url);
   }
+}
+
+export function shouldOpenBookmarkInNewTab(e: MouseEvent): boolean {
+  return e.button === 1 || e.ctrlKey || e.metaKey;
 }
 
 // --- Long-press context menu (mobile) ---
