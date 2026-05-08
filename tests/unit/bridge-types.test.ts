@@ -9,7 +9,16 @@ import {
   type BridgeMsgBookmarksResult,
   type BridgeMsgRequestToken,
   type BridgeMsgDisconnect,
+  type BridgeMsgLocalPendingAck,
+  type BridgeMsgLocalPendingRequest,
+  type BridgeMsgLocalPendingResult,
+  type BridgeMsgLocalSnapshot,
   type RuntimeMsgAuthToken,
+  type RuntimeMsgLocalAckPendingSaves,
+  type RuntimeMsgLocalGetData,
+  type RuntimeMsgLocalGetPendingSaves,
+  type RuntimeMsgLocalSaveBookmark,
+  type RuntimeMsgLocalSnapshot,
   type RuntimeMsgDisconnect,
   type RuntimeMsgRequestBookmarks,
 } from '../../src/shared/bridge-types';
@@ -28,6 +37,10 @@ function isBridgeMessage(msg: unknown): msg is BridgeMessage {
     'BB_EXT_BOOKMARKS_RESULT',
     'BB_EXT_REQUEST_TOKEN',
     'BB_EXT_DISCONNECT',
+    'BB_EXT_LOCAL_SNAPSHOT',
+    'BB_EXT_LOCAL_PENDING_REQUEST',
+    'BB_EXT_LOCAL_PENDING_RESULT',
+    'BB_EXT_LOCAL_PENDING_ACK',
   ];
   return validTypes.includes(m.type as string);
 }
@@ -36,7 +49,16 @@ function isBridgeMessage(msg: unknown): msg is BridgeMessage {
 function isRuntimeMessage(msg: unknown): msg is RuntimeMessage {
   if (typeof msg !== 'object' || msg === null) return false;
   const m = msg as Record<string, unknown>;
-  const validTypes = ['BB_AUTH_TOKEN', 'BB_DISCONNECT', 'BB_REQUEST_BOOKMARKS'];
+  const validTypes = [
+    'BB_AUTH_TOKEN',
+    'BB_DISCONNECT',
+    'BB_REQUEST_BOOKMARKS',
+    'BB_LOCAL_SNAPSHOT',
+    'BB_LOCAL_GET_DATA',
+    'BB_LOCAL_SAVE_BOOKMARK',
+    'BB_LOCAL_GET_PENDING_SAVES',
+    'BB_LOCAL_ACK_PENDING_SAVES',
+  ];
   return validTypes.includes(m.type as string);
 }
 
@@ -105,6 +127,46 @@ describe('bridge-types', () => {
       expect(isBridgeMessage(msg)).toBe(true);
     });
 
+    it('accepts valid local Quick Save bridge messages', () => {
+      const snapshot: BridgeMsgLocalSnapshot = {
+        type: 'BB_EXT_LOCAL_SNAPSHOT',
+        v: BRIDGE_VERSION,
+        categories: [{
+          id: 'cat-1',
+          name: 'Inbox',
+          bookmarks: [{ id: 'bm-1', title: 'Example', url: 'https://example.com' }],
+        }],
+      };
+      const request: BridgeMsgLocalPendingRequest = {
+        type: 'BB_EXT_LOCAL_PENDING_REQUEST',
+        v: BRIDGE_VERSION,
+        requestId: 'req-local',
+      };
+      const result: BridgeMsgLocalPendingResult = {
+        type: 'BB_EXT_LOCAL_PENDING_RESULT',
+        v: BRIDGE_VERSION,
+        requestId: 'req-local',
+        success: true,
+        saves: [{
+          id: 'save-1',
+          categoryId: 'cat-1',
+          title: 'Example',
+          url: 'https://example.com',
+          createdAt: 1,
+        }],
+      };
+      const ack: BridgeMsgLocalPendingAck = {
+        type: 'BB_EXT_LOCAL_PENDING_ACK',
+        v: BRIDGE_VERSION,
+        ids: ['save-1'],
+      };
+
+      expect(isBridgeMessage(snapshot)).toBe(true);
+      expect(isBridgeMessage(request)).toBe(true);
+      expect(isBridgeMessage(result)).toBe(true);
+      expect(isBridgeMessage(ack)).toBe(true);
+    });
+
     it('rejects message with wrong version', () => {
       const msg = { type: 'BB_EXT_INSTALLED', v: 99 };
       expect(isBridgeMessage(msg)).toBe(false);
@@ -138,6 +200,31 @@ describe('bridge-types', () => {
     it('accepts valid BB_REQUEST_BOOKMARKS message', () => {
       const msg: RuntimeMsgRequestBookmarks = { type: 'BB_REQUEST_BOOKMARKS' };
       expect(isRuntimeMessage(msg)).toBe(true);
+    });
+
+    it('accepts valid local Quick Save runtime messages', () => {
+      const snapshot: RuntimeMsgLocalSnapshot = {
+        type: 'BB_LOCAL_SNAPSHOT',
+        categories: [{ id: 'cat-1', name: 'Inbox', bookmarks: [] }],
+      };
+      const getData: RuntimeMsgLocalGetData = { type: 'BB_LOCAL_GET_DATA' };
+      const save: RuntimeMsgLocalSaveBookmark = {
+        type: 'BB_LOCAL_SAVE_BOOKMARK',
+        categoryId: 'cat-1',
+        title: 'Example',
+        url: 'https://example.com',
+      };
+      const getPending: RuntimeMsgLocalGetPendingSaves = { type: 'BB_LOCAL_GET_PENDING_SAVES' };
+      const ack: RuntimeMsgLocalAckPendingSaves = {
+        type: 'BB_LOCAL_ACK_PENDING_SAVES',
+        ids: ['save-1'],
+      };
+
+      expect(isRuntimeMessage(snapshot)).toBe(true);
+      expect(isRuntimeMessage(getData)).toBe(true);
+      expect(isRuntimeMessage(save)).toBe(true);
+      expect(isRuntimeMessage(getPending)).toBe(true);
+      expect(isRuntimeMessage(ack)).toBe(true);
     });
 
     it('rejects unknown runtime message types', () => {

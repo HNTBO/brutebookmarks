@@ -61,6 +61,41 @@ export default defineContentScript({
         return;
       }
 
+      if (event.data?.type === 'BB_EXT_LOCAL_SNAPSHOT') {
+        sendRuntimeMessage({
+          type: 'BB_LOCAL_SNAPSHOT',
+          categories: event.data.categories,
+        });
+        return;
+      }
+
+      if (event.data?.type === 'BB_EXT_LOCAL_PENDING_REQUEST') {
+        const requestId = event.data.requestId;
+        browser.runtime
+          .sendMessage({ type: 'BB_LOCAL_GET_PENDING_SAVES' })
+          .then((response) => {
+            window.postMessage(
+              { ...response, type: 'BB_EXT_LOCAL_PENDING_RESULT', requestId },
+              window.location.origin,
+            );
+          })
+          .catch((err) => {
+            window.postMessage(
+              { type: 'BB_EXT_LOCAL_PENDING_RESULT', requestId, success: false, error: String(err) },
+              window.location.origin,
+            );
+          });
+        return;
+      }
+
+      if (event.data?.type === 'BB_EXT_LOCAL_PENDING_ACK') {
+        sendRuntimeMessage({
+          type: 'BB_LOCAL_ACK_PENDING_SAVES',
+          ids: event.data.ids,
+        });
+        return;
+      }
+
       // Browser bookmarks request relay
       if (event.data?.type === 'BB_EXT_REQUEST_BOOKMARKS') {
         const requestId = event.data.requestId;

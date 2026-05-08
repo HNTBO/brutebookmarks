@@ -63,6 +63,61 @@ export interface BridgeMsgTheme {
   accentColorLight: string | null;
 }
 
+export interface BridgeLocalBookmark {
+  id: string;
+  title: string;
+  url: string;
+  iconPath?: string | null;
+  order?: number;
+}
+
+export interface BridgeLocalCategory {
+  id: string;
+  name: string;
+  order?: number;
+  groupId?: string;
+  bookmarks: BridgeLocalBookmark[];
+}
+
+export interface BridgeLocalQuickSave {
+  id: string;
+  categoryId: string;
+  title: string;
+  url: string;
+  createdAt: number;
+}
+
+/** Page → Content script: publish local-mode categories to the extension. */
+export interface BridgeMsgLocalSnapshot {
+  type: 'BB_EXT_LOCAL_SNAPSHOT';
+  v: typeof BRIDGE_VERSION;
+  categories: BridgeLocalCategory[];
+}
+
+/** Page → Content script: ask extension for queued local Quick Saves. */
+export interface BridgeMsgLocalPendingRequest {
+  type: 'BB_EXT_LOCAL_PENDING_REQUEST';
+  v: typeof BRIDGE_VERSION;
+  requestId: string;
+}
+
+/** Content script → Page: queued local Quick Saves. */
+export interface BridgeMsgLocalPendingResult {
+  type: 'BB_EXT_LOCAL_PENDING_RESULT';
+  v: typeof BRIDGE_VERSION;
+  requestId: string;
+  success: boolean;
+  saves?: BridgeLocalQuickSave[];
+  error?: string;
+}
+
+/** Page → Content script: acknowledge queued saves merged into local data. */
+export interface BridgeMsgLocalPendingAck {
+  type: 'BB_EXT_LOCAL_PENDING_ACK';
+  v: typeof BRIDGE_VERSION;
+  ids: string[];
+}
+
 /** Union of all page ↔ content script messages */
 export type BridgeMessage =
   | BridgeMsgInstalled
@@ -71,7 +126,11 @@ export type BridgeMessage =
   | BridgeMsgBookmarksResult
   | BridgeMsgRequestToken
   | BridgeMsgDisconnect
-  | BridgeMsgTheme;
+  | BridgeMsgTheme
+  | BridgeMsgLocalSnapshot
+  | BridgeMsgLocalPendingRequest
+  | BridgeMsgLocalPendingResult
+  | BridgeMsgLocalPendingAck;
 
 // --- Content Script ↔ Background (runtime.sendMessage) ---
 
@@ -105,10 +164,40 @@ export interface RuntimeMsgTheme {
   accentColorLight: string | null;
 }
 
+export interface RuntimeMsgLocalSnapshot {
+  type: 'BB_LOCAL_SNAPSHOT';
+  categories: BridgeLocalCategory[];
+}
+
+export interface RuntimeMsgLocalGetData {
+  type: 'BB_LOCAL_GET_DATA';
+}
+
+export interface RuntimeMsgLocalSaveBookmark {
+  type: 'BB_LOCAL_SAVE_BOOKMARK';
+  categoryId: string;
+  title: string;
+  url: string;
+}
+
+export interface RuntimeMsgLocalGetPendingSaves {
+  type: 'BB_LOCAL_GET_PENDING_SAVES';
+}
+
+export interface RuntimeMsgLocalAckPendingSaves {
+  type: 'BB_LOCAL_ACK_PENDING_SAVES';
+  ids: string[];
+}
+
 /** Union of all runtime messages */
 export type RuntimeMessage =
   | RuntimeMsgAuthToken
   | RuntimeMsgDisconnect
   | RuntimeMsgRequestBookmarks
   | RuntimeMsgGetAuthToken
-  | RuntimeMsgTheme;
+  | RuntimeMsgTheme
+  | RuntimeMsgLocalSnapshot
+  | RuntimeMsgLocalGetData
+  | RuntimeMsgLocalSaveBookmark
+  | RuntimeMsgLocalGetPendingSaves
+  | RuntimeMsgLocalAckPendingSaves;

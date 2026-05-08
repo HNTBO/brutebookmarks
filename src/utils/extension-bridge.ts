@@ -1,5 +1,16 @@
 import { BRIDGE_VERSION } from '../shared/bridge-types';
-import type { BridgeMsgRequestBookmarks, BridgeMsgBookmarksResult, BridgeMsgTheme } from '../shared/bridge-types';
+import type {
+  BridgeLocalCategory,
+  BridgeLocalQuickSave,
+  BridgeMsgLocalPendingAck,
+  BridgeMsgLocalPendingRequest,
+  BridgeMsgLocalPendingResult,
+  BridgeMsgLocalSnapshot,
+  BridgeMsgRequestBookmarks,
+  BridgeMsgBookmarksResult,
+  BridgeMsgTheme,
+} from '../shared/bridge-types';
+import type { Category } from '../types';
 
 let extensionInstalled = false;
 let _detectionInitialized = false;
@@ -33,6 +44,73 @@ export function syncExtensionThemePreference(
     resolvedTheme,
     accentColorDark,
     accentColorLight,
+  };
+  window.postMessage(msg, window.location.origin);
+}
+
+export function syncExtensionLocalSnapshot(categories: Category[]): void {
+  const bridgeCategories: BridgeLocalCategory[] = categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    order: category.order,
+    groupId: category.groupId,
+    bookmarks: category.bookmarks.map((bookmark) => ({
+      id: bookmark.id,
+      title: bookmark.title,
+      url: bookmark.url,
+      iconPath: bookmark.iconPath,
+      order: bookmark.order,
+    })),
+  }));
+  const msg: BridgeMsgLocalSnapshot = {
+    type: 'BB_EXT_LOCAL_SNAPSHOT',
+    v: BRIDGE_VERSION,
+    categories: bridgeCategories,
+  };
+  window.postMessage(msg, window.location.origin);
+}
+
+export function requestLocalQuickSaves(): Promise<BridgeLocalQuickSave[]> {
+  return new Promise((resolve, reject) => {
+    const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+    const timeout = setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Extension did not respond within 10 seconds.'));
+    }, 10_000);
+
+    function handler(event: MessageEvent<BridgeMsgLocalPendingResult>) {
+      if (event.source !== window) return;
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== 'BB_EXT_LOCAL_PENDING_RESULT') return;
+      if (event.data.requestId !== requestId) return;
+
+      window.removeEventListener('message', handler as EventListener);
+      clearTimeout(timeout);
+
+      if (event.data.success) {
+        resolve(event.data.saves ?? []);
+      } else {
+        reject(new Error(event.data.error || 'Failed to read local Quick Saves.'));
+      }
+    }
+
+    window.addEventListener('message', handler as EventListener);
+    const msg: BridgeMsgLocalPendingRequest = {
+      type: 'BB_EXT_LOCAL_PENDING_REQUEST',
+      v: BRIDGE_VERSION,
+      requestId,
+    };
+    window.postMessage(msg, window.location.origin);
+  });
+}
+
+export function ackLocalQuickSaves(ids: string[]): void {
+  if (ids.length === 0) return;
+  const msg: BridgeMsgLocalPendingAck = {
+    type: 'BB_EXT_LOCAL_PENDING_ACK',
+    v: BRIDGE_VERSION,
+    ids,
   };
   window.postMessage(msg, window.location.origin);
 }

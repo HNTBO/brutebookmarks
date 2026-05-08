@@ -3,6 +3,7 @@ import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
 import { updateActionIconForTheme } from '../../lib/action-icon';
 import type { Category, Bookmark, PopupView } from '../../lib/types';
+import type { LocalQuickSaveSnapshot } from '../../lib/local-quick-save';
 
 // --- Theme sync ---
 
@@ -173,6 +174,17 @@ async function fetchBookmarks(): Promise<Bookmark[]> {
 }
 
 async function createBookmark(categoryId: string, title: string, url: string): Promise<void> {
+  if (_saveMode === 'local') {
+    const response = await browser.runtime.sendMessage({
+      type: 'BB_LOCAL_SAVE_BOOKMARK',
+      categoryId,
+      title,
+      url,
+    }) as { success?: boolean; error?: string };
+    if (!response?.success) throw new Error(response?.error || 'Failed to save locally.');
+    return;
+  }
+
   const client = getClient();
   await client.mutation('bookmarks:create' as any, {
     categoryId,
@@ -188,9 +200,9 @@ function findExistingBookmark(
   categories: Category[],
   url: string,
 ): { bookmark: Bookmark; category: Category } | null {
-  const normalizedUrl = url.replace(/\/+$/, '').toLowerCase();
+  const normalizedUrl = normalizeUrl(url);
   for (const bm of bookmarks) {
-    const bmUrl = bm.url.replace(/\/+$/, '').toLowerCase();
+    const bmUrl = normalizeUrl(bm.url);
     if (bmUrl === normalizedUrl) {
       const cat = categories.find((c) => c._id === bm.categoryId);
       if (cat) return { bookmark: bm, category: cat };
@@ -277,6 +289,55 @@ async function init(): Promise<void> {
 let _cachedCategories: Category[] = [];
 let _cachedBookmarks: Bookmark[] = [];
 let _currentTab: { url: string; title: string } | null = null;
+let _saveMode: 'sync' | 'local' = 'sync';
+
+function normalizeUrl(url: string): string {
+  return url.replace(/\/+$/, '').toLowerCase();
+}
+
+function mapLocalSnapshot(snapshot: LocalQuickSaveSnapshot): {
+  categories: Category[];
+  bookmarks: Bookmark[];
+} {
+  const categories = snapshot.categories
+    .map((category) => ({
+      _id: category.id,
+      name: category.name,
+      order: category.order ?? 0,
+      groupId: category.groupId,
+    }))
+    .sort((a, b) => a.order - b.order);
+
+  const bookmarks = snapshot.categories.flatMap((category) => (
+    category.bookmarks.map((bookmark) => ({
+      _id: bookmark.id,
+      title: bookmark.title,
+      url: bookmark.url,
+      iconPath: bookmark.iconPath ?? null,
+      categoryId: category.id,
+      order: bookmark.order ?? 0,
+    }))
+  ));
+
+  return { categories, bookmarks };
+}
+
+async function getLocalQuickSaveData(): Promise<{
+  categories: Category[];
+  bookmarks: Bookmark[];
+} | null> {
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'BB_LOCAL_GET_DATA',
+    }) as { success?: boolean; snapshot?: LocalQuickSaveSnapshot | null };
+    if (!response?.success || !response.snapshot || response.snapshot.categories.length === 0) {
+      return null;
+    }
+    return mapLocalSnapshot(response.snapshot);
+  } catch {
+    return null;
+  }
+}
 
 async function showCategoryPicker(): Promise<void> {
   if (!_currentTab) return;
@@ -329,21 +390,33 @@ async function run(): Promise<void> {
 
   let token = await extensionAuth.getValidConvexToken();
   if (!token) {
-    const authState = await extensionAuth.getAuthState();
-    if (authState.state === 'expired') {
-      const refreshed = await extensionAuth.requestFreshTokenFromApp();
-      if (refreshed.ok) {
-        token = refreshed.token;
+    const localData = await getLocalQuickSaveData();
+    if (localData) {
+      _saveMode = 'local';
+      _cachedCategories = localData.categories;
+      _cachedBookmarks = localData.bookmarks;
+    } else {
+      const authState = await extensionAuth.getAuthState();
+      if (authState.state === 'expired') {
+        const refreshed = await extensionAuth.requestFreshTokenFromApp();
+        if (refreshed.ok) {
+          token = refreshed.token;
+        }
+      }
+
+      if (!token) {
+        showView('onboarding');
+        return;
       }
     }
   }
 
-  if (!token) {
-    showView('onboarding');
-    return;
+  if (token) {
+    _saveMode = 'sync';
+    setAuthToken(token);
+  } else {
+    setAuthToken(null);
   }
-
-  setAuthToken(token);
 
   // Get current tab
   _currentTab = await getCurrentTab();
@@ -356,17 +429,24 @@ async function run(): Promise<void> {
   }
 
   try {
-    // Fetch data in parallel (theme is non-blocking)
-    const [categories, bookmarks] = await Promise.all([fetchCategories(), fetchBookmarks()]);
-    _cachedCategories = categories;
-    _cachedBookmarks = bookmarks;
+    if (_saveMode === 'sync') {
+      // Fetch data in parallel (theme is non-blocking)
+      const [freshCategories, freshBookmarks] = await Promise.all([fetchCategories(), fetchBookmarks()]);
+      _cachedCategories = freshCategories;
+      _cachedBookmarks = freshBookmarks;
 
-    // Refresh theme in background (don't block the UI)
-    fetchAndCacheTheme();
+      // Refresh theme in background (don't block the UI)
+      fetchAndCacheTheme();
+    }
+
+    const categories = _cachedCategories;
+    const bookmarks = _cachedBookmarks;
 
     if (categories.length === 0) {
       document.getElementById('error-text')!.textContent =
-        'No categories yet. Create one in the app first.';
+        _saveMode === 'local'
+          ? 'Open BruteBookmarks locally and create a category first.'
+          : 'No categories yet. Create one in the app first.';
       document.getElementById('reconnect-btn')!.style.display = 'none';
       document.getElementById('retry-btn')!.style.display = '';
       showView('error');

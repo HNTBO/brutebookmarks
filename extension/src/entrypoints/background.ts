@@ -7,6 +7,14 @@
 import { storeToken, clearToken } from '../lib/auth';
 import { getFreshChromiumConvexToken } from '../lib/chromium-clerk';
 import { updateActionIconForTheme, type ActionIconGlyph, type ActionIconTheme } from '../lib/action-icon';
+import {
+  ackPendingLocalQuickSaves,
+  getLocalSnapshot,
+  getPendingLocalQuickSaves,
+  saveLocalBookmark,
+  storeLocalSnapshot,
+  type LocalCategory,
+} from '../lib/local-quick-save';
 
 const QUICK_SAVE_THEME_CACHE_KEY = 'bb_cached_theme';
 const NEW_TAB_THEME_CACHE_KEY = 'bb_ntp_cached_theme';
@@ -60,6 +68,11 @@ export default defineBackground(() => {
         resolvedTheme?: ActionIconTheme['resolvedTheme'];
         accentColorDark?: string | null;
         accentColorLight?: string | null;
+        categories?: LocalCategory[];
+        categoryId?: string;
+        title?: string;
+        url?: string;
+        ids?: string[];
       },
       _sender,
       sendResponse,
@@ -118,6 +131,45 @@ export default defineBackground(() => {
           accentColorDark: typeof message.accentColorDark === 'string' ? message.accentColorDark : null,
           accentColorLight: typeof message.accentColorLight === 'string' ? message.accentColorLight : null,
         })
+          .then(() => sendResponse({ success: true }))
+          .catch((err) => sendResponse({ success: false, error: String(err) }));
+        return true;
+      }
+
+      if (message.type === 'BB_LOCAL_SNAPSHOT') {
+        storeLocalSnapshot(Array.isArray(message.categories) ? message.categories : [])
+          .then((snapshot) => sendResponse({ success: true, snapshot }))
+          .catch((err) => sendResponse({ success: false, error: String(err) }));
+        return true;
+      }
+
+      if (message.type === 'BB_LOCAL_GET_DATA') {
+        Promise.all([getLocalSnapshot(), getPendingLocalQuickSaves()])
+          .then(([snapshot, pending]) => sendResponse({ success: true, snapshot, pending }))
+          .catch((err) => sendResponse({ success: false, error: String(err) }));
+        return true;
+      }
+
+      if (message.type === 'BB_LOCAL_SAVE_BOOKMARK') {
+        if (!message.categoryId || !message.title || !message.url) {
+          sendResponse({ success: false, error: 'Missing bookmark data' });
+          return true;
+        }
+        saveLocalBookmark(message.categoryId, message.title, message.url)
+          .then((result) => sendResponse({ success: true, ...result }))
+          .catch((err) => sendResponse({ success: false, error: String(err) }));
+        return true;
+      }
+
+      if (message.type === 'BB_LOCAL_GET_PENDING_SAVES') {
+        getPendingLocalQuickSaves()
+          .then((saves) => sendResponse({ success: true, saves }))
+          .catch((err) => sendResponse({ success: false, error: String(err) }));
+        return true;
+      }
+
+      if (message.type === 'BB_LOCAL_ACK_PENDING_SAVES') {
+        ackPendingLocalQuickSaves(Array.isArray(message.ids) ? message.ids : [])
           .then(() => sendResponse({ success: true }))
           .catch((err) => sendResponse({ success: false, error: String(err) }));
         return true;

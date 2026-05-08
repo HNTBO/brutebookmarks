@@ -24,7 +24,7 @@ Use BruteBookmarks as your flexible bookmark dashboard, and save pages to it wit
 - Categories & Tab Groups - Create categories for your bookmarks. Drag one category onto another to group them as tabs.
 - Drag & Drop - Reorder bookmarks, categories, and tab groups freely. Move bookmarks between categories.
 - Real-Time Sync - Sign in to sync your bookmarks across every device, instantly. Changes appear in real time.
-- Works Without an Account - Use BruteBookmarks locally with no sign-up. Your bookmarks stay in your browser until you decide otherwise.
+- Works Without an Account - Open BruteBookmarks once in local mode, then Quick Save can save pages locally in this browser. Local quick saves appear in BruteBookmarks when the app is opened.
 - Smart Icons - Auto-fetch favicons, search Wikimedia Commons for high-quality logos, pick an emoji, or upload your own.
 
 ## Customization
@@ -56,7 +56,7 @@ You can export all your data as JSON at any time, and delete everything with one
 ### Permission Justifications
 
 Storage justification:
-Stores bookmark data, category structure, user preferences, and cached theme settings locally on the user's device.
+Stores bookmark data, category structure, user preferences, cached theme settings, extension authentication state, and queued local quick saves on the user's device.
 
 Bookmarks justification:
 Imports bookmarks from Chrome's built-in bookmark manager only when the user explicitly requests it in the main app. Never accessed otherwise.
@@ -105,9 +105,23 @@ To test:
 5. Choose a category if prompted, then save the page.
 6. Return to BruteBookmarks to confirm the bookmark was added.
 
-### Without Provided Reviewer Credentials
+### Without Provided Reviewer Credentials - Local Mode
 
-A free BruteBookmarks account is required to test synced extension functionality. No credit card is required.
+An account is not required to test local Quick Save functionality.
+
+To test:
+
+1. Visit https://brutebookmarks.com.
+2. Choose "Use Locally".
+3. Leave BruteBookmarks open once so the extension can cache the local categories, or reopen it after choosing local mode.
+4. Navigate to any webpage.
+5. Click the BruteBookmarks Quick Save extension icon.
+6. Choose a category if prompted, then save the page.
+7. Open or refresh BruteBookmarks to confirm the local quick save was added.
+
+### Without Provided Reviewer Credentials - Synced Mode
+
+A free BruteBookmarks account can also be used to test synced extension functionality. No credit card is required.
 
 To test:
 

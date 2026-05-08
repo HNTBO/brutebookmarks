@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence } from './data/store';
+import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence, createBookmark as createStoreBookmark } from './data/store';
 import { renderCategories, renderStartupShell } from './components/categories';
 import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
@@ -19,7 +19,7 @@ import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-
 import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
-import { initExtensionDetection } from './utils/extension-bridge';
+import { ackLocalQuickSaves, initExtensionDetection, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
 import { api } from '../convex/_generated/api';
 import { shouldRenderSnapshotCache } from './utils/snapshot-watermark';
 
@@ -288,6 +288,44 @@ function markCacheRender(): void {
   logStartupMetrics();
 }
 
+function publishLocalSnapshotToExtension(): void {
+  if (getAppMode() !== 'local') return;
+  syncExtensionLocalSnapshot(getCategories());
+}
+
+let localQuickSaveImportInFlight = false;
+
+async function importPendingLocalQuickSaves(): Promise<void> {
+  if (getAppMode() !== 'local' || localQuickSaveImportInFlight) return;
+  localQuickSaveImportInFlight = true;
+  try {
+    const saves = await requestLocalQuickSaves();
+    if (saves.length === 0) return;
+
+    const appliedIds: string[] = [];
+    const categories = getCategories();
+    for (const save of saves) {
+      const category = categories.find((item) => item.id === save.categoryId);
+      if (!category) continue;
+      const normalizedUrl = save.url.replace(/\/+$/, '').toLowerCase();
+      const alreadySaved = category.bookmarks.some((bookmark) => (
+        bookmark.url.replace(/\/+$/, '').toLowerCase() === normalizedUrl
+      ));
+      if (!alreadySaved) {
+        await createStoreBookmark(save.categoryId, save.title, save.url, null);
+      }
+      appliedIds.push(save.id);
+    }
+
+    ackLocalQuickSaves(appliedIds);
+    publishLocalSnapshotToExtension();
+  } catch {
+    // The extension may not be installed, or may have been reloaded.
+  } finally {
+    localQuickSaveImportInFlight = false;
+  }
+}
+
 async function maybeRenderSyncCache(
   convexClient: NonNullable<ReturnType<typeof initConvexClient>>,
   cacheAlreadyRendered: boolean,
@@ -337,6 +375,7 @@ async function init(): Promise<void> {
       measureStartup('bb:start:time-to-live-render', 'bb:start:init', 'bb:start:live-render');
       logStartupMetrics();
     }
+    publishLocalSnapshotToExtension();
     dragController.requestRender(renderCategories);
   });
   setPreferencesCallback((prefs) => {
@@ -397,12 +436,16 @@ async function init(): Promise<void> {
 
     if (choice === 'local') {
       seedLocalDefaults();
+      publishLocalSnapshotToExtension();
+      void importPendingLocalQuickSaves();
       wireAvatarSignIn();
       return;
     }
     // choice === 'sync' — fall through to Clerk init
   } else if (mode === 'local') {
     // Local mode — skip Clerk entirely
+    publishLocalSnapshotToExtension();
+    void importPendingLocalQuickSaves();
     wireAvatarSignIn();
     return;
   }
