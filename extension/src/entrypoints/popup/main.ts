@@ -3,7 +3,7 @@ import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
 import { updateActionIconForTheme } from '../../lib/action-icon';
 import type { Category, Bookmark, PopupView } from '../../lib/types';
-import type { LocalQuickSaveSnapshot } from '../../lib/local-quick-save';
+import type { LocalQuickSave, LocalQuickSaveSnapshot } from '../../lib/local-quick-save';
 
 // --- Theme sync ---
 
@@ -180,8 +180,9 @@ async function createBookmark(categoryId: string, title: string, url: string): P
       categoryId,
       title,
       url,
-    }) as { success?: boolean; error?: string };
+    }) as { success?: boolean; error?: string; pending?: LocalQuickSave };
     if (!response?.success) throw new Error(response?.error || 'Failed to save locally.');
+    if (response.pending) await deliverLocalQuickSaveToApp(response.pending);
     return;
   }
 
@@ -293,6 +294,56 @@ let _saveMode: 'sync' | 'local' = 'sync';
 
 function normalizeUrl(url: string): string {
   return url.replace(/\/+$/, '').toLowerCase();
+}
+
+function makeLocalQuickSaveHash(save: LocalQuickSave): string {
+  return `#bb-quick-save=${encodeURIComponent(JSON.stringify(save))}`;
+}
+
+function getOrigin(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+async function getAppOrigins(): Promise<Set<string>> {
+  const appUrl = await getAppUrl();
+  const origins = new Set([
+    'https://brutebookmarks.com',
+    'https://www.brutebookmarks.com',
+    'http://localhost:5173',
+  ]);
+  const configuredOrigin = getOrigin(appUrl);
+  if (configuredOrigin) origins.add(configuredOrigin);
+  return origins;
+}
+
+async function deliverLocalQuickSaveToApp(save: LocalQuickSave): Promise<void> {
+  const origins = await getAppOrigins();
+  const tabs = await browser.tabs.query({});
+  const hash = makeLocalQuickSaveHash(save);
+  const appTabs = tabs.filter((tab) => origins.has(getOrigin(tab.url) ?? ''));
+
+  if (appTabs.length === 0) {
+    const appUrl = new URL(await getAppUrl());
+    appUrl.hash = hash.slice(1);
+    await browser.tabs.create({ url: appUrl.toString(), active: false });
+    return;
+  }
+
+  await Promise.all(appTabs.map((tab) => {
+    if (!tab.id || !tab.url) return Promise.resolve();
+    try {
+      const url = new URL(tab.url);
+      url.hash = hash.slice(1);
+      return browser.tabs.update(tab.id, { url: url.toString() }).catch(() => {});
+    } catch {
+      return Promise.resolve();
+    }
+  }));
 }
 
 function mapLocalSnapshot(snapshot: LocalQuickSaveSnapshot): {
