@@ -9,6 +9,8 @@ import {
   type BridgeMsgBookmarksResult,
   type BridgeMsgRequestToken,
   type BridgeMsgDisconnect,
+  type BridgeMsgLocalDataRequest,
+  type BridgeMsgLocalDataResult,
   type BridgeMsgLocalPendingAck,
   type BridgeMsgLocalPendingRequest,
   type BridgeMsgLocalPendingResult,
@@ -41,6 +43,8 @@ function isBridgeMessage(msg: unknown): msg is BridgeMessage {
     'BB_EXT_LOCAL_SNAPSHOT',
     'BB_EXT_LOCAL_PENDING_REQUEST',
     'BB_EXT_LOCAL_PENDING_RESULT',
+    'BB_EXT_LOCAL_DATA_REQUEST',
+    'BB_EXT_LOCAL_DATA_RESULT',
     'BB_EXT_LOCAL_PENDING_ACK',
     'BB_EXT_LOCAL_SAVE_NOW',
   ];
@@ -157,6 +161,27 @@ describe('bridge-types', () => {
           createdAt: 1,
         }],
       };
+      const dataRequest: BridgeMsgLocalDataRequest = {
+        type: 'BB_EXT_LOCAL_DATA_REQUEST',
+        v: BRIDGE_VERSION,
+        requestId: 'req-data',
+      };
+      const dataResult: BridgeMsgLocalDataResult = {
+        type: 'BB_EXT_LOCAL_DATA_RESULT',
+        v: BRIDGE_VERSION,
+        requestId: 'req-data',
+        success: true,
+        snapshot: {
+          version: 1,
+          updatedAt: 1,
+          categories: [{
+            id: 'cat-1',
+            name: 'Inbox',
+            bookmarks: [{ id: 'bm-1', title: 'Example', url: 'https://example.com' }],
+          }],
+        },
+        pending: [],
+      };
       const ack: BridgeMsgLocalPendingAck = {
         type: 'BB_EXT_LOCAL_PENDING_ACK',
         v: BRIDGE_VERSION,
@@ -176,6 +201,8 @@ describe('bridge-types', () => {
       expect(isBridgeMessage(snapshot)).toBe(true);
       expect(isBridgeMessage(request)).toBe(true);
       expect(isBridgeMessage(result)).toBe(true);
+      expect(isBridgeMessage(dataRequest)).toBe(true);
+      expect(isBridgeMessage(dataResult)).toBe(true);
       expect(isBridgeMessage(ack)).toBe(true);
       expect(isBridgeMessage(saveNow)).toBe(true);
     });

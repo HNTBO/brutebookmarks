@@ -19,8 +19,8 @@ import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-
 import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
-import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, onLocalQuickSave, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
-import type { BridgeLocalQuickSave } from './shared/bridge-types';
+import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, onLocalQuickSave, requestExtensionLocalData, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
+import type { BridgeLocalQuickSave, BridgeLocalSnapshot } from './shared/bridge-types';
 import { api } from '../convex/_generated/api';
 import { shouldRenderSnapshotCache } from './utils/snapshot-watermark';
 
@@ -54,8 +54,7 @@ initExtensionDetection();
 let appDataInitialized = false;
 onExtensionInstalled(() => {
   if (!appDataInitialized) return;
-  publishLocalSnapshotToExtension();
-  void importPendingLocalQuickSaves();
+  void syncLocalQuickSaveStateFromExtension();
 });
 onLocalQuickSave((save) => {
   if (!appDataInitialized) return;
@@ -382,6 +381,26 @@ function publishLocalSnapshotToExtension(): void {
 
 let localQuickSaveImportInFlight = false;
 
+async function importExtensionLocalSnapshot(snapshot: BridgeLocalSnapshot | null): Promise<void> {
+  if (getAppMode() !== 'local' || !snapshot) return;
+
+  for (const snapshotCategory of snapshot.categories) {
+    const category = getCategories().find((item) => item.id === snapshotCategory.id);
+    if (!category) continue;
+
+    for (const snapshotBookmark of snapshotCategory.bookmarks) {
+      const normalizedUrl = snapshotBookmark.url.replace(/\/+$/, '').toLowerCase();
+      const alreadySaved = category.bookmarks.some((bookmark) => (
+        bookmark.id === snapshotBookmark.id
+        || bookmark.url.replace(/\/+$/, '').toLowerCase() === normalizedUrl
+      ));
+      if (!alreadySaved) {
+        await createStoreBookmark(category.id, snapshotBookmark.title, snapshotBookmark.url, snapshotBookmark.iconPath ?? null);
+      }
+    }
+  }
+}
+
 async function importLocalQuickSaves(saves: BridgeLocalQuickSave[]): Promise<void> {
   if (getAppMode() !== 'local' || saves.length === 0 || localQuickSaveImportInFlight) return;
   localQuickSaveImportInFlight = true;
@@ -417,6 +436,21 @@ async function importPendingLocalQuickSaves(): Promise<void> {
     await importLocalQuickSaves(saves);
   } catch {
     // The extension may not be installed, or may have been reloaded.
+  }
+}
+
+async function syncLocalQuickSaveStateFromExtension(): Promise<void> {
+  if (getAppMode() !== 'local' || localQuickSaveImportInFlight) return;
+  localQuickSaveImportInFlight = true;
+  try {
+    const { snapshot, pending } = await requestExtensionLocalData();
+    await importExtensionLocalSnapshot(snapshot);
+    localQuickSaveImportInFlight = false;
+    await importLocalQuickSaves(pending);
+    publishLocalSnapshotToExtension();
+  } catch {
+    localQuickSaveImportInFlight = false;
+    publishLocalSnapshotToExtension();
   }
 }
 
@@ -531,16 +565,14 @@ async function init(): Promise<void> {
 
     if (choice === 'local') {
       seedLocalDefaults();
-      publishLocalSnapshotToExtension();
-      void importPendingLocalQuickSaves();
+      void syncLocalQuickSaveStateFromExtension();
       wireAvatarSignIn();
       return;
     }
     // choice === 'sync' — fall through to Clerk init
   } else if (mode === 'local') {
     // Local mode — skip Clerk entirely
-    publishLocalSnapshotToExtension();
-    void importPendingLocalQuickSaves();
+    void syncLocalQuickSaveStateFromExtension();
     wireAvatarSignIn();
     return;
   }

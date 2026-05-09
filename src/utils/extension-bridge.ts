@@ -2,6 +2,9 @@ import { BRIDGE_VERSION } from '../shared/bridge-types';
 import type {
   BridgeLocalCategory,
   BridgeLocalQuickSave,
+  BridgeLocalSnapshot,
+  BridgeMsgLocalDataRequest,
+  BridgeMsgLocalDataResult,
   BridgeMsgLocalPendingAck,
   BridgeMsgLocalPendingRequest,
   BridgeMsgLocalPendingResult,
@@ -121,6 +124,47 @@ export function requestLocalQuickSaves(): Promise<BridgeLocalQuickSave[]> {
     window.addEventListener('message', handler as EventListener);
     const msg: BridgeMsgLocalPendingRequest = {
       type: 'BB_EXT_LOCAL_PENDING_REQUEST',
+      v: BRIDGE_VERSION,
+      requestId,
+    };
+    window.postMessage(msg, window.location.origin);
+  });
+}
+
+export function requestExtensionLocalData(): Promise<{
+  snapshot: BridgeLocalSnapshot | null;
+  pending: BridgeLocalQuickSave[];
+}> {
+  return new Promise((resolve, reject) => {
+    const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+    const timeout = setTimeout(() => {
+      window.removeEventListener('message', handler as EventListener);
+      reject(new Error('Extension did not respond within 10 seconds.'));
+    }, 10_000);
+
+    function handler(event: MessageEvent<BridgeMsgLocalDataResult>) {
+      if (event.source !== window) return;
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== 'BB_EXT_LOCAL_DATA_RESULT') return;
+      if (event.data.requestId !== requestId) return;
+
+      window.removeEventListener('message', handler as EventListener);
+      clearTimeout(timeout);
+
+      if (event.data.success) {
+        resolve({
+          snapshot: event.data.snapshot ?? null,
+          pending: event.data.pending ?? [],
+        });
+      } else {
+        reject(new Error(event.data.error || 'Failed to read extension local data.'));
+      }
+    }
+
+    window.addEventListener('message', handler as EventListener);
+    const msg: BridgeMsgLocalDataRequest = {
+      type: 'BB_EXT_LOCAL_DATA_REQUEST',
       v: BRIDGE_VERSION,
       requestId,
     };

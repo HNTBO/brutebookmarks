@@ -87,6 +87,12 @@ export interface BridgeLocalQuickSave {
   createdAt: number;
 }
 
+export interface BridgeLocalSnapshot {
+  version: 1;
+  updatedAt: number;
+  categories: BridgeLocalCategory[];
+}
+
 /** Page → Content script: publish local-mode categories to the extension. */
 export interface BridgeMsgLocalSnapshot {
   type: 'BB_EXT_LOCAL_SNAPSHOT';
@@ -108,6 +114,24 @@ export interface BridgeMsgLocalPendingResult {
   requestId: string;
   success: boolean;
   saves?: BridgeLocalQuickSave[];
+  error?: string;
+}
+
+/** Page → Content script: ask extension for its local snapshot and queued saves. */
+export interface BridgeMsgLocalDataRequest {
+  type: 'BB_EXT_LOCAL_DATA_REQUEST';
+  v: typeof BRIDGE_VERSION;
+  requestId: string;
+}
+
+/** Content script → Page: extension local snapshot and queued saves. */
+export interface BridgeMsgLocalDataResult {
+  type: 'BB_EXT_LOCAL_DATA_RESULT';
+  v: typeof BRIDGE_VERSION;
+  requestId: string;
+  success: boolean;
+  snapshot?: BridgeLocalSnapshot | null;
+  pending?: BridgeLocalQuickSave[];
   error?: string;
 }
 
@@ -137,6 +161,8 @@ export type BridgeMessage =
   | BridgeMsgLocalSnapshot
   | BridgeMsgLocalPendingRequest
   | BridgeMsgLocalPendingResult
+  | BridgeMsgLocalDataRequest
+  | BridgeMsgLocalDataResult
   | BridgeMsgLocalPendingAck
   | BridgeMsgLocalSaveNow;
 
