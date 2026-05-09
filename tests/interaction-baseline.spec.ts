@@ -53,6 +53,38 @@ const SEED_TAB_GROUPS = JSON.stringify([
   { id: 'tg-1', name: 'Test Group', order: 1 },
 ]);
 
+const SEED_WITH_TWO_TAB_GROUPS = JSON.stringify([
+  {
+    id: 'tg-a-cat-1', name: 'Group A One', order: 1, groupId: 'tg-a',
+    bookmarks: [
+      { id: 'tg-a-bm-1', title: 'Alpha', url: 'https://alpha.com', iconPath: null, order: 1 },
+    ],
+  },
+  {
+    id: 'tg-a-cat-2', name: 'Group A Two', order: 2, groupId: 'tg-a',
+    bookmarks: [
+      { id: 'tg-a-bm-2', title: 'Beta', url: 'https://beta.com', iconPath: null, order: 1 },
+    ],
+  },
+  {
+    id: 'tg-b-cat-1', name: 'Group B One', order: 3, groupId: 'tg-b',
+    bookmarks: [
+      { id: 'tg-b-bm-1', title: 'Gamma', url: 'https://gamma.com', iconPath: null, order: 1 },
+    ],
+  },
+  {
+    id: 'tg-b-cat-2', name: 'Group B Two', order: 4, groupId: 'tg-b',
+    bookmarks: [
+      { id: 'tg-b-bm-2', title: 'Delta', url: 'https://delta.com', iconPath: null, order: 1 },
+    ],
+  },
+]);
+
+const SEED_TWO_TAB_GROUPS = JSON.stringify([
+  { id: 'tg-a', name: 'Group A', order: 1 },
+  { id: 'tg-b', name: 'Group B', order: 2 },
+]);
+
 /** Set app to local mode and navigate, waiting for categories to render. */
 async function setupLocalMode(page: Page, options: { openBookmarksInNewTab?: boolean } = {}): Promise<void> {
   // Set local mode + seed data before navigating so the welcome gate is skipped
@@ -77,6 +109,17 @@ async function setupWithTabGroups(page: Page): Promise<void> {
   }, { categories: SEED_WITH_TAB_GROUP, groups: SEED_TAB_GROUPS });
   await page.goto('/');
   // Wait for the tab group to render
+  await page.waitForSelector('.tab-group', { timeout: 10_000 });
+}
+
+/** Set app to local mode with two tab groups. */
+async function setupWithTwoTabGroups(page: Page): Promise<void> {
+  await page.addInitScript((args: { categories: string; groups: string }) => {
+    localStorage.setItem('appMode', 'local');
+    localStorage.setItem('speedDialData', args.categories);
+    localStorage.setItem('speedDialTabGroups', args.groups);
+  }, { categories: SEED_WITH_TWO_TAB_GROUPS, groups: SEED_TWO_TAB_GROUPS });
+  await page.goto('/');
   await page.waitForSelector('.tab-group', { timeout: 10_000 });
 }
 
@@ -431,6 +474,21 @@ test.describe('Tab group switching', () => {
       document.dispatchEvent(new MouseEvent('mouseup', { button: 3, bubbles: true, cancelable: true }));
     });
     await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+  });
+
+  test('keyboard shortcuts target the tab group currently under the pointer', async ({ page }) => {
+    await setupWithTwoTabGroups(page);
+
+    const firstGroup = page.locator('.tab-group').nth(0);
+    const secondGroup = page.locator('.tab-group').nth(1);
+    const firstGroupTabs = firstGroup.locator('.tab');
+    const secondGroupTabs = secondGroup.locator('.tab');
+
+    await secondGroup.hover();
+    await page.keyboard.press('ArrowRight');
+
+    await expect(firstGroupTabs.nth(0)).toHaveClass(/tab-active/);
+    await expect(secondGroupTabs.nth(1)).toHaveClass(/tab-active/);
   });
 });
 

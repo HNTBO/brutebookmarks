@@ -17,14 +17,15 @@ function mobileQuery(): MediaQueryList {
 
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
-let lastInteractedTabGroupId: string | null = null;
+let pointerTabGroupId: string | null = null;
+let fallbackTabGroupId: string | null = null;
 
 type TabDirection = 'forward' | 'backward';
 
 /** Set the active tab for a group (called by drag-drop to persist tab switch through re-renders). */
 export function setActiveTab(groupId: string, categoryId: string): void {
   activeTabPerGroup.set(groupId, categoryId);
-  lastInteractedTabGroupId = groupId;
+  fallbackTabGroupId = groupId;
 }
 
 // Guard: init drag listeners only once
@@ -53,7 +54,19 @@ function getAdjacentTabId(categories: Category[], activeId: string, direction: T
 }
 
 function markInteractedTabGroup(groupId: string): void {
-  lastInteractedTabGroupId = groupId;
+  fallbackTabGroupId = groupId;
+}
+
+function trackPointerTabGroup(groupEl: HTMLElement): void {
+  groupEl.addEventListener('pointerenter', () => {
+    pointerTabGroupId = groupEl.dataset.groupId ?? null;
+  });
+
+  groupEl.addEventListener('pointerleave', () => {
+    if (pointerTabGroupId === groupEl.dataset.groupId) {
+      pointerTabGroupId = null;
+    }
+  });
 }
 
 function updateTabsA11y(groupEl: HTMLElement, activeCatId: string): void {
@@ -71,15 +84,22 @@ function isVisibleTabGroup(groupEl: HTMLElement): boolean {
 }
 
 function resolveNavigationTargetGroup(): HTMLElement | null {
+  if (pointerTabGroupId) {
+    const pointerGroup = document.querySelector<HTMLElement>(
+      `.tab-group[data-group-id="${CSS.escape(pointerTabGroupId)}"]`,
+    );
+    if (pointerGroup) return pointerGroup;
+  }
+
   const activeEl = document.activeElement;
   if (activeEl instanceof HTMLElement) {
     const focusedGroup = activeEl.closest<HTMLElement>('.tab-group');
     if (focusedGroup) return focusedGroup;
   }
 
-  if (lastInteractedTabGroupId) {
+  if (fallbackTabGroupId) {
     const lastGroup = document.querySelector<HTMLElement>(
-      `.tab-group[data-group-id="${CSS.escape(lastInteractedTabGroupId)}"]`,
+      `.tab-group[data-group-id="${CSS.escape(fallbackTabGroupId)}"]`,
     );
     if (lastGroup) return lastGroup;
   }
@@ -351,6 +371,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
   const groupEl = document.createElement('div');
   groupEl.className = 'tab-group tab-group-mobile';
   groupEl.dataset.groupId = group.id;
+  trackPointerTabGroup(groupEl);
 
   const activeTabId = getActiveTabId(group);
   const rotated = rotateToActive(group.categories, activeTabId);
@@ -496,6 +517,7 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
   const groupEl = document.createElement('div');
   groupEl.className = 'tab-group';
   groupEl.dataset.groupId = group.id;
+  trackPointerTabGroup(groupEl);
 
   const activeTabId = getActiveTabId(group);
 
