@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npx convex deploy --yes && vite build",
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" }
   ]
