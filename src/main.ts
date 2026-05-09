@@ -1,6 +1,6 @@
 import './styles/main.css';
 import { renderApp } from './app';
-import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence, createBookmark as createStoreBookmark } from './data/store';
+import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence, createBookmark as createStoreBookmark, isConvexMode } from './data/store';
 import { navigateTabbedCategory, renderCategories, renderStartupShell } from './components/categories';
 import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
@@ -59,7 +59,7 @@ onExtensionInstalled(() => {
 onLocalQuickSave((save) => {
   if (!appDataInitialized) return;
   if (save) {
-    void importLocalQuickSaves([save]);
+    void importLocalQuickSaves([save], { forceLocalFallback: true });
     return;
   }
   void importPendingLocalQuickSaves();
@@ -381,8 +381,16 @@ function publishLocalSnapshotToExtension(): void {
 
 let localQuickSaveImportInFlight = false;
 
+function ensureLocalQuickSaveMode(options: { forceLocalFallback?: boolean } = {}): boolean {
+  if (getAppMode() === 'local') return true;
+  if (isConvexMode()) return false;
+  if (!options.forceLocalFallback) return false;
+  setAppMode('local');
+  return true;
+}
+
 async function importExtensionLocalSnapshot(snapshot: BridgeLocalSnapshot | null): Promise<void> {
-  if (getAppMode() !== 'local' || !snapshot) return;
+  if (!ensureLocalQuickSaveMode() || !snapshot) return;
 
   for (const snapshotCategory of snapshot.categories) {
     const category = getCategories().find((item) => item.id === snapshotCategory.id);
@@ -401,8 +409,11 @@ async function importExtensionLocalSnapshot(snapshot: BridgeLocalSnapshot | null
   }
 }
 
-async function importLocalQuickSaves(saves: BridgeLocalQuickSave[]): Promise<void> {
-  if (getAppMode() !== 'local' || saves.length === 0 || localQuickSaveImportInFlight) return;
+async function importLocalQuickSaves(
+  saves: BridgeLocalQuickSave[],
+  options: { forceLocalFallback?: boolean } = {},
+): Promise<void> {
+  if (!ensureLocalQuickSaveMode(options) || saves.length === 0 || localQuickSaveImportInFlight) return;
   localQuickSaveImportInFlight = true;
   try {
     const appliedIds: string[] = [];
@@ -430,7 +441,7 @@ async function importLocalQuickSaves(saves: BridgeLocalQuickSave[]): Promise<voi
 }
 
 async function importPendingLocalQuickSaves(): Promise<void> {
-  if (getAppMode() !== 'local' || localQuickSaveImportInFlight) return;
+  if (!ensureLocalQuickSaveMode() || localQuickSaveImportInFlight) return;
   try {
     const saves = await requestLocalQuickSaves();
     await importLocalQuickSaves(saves);
@@ -440,7 +451,7 @@ async function importPendingLocalQuickSaves(): Promise<void> {
 }
 
 async function syncLocalQuickSaveStateFromExtension(): Promise<void> {
-  if (getAppMode() !== 'local' || localQuickSaveImportInFlight) return;
+  if (!ensureLocalQuickSaveMode() || localQuickSaveImportInFlight) return;
   localQuickSaveImportInFlight = true;
   try {
     const { snapshot, pending } = await requestExtensionLocalData();
