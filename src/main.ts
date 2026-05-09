@@ -19,7 +19,7 @@ import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-
 import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
-import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
+import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, onLocalQuickSave, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
 import { api } from '../convex/_generated/api';
 import { shouldRenderSnapshotCache } from './utils/snapshot-watermark';
 
@@ -54,6 +54,10 @@ let appDataInitialized = false;
 onExtensionInstalled(() => {
   if (!appDataInitialized) return;
   publishLocalSnapshotToExtension();
+  void importPendingLocalQuickSaves();
+});
+onLocalQuickSave(() => {
+  if (!appDataInitialized) return;
   void importPendingLocalQuickSaves();
 });
 

@@ -7,7 +7,7 @@
  * This is the "auth bridge" — when the user visits BB while logged in,
  * the main app automatically sends a fresh Convex JWT to the extension.
  */
-const prodMatches = ['*://*.brutebookmarks.com/*'];
+const prodMatches = ['*://brutebookmarks.com/*', '*://*.brutebookmarks.com/*'];
 const devMatches = [...prodMatches, 'http://localhost:5173/*'];
 
 export default defineContentScript({
@@ -15,6 +15,12 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   main() {
+    browser.runtime.onMessage.addListener((message: { type?: string }) => {
+      if (message.type === 'BB_LOCAL_SAVED') {
+        window.postMessage({ type: 'BB_EXT_LOCAL_SAVED', v: 1 }, window.location.origin);
+      }
+    });
+
     function sendRuntimeMessage(message: unknown): void {
       browser.runtime.sendMessage(message).catch(() => {
         // The page may outlive an extension reload or service worker restart.

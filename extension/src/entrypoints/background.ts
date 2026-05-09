@@ -49,6 +49,20 @@ async function applyThemeMessage(theme: ActionIconTheme): Promise<void> {
   await updateActionIconForTheme(theme, config.glyph);
 }
 
+async function notifyOpenBruteBookmarksTabsOfLocalSave(): Promise<void> {
+  const tabs = await browser.tabs.query({
+    url: [
+      'https://brutebookmarks.com/*',
+      'https://www.brutebookmarks.com/*',
+      'http://localhost:5173/*',
+    ],
+  });
+  await Promise.all(tabs.map((tab) => {
+    if (!tab.id) return Promise.resolve();
+    return browser.tabs.sendMessage(tab.id, { type: 'BB_LOCAL_SAVED' }).catch(() => {});
+  }));
+}
+
 export default defineBackground(() => {
   applyCachedActionIcon();
   browser.runtime.onStartup?.addListener(() => {
@@ -156,7 +170,10 @@ export default defineBackground(() => {
           return true;
         }
         saveLocalBookmark(message.categoryId, message.title, message.url)
-          .then((result) => sendResponse({ success: true, ...result }))
+          .then(async (result) => {
+            await notifyOpenBruteBookmarksTabsOfLocalSave();
+            sendResponse({ success: true, ...result });
+          })
           .catch((err) => sendResponse({ success: false, error: String(err) }));
         return true;
       }

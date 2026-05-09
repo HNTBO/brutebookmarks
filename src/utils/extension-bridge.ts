@@ -15,6 +15,7 @@ import type { Category } from '../types';
 let extensionInstalled = false;
 let _detectionInitialized = false;
 const EXTENSION_INSTALLED_EVENT = 'bb-extension-installed';
+const LOCAL_QUICK_SAVE_EVENT = 'bb-local-quick-save';
 
 export function initExtensionDetection(): void {
   if (_detectionInitialized) return;
@@ -25,6 +26,10 @@ export function initExtensionDetection(): void {
     if (event.data?.type === 'BB_EXT_INSTALLED') {
       extensionInstalled = true;
       window.dispatchEvent(new CustomEvent(EXTENSION_INSTALLED_EVENT));
+      return;
+    }
+    if (event.data?.type === 'BB_EXT_LOCAL_SAVED') {
+      window.dispatchEvent(new CustomEvent(LOCAL_QUICK_SAVE_EVENT));
     }
   });
 }
@@ -36,6 +41,11 @@ export function isExtensionInstalled(): boolean {
 export function onExtensionInstalled(listener: () => void): () => void {
   window.addEventListener(EXTENSION_INSTALLED_EVENT, listener);
   return () => window.removeEventListener(EXTENSION_INSTALLED_EVENT, listener);
+}
+
+export function onLocalQuickSave(listener: () => void): () => void {
+  window.addEventListener(LOCAL_QUICK_SAVE_EVENT, listener);
+  return () => window.removeEventListener(LOCAL_QUICK_SAVE_EVENT, listener);
 }
 
 export function syncExtensionThemePreference(
