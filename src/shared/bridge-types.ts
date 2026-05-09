@@ -118,6 +118,13 @@ export interface BridgeMsgLocalPendingAck {
   ids: string[];
 }
 
+/** Content script → Page: a local Quick Save was just created. */
+export interface BridgeMsgLocalSaveNow {
+  type: 'BB_EXT_LOCAL_SAVE_NOW';
+  v: typeof BRIDGE_VERSION;
+  save: BridgeLocalQuickSave;
+}
+
 /** Union of all page ↔ content script messages */
 export type BridgeMessage =
   | BridgeMsgInstalled
@@ -130,7 +137,8 @@ export type BridgeMessage =
   | BridgeMsgLocalSnapshot
   | BridgeMsgLocalPendingRequest
   | BridgeMsgLocalPendingResult
-  | BridgeMsgLocalPendingAck;
+  | BridgeMsgLocalPendingAck
+  | BridgeMsgLocalSaveNow;
 
 // --- Content Script ↔ Background (runtime.sendMessage) ---
 

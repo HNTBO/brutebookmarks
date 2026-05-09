@@ -12,6 +12,7 @@ import {
   type BridgeMsgLocalPendingAck,
   type BridgeMsgLocalPendingRequest,
   type BridgeMsgLocalPendingResult,
+  type BridgeMsgLocalSaveNow,
   type BridgeMsgLocalSnapshot,
   type RuntimeMsgAuthToken,
   type RuntimeMsgLocalAckPendingSaves,
@@ -41,6 +42,7 @@ function isBridgeMessage(msg: unknown): msg is BridgeMessage {
     'BB_EXT_LOCAL_PENDING_REQUEST',
     'BB_EXT_LOCAL_PENDING_RESULT',
     'BB_EXT_LOCAL_PENDING_ACK',
+    'BB_EXT_LOCAL_SAVE_NOW',
   ];
   return validTypes.includes(m.type as string);
 }
@@ -160,11 +162,23 @@ describe('bridge-types', () => {
         v: BRIDGE_VERSION,
         ids: ['save-1'],
       };
+      const saveNow: BridgeMsgLocalSaveNow = {
+        type: 'BB_EXT_LOCAL_SAVE_NOW',
+        v: BRIDGE_VERSION,
+        save: {
+          id: 'save-1',
+          categoryId: 'cat-1',
+          title: 'Example',
+          url: 'https://example.com',
+          createdAt: 1,
+        },
+      };
 
       expect(isBridgeMessage(snapshot)).toBe(true);
       expect(isBridgeMessage(request)).toBe(true);
       expect(isBridgeMessage(result)).toBe(true);
       expect(isBridgeMessage(ack)).toBe(true);
+      expect(isBridgeMessage(saveNow)).toBe(true);
     });
 
     it('rejects message with wrong version', () => {

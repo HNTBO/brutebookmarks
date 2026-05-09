@@ -15,9 +15,12 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   main() {
-    browser.runtime.onMessage.addListener((message: { type?: string }) => {
-      if (message.type === 'BB_LOCAL_SAVED') {
-        window.postMessage({ type: 'BB_EXT_LOCAL_SAVED', v: 1 }, window.location.origin);
+    browser.runtime.onMessage.addListener((message: { type?: string; save?: unknown }) => {
+      if (message.type === 'BB_LOCAL_SAVE_NOW') {
+        window.postMessage(
+          { type: 'BB_EXT_LOCAL_SAVE_NOW', v: 1, save: message.save },
+          window.location.origin,
+        );
       }
     });
 

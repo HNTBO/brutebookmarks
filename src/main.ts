@@ -20,6 +20,7 @@ import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
 import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, onLocalQuickSave, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
+import type { BridgeLocalQuickSave } from './shared/bridge-types';
 import { api } from '../convex/_generated/api';
 import { shouldRenderSnapshotCache } from './utils/snapshot-watermark';
 
@@ -56,8 +57,12 @@ onExtensionInstalled(() => {
   publishLocalSnapshotToExtension();
   void importPendingLocalQuickSaves();
 });
-onLocalQuickSave(() => {
+onLocalQuickSave((save) => {
   if (!appDataInitialized) return;
+  if (save) {
+    void importLocalQuickSaves([save]);
+    return;
+  }
   void importPendingLocalQuickSaves();
 });
 
@@ -377,16 +382,13 @@ function publishLocalSnapshotToExtension(): void {
 
 let localQuickSaveImportInFlight = false;
 
-async function importPendingLocalQuickSaves(): Promise<void> {
-  if (getAppMode() !== 'local' || localQuickSaveImportInFlight) return;
+async function importLocalQuickSaves(saves: BridgeLocalQuickSave[]): Promise<void> {
+  if (getAppMode() !== 'local' || saves.length === 0 || localQuickSaveImportInFlight) return;
   localQuickSaveImportInFlight = true;
   try {
-    const saves = await requestLocalQuickSaves();
-    if (saves.length === 0) return;
-
     const appliedIds: string[] = [];
-    const categories = getCategories();
     for (const save of saves) {
+      const categories = getCategories();
       const category = categories.find((item) => item.id === save.categoryId);
       if (!category) continue;
       const normalizedUrl = save.url.replace(/\/+$/, '').toLowerCase();
@@ -405,6 +407,16 @@ async function importPendingLocalQuickSaves(): Promise<void> {
     // The extension may not be installed, or may have been reloaded.
   } finally {
     localQuickSaveImportInFlight = false;
+  }
+}
+
+async function importPendingLocalQuickSaves(): Promise<void> {
+  if (getAppMode() !== 'local' || localQuickSaveImportInFlight) return;
+  try {
+    const saves = await requestLocalQuickSaves();
+    await importLocalQuickSaves(saves);
+  } catch {
+    // The extension may not be installed, or may have been reloaded.
   }
 }
 

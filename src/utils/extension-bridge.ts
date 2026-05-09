@@ -5,6 +5,7 @@ import type {
   BridgeMsgLocalPendingAck,
   BridgeMsgLocalPendingRequest,
   BridgeMsgLocalPendingResult,
+  BridgeMsgLocalSaveNow,
   BridgeMsgLocalSnapshot,
   BridgeMsgRequestBookmarks,
   BridgeMsgBookmarksResult,
@@ -28,8 +29,10 @@ export function initExtensionDetection(): void {
       window.dispatchEvent(new CustomEvent(EXTENSION_INSTALLED_EVENT));
       return;
     }
-    if (event.data?.type === 'BB_EXT_LOCAL_SAVED') {
-      window.dispatchEvent(new CustomEvent(LOCAL_QUICK_SAVE_EVENT));
+    if (event.data?.type === 'BB_EXT_LOCAL_SAVE_NOW') {
+      window.dispatchEvent(new CustomEvent(LOCAL_QUICK_SAVE_EVENT, {
+        detail: (event.data as BridgeMsgLocalSaveNow).save,
+      }));
     }
   });
 }
@@ -43,9 +46,12 @@ export function onExtensionInstalled(listener: () => void): () => void {
   return () => window.removeEventListener(EXTENSION_INSTALLED_EVENT, listener);
 }
 
-export function onLocalQuickSave(listener: () => void): () => void {
-  window.addEventListener(LOCAL_QUICK_SAVE_EVENT, listener);
-  return () => window.removeEventListener(LOCAL_QUICK_SAVE_EVENT, listener);
+export function onLocalQuickSave(listener: (save: BridgeLocalQuickSave | null) => void): () => void {
+  const handler = (event: Event) => {
+    listener(event instanceof CustomEvent ? event.detail ?? null : null);
+  };
+  window.addEventListener(LOCAL_QUICK_SAVE_EVENT, handler);
+  return () => window.removeEventListener(LOCAL_QUICK_SAVE_EVENT, handler);
 }
 
 export function syncExtensionThemePreference(
