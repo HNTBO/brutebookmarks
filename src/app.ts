@@ -1,5 +1,5 @@
 import kofiLogo from './assets/kofi_logo.webp';
-import stackedLogo from '../_graphics/brutebookmarks-stacked-logo.svg';
+import stackedLogo from './assets/brutebookmarks-stacked-logo.svg';
 
 export function renderApp(): void {
   const app = document.querySelector<HTMLDivElement>('#app')!;

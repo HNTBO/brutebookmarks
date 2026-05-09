@@ -55,3 +55,5 @@ tmpclaude-*
 # Sync conflict artifacts
 *.sync-conflict-*
 .beads/sync_base.jsonl
+
+.vercel
