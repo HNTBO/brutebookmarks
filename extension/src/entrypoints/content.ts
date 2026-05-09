@@ -23,7 +23,7 @@ export default defineContentScript({
     }
 
     // Tell the page the extension is installed
-    window.postMessage({ type: 'BB_EXT_INSTALLED' }, window.location.origin);
+    window.postMessage({ type: 'BB_EXT_INSTALLED', v: 1 }, window.location.origin);
 
     // Listen for messages from the main app
     const ALLOWED_ORIGINS = import.meta.env.MODE === 'development'

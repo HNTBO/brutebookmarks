@@ -14,6 +14,7 @@ import type { Category } from '../types';
 
 let extensionInstalled = false;
 let _detectionInitialized = false;
+const EXTENSION_INSTALLED_EVENT = 'bb-extension-installed';
 
 export function initExtensionDetection(): void {
   if (_detectionInitialized) return;
@@ -23,12 +24,18 @@ export function initExtensionDetection(): void {
     if (event.origin !== window.location.origin) return;
     if (event.data?.type === 'BB_EXT_INSTALLED') {
       extensionInstalled = true;
+      window.dispatchEvent(new CustomEvent(EXTENSION_INSTALLED_EVENT));
     }
   });
 }
 
 export function isExtensionInstalled(): boolean {
   return extensionInstalled;
+}
+
+export function onExtensionInstalled(listener: () => void): () => void {
+  window.addEventListener(EXTENSION_INSTALLED_EVENT, listener);
+  return () => window.removeEventListener(EXTENSION_INSTALLED_EVENT, listener);
 }
 
 export function syncExtensionThemePreference(

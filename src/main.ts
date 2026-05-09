@@ -19,7 +19,7 @@ import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-
 import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
-import { ackLocalQuickSaves, initExtensionDetection, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
+import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
 import { api } from '../convex/_generated/api';
 import { shouldRenderSnapshotCache } from './utils/snapshot-watermark';
 
@@ -49,6 +49,13 @@ window.onerror = (_message, _source, _lineno, _colno, error) => {
 
 // Detect extension early (before auth) to catch BB_EXT_INSTALLED at document_idle
 initExtensionDetection();
+
+let appDataInitialized = false;
+onExtensionInstalled(() => {
+  if (!appDataInitialized) return;
+  publishLocalSnapshotToExtension();
+  void importPendingLocalQuickSaves();
+});
 
 // Render the HTML shell
 renderApp();
@@ -458,6 +465,7 @@ async function init(): Promise<void> {
 
   // Load bookmarks first — don't wait for auth
   await initializeData();
+  appDataInitialized = true;
 
   // Register post-undo/redo UI sync
   setAfterUndoRedoCallback(() => {
