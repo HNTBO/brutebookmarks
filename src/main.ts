@@ -162,6 +162,11 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
     }
 
     let categoryId = categoryEditBtn.dataset.categoryId;
+    if (categoryId && (e.ctrlKey || e.metaKey)) {
+      openAddCategoryModal(undefined, categoryId);
+      return;
+    }
+
     if (!categoryId) {
       // Tab group: resolve from the currently active tab
       const activeTab = categoryEditBtn.closest('.tab-group')?.querySelector('.tab-active') as HTMLElement | null;
@@ -198,7 +203,9 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
 function syncControlAddMode(active: boolean): void {
   document.body.classList.toggle('control-add-mode', active);
   document.querySelectorAll<HTMLElement>('.tab-group-action-btn').forEach((button) => {
-    button.title = active ? 'Add tab to this group' : 'Edit tab. Hold Ctrl to add a tab';
+    button.title = active
+      ? button.dataset.groupId ? 'Add tab to this group' : 'Add tab beside this category'
+      : button.dataset.groupId ? 'Edit tab. Hold Ctrl to add a tab' : 'Edit category. Hold Ctrl to add a tab';
   });
 }
 

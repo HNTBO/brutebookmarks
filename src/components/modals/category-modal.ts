@@ -14,6 +14,7 @@ import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 
 let editingCategoryId: string | null = null;
 let defaultGroupId: string | undefined;
+let baseCategoryIdForNewGroup: string | undefined;
 
 function populateGroupSelect(currentGroupId?: string): void {
   const section = document.getElementById('category-group-section') as HTMLElement;
@@ -44,9 +45,10 @@ function populateGroupSelect(currentGroupId?: string): void {
   select.value = currentGroupId ?? '';
 }
 
-export function openAddCategoryModal(groupId?: string): void {
+export function openAddCategoryModal(groupId?: string, baseCategoryId?: string): void {
   editingCategoryId = null;
   defaultGroupId = groupId;
+  baseCategoryIdForNewGroup = baseCategoryId;
   document.getElementById('category-modal-title')!.textContent = 'New Category';
   (document.getElementById('category-name') as HTMLInputElement).value = '';
   (document.getElementById('editing-category-id') as HTMLInputElement).value = '';
@@ -59,6 +61,7 @@ export function openAddCategoryModal(groupId?: string): void {
 export function openEditCategoryModal(categoryId: string): void {
   editingCategoryId = categoryId;
   defaultGroupId = undefined;
+  baseCategoryIdForNewGroup = undefined;
   const category = getCategories().find((c) => c.id === categoryId);
   if (!category) return;
 
@@ -108,7 +111,13 @@ async function saveCategory(event: Event): Promise<void> {
       }
     }
   } else {
-    await createCategory(name, selectedGroupValue || defaultGroupId);
+    if (baseCategoryIdForNewGroup) {
+      const baseCategory = getCategories().find((category) => category.id === baseCategoryIdForNewGroup);
+      const newCategoryId = await createCategory(name);
+      await createTabGroup('Tab Group', [baseCategoryIdForNewGroup, newCategoryId], baseCategory?.order);
+    } else {
+      await createCategory(name, selectedGroupValue || defaultGroupId);
+    }
   }
   closeCategoryModal();
 }

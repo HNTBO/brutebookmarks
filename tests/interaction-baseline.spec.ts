@@ -246,6 +246,39 @@ test.describe('Modal open/close', () => {
     expect(persistedGroupId).toBe('tg-1');
   });
 
+  test('Ctrl on a solo category action creates a new tab group with the new tab', async ({ page }) => {
+    await setupLocalMode(page);
+
+    const soloAction = page.locator('.category .tab-group-action-btn').first();
+    await expect(soloAction).toHaveAttribute('title', /Hold Ctrl/);
+
+    await page.keyboard.down('Control');
+    await expect(page.locator('body')).toHaveClass(/control-add-mode/);
+    await expect(soloAction.locator('.group-action-add')).toHaveCSS('opacity', '1');
+
+    await soloAction.click({ modifiers: ['Control'] });
+    await page.keyboard.up('Control');
+
+    const modal = page.locator('#category-modal');
+    await expect(modal).toHaveClass(/active/);
+    await page.fill('#category-name', 'New Solo Tab');
+    await page.click('#category-save-btn');
+
+    await expect(modal).not.toHaveClass(/active/);
+    const firstGroup = page.locator('.tab-group').first();
+    await expect(firstGroup.locator('.tab', { hasText: 'Test Category' })).toBeVisible();
+    await expect(firstGroup.locator('.tab', { hasText: 'New Solo Tab' })).toBeVisible();
+
+    const persisted = await page.evaluate(() => {
+      const categories = JSON.parse(localStorage.getItem('speedDialData') || '[]') as Array<{ name: string; groupId?: string }>;
+      const base = categories.find((category) => category.name === 'Test Category');
+      const added = categories.find((category) => category.name === 'New Solo Tab');
+      return { baseGroupId: base?.groupId, addedGroupId: added?.groupId };
+    });
+    expect(persisted.baseGroupId).toBeTruthy();
+    expect(persisted.addedGroupId).toBe(persisted.baseGroupId);
+  });
+
   test('settings modal opens and closes via Escape', async ({ page }) => {
     await setupLocalMode(page);
 

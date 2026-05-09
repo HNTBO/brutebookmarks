@@ -1125,9 +1125,13 @@ export async function createTabGroup(name: string, categoryIds: string[], order?
       .map((c) => c!.order ?? 0);
     const groupOrder = order ?? (catOrders.length > 0 ? Math.min(...catOrders) : 0);
     _localTabGroups.push({ id: groupId, name, order: groupOrder });
-    for (const catId of categoryIds) {
+    for (let i = 0; i < categoryIds.length; i++) {
+      const catId = categoryIds[i];
       const cat = _categories.find((c) => c.id === catId);
-      if (cat) cat.groupId = groupId;
+      if (cat) {
+        cat.groupId = groupId;
+        cat.order = i + 1;
+      }
     }
     saveData();
     rerender();

@@ -350,7 +350,10 @@ function renderSingleCategory(category: Category, currentCardSize: number, showC
           ${escapeHtml(category.name)}
         </div>
       </div>
-      <button class="category-edit-btn" data-category-id="${escapeHtml(category.id)}" title="Edit category">✎</button>
+      <button class="category-edit-btn tab-group-action-btn" data-category-id="${escapeHtml(category.id)}" title="Edit category. Hold Ctrl to add a tab">
+        <span class="group-action-icon group-action-edit">✎</span>
+        <span class="group-action-icon group-action-add" aria-hidden="true">+</span>
+      </button>
     </div>
     ${renderBookmarksGrid(category, currentCardSize, showCardNames)}
   `;
