@@ -48,9 +48,12 @@ No account required. No ads. No tracking. Fun. Stylish. Private.
 - **Export** — Backup all your data as JSON at any time
 - **Erase** — Delete everything with one button. Full control over your data.
 
-## Browser Extension
+## Browser Extensions
 
-A companion extension for Chrome and Firefox. Click the icon on any page to save it.
+Companion extensions for Chrome and Firefox live in explicit top-level packages:
+
+- `quicksave/` - click the icon on any page to save it to BruteBookmarks.
+- `newtab/` - replace the browser new tab with BruteBookmarks and a cached fallback.
 
 ![BruteBookmarks Extension — Quick Save](docs/screenshots/extension-quick-save.jpg)
 
@@ -58,13 +61,18 @@ A companion extension for Chrome and Firefox. Click the icon on any page to save
 - **Duplicate detection** — Already saved a page? The extension tells you where, with the option to save it elsewhere.
 - **Category overview** — See all your categories and bookmark counts at a glance.
 
-Built with the [WXT framework](https://wxt.dev/) from a single codebase.
+Both are built with the [WXT framework](https://wxt.dev/).
 
 ```bash
-cd extension
+cd quicksave
 npm install
-npx wxt          # Chrome dev
-npx wxt --browser firefox  # Firefox dev
+npm run dev             # Chrome dev
+npm run dev:firefox     # Firefox dev
+
+cd ../newtab
+npm install
+npm run dev             # Chrome dev
+npm run dev:firefox     # Firefox dev
 ```
 
 ## Tech Stack

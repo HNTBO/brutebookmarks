@@ -2,7 +2,7 @@
 
 ## Submission Status
 
-Submitted to the Chrome Web Store on 2026-05-03.
+Next Quick Save release: 1.1.4.
 
 ## Short Description
 
@@ -10,11 +10,13 @@ Save pages to BruteBookmarks without breaking your flow.
 
 ## Single Purpose
 
-BruteBookmarks Quick Save lets users save the current page to their BruteBookmarks bookmark dashboard, choose a category, and avoid duplicate saved links.
+BruteBookmarks Quick Save lets users save the current page to their BruteBookmarks bookmark dashboard, choose a category, and avoid duplicate saved links. It works with a synced account or in local-only mode after BruteBookmarks has been opened once in the same browser.
 
 ## Full Description
 
-Use BruteBookmarks as your flexible bookmark dashboard, and save pages to it without breaking your flow. Organize bookmarks into categories, group categories into tabs, and rearrange everything with drag and drop.
+Use BruteBookmarks as your flexible bookmark dashboard, and save pages to it without breaking your flow. Quick Save works with a free synced account, and it also works locally with no account after BruteBookmarks has been opened once in local mode.
+
+Organize bookmarks into categories, group categories into tabs, and rearrange everything with drag and drop.
 
 ## Features
 
@@ -24,7 +26,7 @@ Use BruteBookmarks as your flexible bookmark dashboard, and save pages to it wit
 - Categories & Tab Groups - Create categories for your bookmarks. Drag one category onto another to group them as tabs.
 - Drag & Drop - Reorder bookmarks, categories, and tab groups freely. Move bookmarks between categories.
 - Real-Time Sync - Sign in to sync your bookmarks across every device, instantly. Changes appear in real time.
-- Works Without an Account - Open BruteBookmarks once in local mode, then Quick Save can save pages locally in this browser. Local quick saves appear in BruteBookmarks when the app is opened.
+- Works Without an Account - Open BruteBookmarks once in local mode, then Quick Save can save pages locally in this browser.
 - Smart Icons - Auto-fetch favicons, search Wikimedia Commons for high-quality logos, pick an emoji, or upload your own.
 
 ## Customization
@@ -62,7 +64,7 @@ Bookmarks justification:
 Imports bookmarks from Chrome's built-in bookmark manager only when the user explicitly requests it in the main app. Never accessed otherwise.
 
 Tabs justification:
-Reads the active tab's URL and title only when the user clicks the extension to save a bookmark or check for duplicates. Also opens BruteBookmarks in the background when needed to refresh authentication.
+Reads the active tab's URL and title only when the user clicks the extension to save a bookmark or check for duplicates. Also opens or updates BruteBookmarks tabs when needed to deliver local saves or refresh authentication.
 
 Host permission justification:
 Connects to Convex Cloud over encrypted HTTPS/WSS to sync bookmark data across the user's devices. Only used when the user is signed in.
@@ -117,7 +119,7 @@ To test:
 4. Navigate to any webpage.
 5. Click the BruteBookmarks Quick Save extension icon.
 6. Choose a category if prompted, then save the page.
-7. Open or refresh BruteBookmarks to confirm the local quick save was added.
+7. Return to BruteBookmarks to confirm the local quick save was added.
 
 ### Without Provided Reviewer Credentials - Synced Mode
 

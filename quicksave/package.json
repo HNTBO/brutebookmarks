@@ -1,0 +1,23 @@
+{
+  "name": "brutebookmarks-quicksave-extension",
+  "version": "1.1.4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "icons:cws": "node ./scripts/generate-cws-icons.mjs",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox"
+  },
+  "dependencies": {
+    "@clerk/chrome-extension": "^3.1.14",
+    "convex": "^1.31.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wxt": "^0.20.7"
+  }
+}

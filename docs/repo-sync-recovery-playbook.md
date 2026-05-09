@@ -107,7 +107,7 @@ Examples of the kind of thing to check:
 
 Examples:
 
-- `src/`, `tests/`, `extension/`, `package-lock.json`
+- `src/`, `tests/`, `quicksave/`, `newtab/`, `package-lock.json`
 - versus `.beads`, local caches, runtime files, tool databases
 
 5. If code files appear modified, determine whether they are already deployed.

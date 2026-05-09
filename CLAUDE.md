@@ -87,9 +87,9 @@ convex/
 
 Schema uses normalized tables: categories and bookmarks are separate with foreign keys. `float64` ordering for drag-drop reordering.
 
-### Browser Extension (`extension/`)
+### Browser Extensions (`quicksave/`, `newtab/`)
 
-WXT-based cross-browser extension (Chrome MV3, Firefox MV2) for quick-saving bookmarks. Auth bridge via content script on the main app domain.
+WXT-based cross-browser extension packages (Chrome MV3, Firefox MV2). `quicksave/` contains the Quick Save extension; `newtab/` contains the new-tab replacement extension. Both use a content-script auth/local-data bridge on the main app domain.
 
 ### Authentication
 

@@ -1,0 +1,8 @@
+Quick Save icons are generated in quicksave/public:
+- quicksave-icon-16.png, quicksave-icon-32.png, quicksave-icon-48.png, quicksave-icon-128.png
+- cws-quicksave-icon-16.png, cws-quicksave-icon-32.png, cws-quicksave-icon-48.png, cws-quicksave-icon-128.png, cws-quicksave-icon-300.png
+
+The cws-quicksave-*.png files are Chrome Web Store manifest icons with 96x96 artwork inside a 128x128 transparent canvas.
+
+These should be the Brute Bookmarks logo/icon in a square format.
+For store listings, also create a 440x280 promotional tile.
