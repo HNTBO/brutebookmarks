@@ -4,7 +4,7 @@
  * Listens for messages from the web app's content script to receive
  * auth tokens during the connection flow.
  */
-import { storeToken, clearToken } from '../lib/auth';
+import { storeToken, clearToken, getAppUrl } from '../lib/auth';
 import { getFreshChromiumConvexToken } from '../lib/chromium-clerk';
 import { updateActionIconForTheme, type ActionIconGlyph, type ActionIconTheme } from '../lib/action-icon';
 import {
@@ -49,26 +49,42 @@ async function applyThemeMessage(theme: ActionIconTheme): Promise<void> {
   await updateActionIconForTheme(theme, config.glyph);
 }
 
-async function notifyOpenBruteBookmarksTabs(message: unknown): Promise<void> {
-  const tabs = await browser.tabs.query({
-    url: [
-      'https://brutebookmarks.com/*',
-      'https://www.brutebookmarks.com/*',
-      'http://localhost:5173/*',
-    ],
-  });
+function getTabOrigin(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+async function getOpenBruteBookmarksTabs() {
+  const appOrigin = getTabOrigin(await getAppUrl());
+  const allowedOrigins = new Set([
+    'https://brutebookmarks.com',
+    'https://www.brutebookmarks.com',
+    'http://localhost:5173',
+  ]);
+  if (appOrigin) allowedOrigins.add(appOrigin);
+
+  const tabs = await browser.tabs.query({});
+  return tabs.filter((tab) => allowedOrigins.has(getTabOrigin(tab.url) ?? ''));
+}
+
+async function notifyOpenBruteBookmarksTabs(message: unknown, options: { reloadOnFailure?: boolean } = {}): Promise<void> {
+  const tabs = await getOpenBruteBookmarksTabs();
   await Promise.all(tabs.map((tab) => {
     if (!tab.id) return Promise.resolve();
-    return browser.tabs.sendMessage(tab.id, message).catch(() => {});
+    return browser.tabs.sendMessage(tab.id, message).catch(() => {
+      if (options.reloadOnFailure && tab.id) {
+        return browser.tabs.reload(tab.id).catch(() => {});
+      }
+    });
   }));
 }
 
 async function notifyOpenBruteBookmarksTabsOfLocalSave(save: unknown): Promise<void> {
-  await notifyOpenBruteBookmarksTabs({ type: 'BB_LOCAL_SAVE_NOW', save });
-}
-
-async function notifyOpenBruteBookmarksTabsOfRefresh(): Promise<void> {
-  await notifyOpenBruteBookmarksTabs({ type: 'BB_REFRESH_NOW' });
+  await notifyOpenBruteBookmarksTabs({ type: 'BB_LOCAL_SAVE_NOW', save }, { reloadOnFailure: true });
 }
 
 export default defineBackground(() => {
@@ -182,13 +198,6 @@ export default defineBackground(() => {
             await notifyOpenBruteBookmarksTabsOfLocalSave(result.pending);
             sendResponse({ success: true, ...result });
           })
-          .catch((err) => sendResponse({ success: false, error: String(err) }));
-        return true;
-      }
-
-      if (message.type === 'BB_REFRESH_OPEN_TABS') {
-        notifyOpenBruteBookmarksTabsOfRefresh()
-          .then(() => sendResponse({ success: true }))
           .catch((err) => sendResponse({ success: false, error: String(err) }));
         return true;
       }

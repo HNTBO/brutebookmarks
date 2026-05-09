@@ -23,13 +23,6 @@ export default defineContentScript({
         );
         return;
       }
-
-      if (message.type === 'BB_REFRESH_NOW') {
-        window.postMessage(
-          { type: 'BB_EXT_REFRESH_NOW', v: 1 },
-          window.location.origin,
-        );
-      }
     });
 
     function sendRuntimeMessage(message: unknown): void {

@@ -12,7 +12,6 @@ import {
   type BridgeMsgLocalPendingAck,
   type BridgeMsgLocalPendingRequest,
   type BridgeMsgLocalPendingResult,
-  type BridgeMsgRefreshNow,
   type BridgeMsgLocalSaveNow,
   type BridgeMsgLocalSnapshot,
   type RuntimeMsgAuthToken,
@@ -21,7 +20,6 @@ import {
   type RuntimeMsgLocalGetPendingSaves,
   type RuntimeMsgLocalSaveBookmark,
   type RuntimeMsgLocalSnapshot,
-  type RuntimeMsgRefreshOpenTabs,
   type RuntimeMsgDisconnect,
   type RuntimeMsgRequestBookmarks,
 } from '../../src/shared/bridge-types';
@@ -45,7 +43,6 @@ function isBridgeMessage(msg: unknown): msg is BridgeMessage {
     'BB_EXT_LOCAL_PENDING_RESULT',
     'BB_EXT_LOCAL_PENDING_ACK',
     'BB_EXT_LOCAL_SAVE_NOW',
-    'BB_EXT_REFRESH_NOW',
   ];
   return validTypes.includes(m.type as string);
 }
@@ -63,7 +60,6 @@ function isRuntimeMessage(msg: unknown): msg is RuntimeMessage {
     'BB_LOCAL_SAVE_BOOKMARK',
     'BB_LOCAL_GET_PENDING_SAVES',
     'BB_LOCAL_ACK_PENDING_SAVES',
-    'BB_REFRESH_OPEN_TABS',
   ];
   return validTypes.includes(m.type as string);
 }
@@ -177,17 +173,11 @@ describe('bridge-types', () => {
           createdAt: 1,
         },
       };
-      const refreshNow: BridgeMsgRefreshNow = {
-        type: 'BB_EXT_REFRESH_NOW',
-        v: BRIDGE_VERSION,
-      };
-
       expect(isBridgeMessage(snapshot)).toBe(true);
       expect(isBridgeMessage(request)).toBe(true);
       expect(isBridgeMessage(result)).toBe(true);
       expect(isBridgeMessage(ack)).toBe(true);
       expect(isBridgeMessage(saveNow)).toBe(true);
-      expect(isBridgeMessage(refreshNow)).toBe(true);
     });
 
     it('rejects message with wrong version', () => {
@@ -242,14 +232,11 @@ describe('bridge-types', () => {
         type: 'BB_LOCAL_ACK_PENDING_SAVES',
         ids: ['save-1'],
       };
-      const refresh: RuntimeMsgRefreshOpenTabs = { type: 'BB_REFRESH_OPEN_TABS' };
-
       expect(isRuntimeMessage(snapshot)).toBe(true);
       expect(isRuntimeMessage(getData)).toBe(true);
       expect(isRuntimeMessage(save)).toBe(true);
       expect(isRuntimeMessage(getPending)).toBe(true);
       expect(isRuntimeMessage(ack)).toBe(true);
-      expect(isRuntimeMessage(refresh)).toBe(true);
     });
 
     it('rejects unknown runtime message types', () => {

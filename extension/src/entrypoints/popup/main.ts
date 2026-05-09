@@ -191,7 +191,6 @@ async function createBookmark(categoryId: string, title: string, url: string): P
     title,
     url,
   });
-  await browser.runtime.sendMessage({ type: 'BB_REFRESH_OPEN_TABS' }).catch(() => {});
 }
 
 // --- Check if URL already saved ---

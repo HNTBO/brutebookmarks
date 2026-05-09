@@ -7,7 +7,6 @@ import type {
   BridgeMsgLocalPendingResult,
   BridgeMsgLocalSaveNow,
   BridgeMsgLocalSnapshot,
-  BridgeMsgRefreshNow,
   BridgeMsgRequestBookmarks,
   BridgeMsgBookmarksResult,
   BridgeMsgTheme,
@@ -18,7 +17,6 @@ let extensionInstalled = false;
 let _detectionInitialized = false;
 const EXTENSION_INSTALLED_EVENT = 'bb-extension-installed';
 const LOCAL_QUICK_SAVE_EVENT = 'bb-local-quick-save';
-const EXTENSION_REFRESH_EVENT = 'bb-extension-refresh';
 
 export function initExtensionDetection(): void {
   if (_detectionInitialized) return;
@@ -34,12 +32,6 @@ export function initExtensionDetection(): void {
     if (event.data?.type === 'BB_EXT_LOCAL_SAVE_NOW') {
       window.dispatchEvent(new CustomEvent(LOCAL_QUICK_SAVE_EVENT, {
         detail: (event.data as BridgeMsgLocalSaveNow).save,
-      }));
-      return;
-    }
-    if (event.data?.type === 'BB_EXT_REFRESH_NOW') {
-      window.dispatchEvent(new CustomEvent(EXTENSION_REFRESH_EVENT, {
-        detail: event.data as BridgeMsgRefreshNow,
       }));
     }
   });
@@ -60,11 +52,6 @@ export function onLocalQuickSave(listener: (save: BridgeLocalQuickSave | null) =
   };
   window.addEventListener(LOCAL_QUICK_SAVE_EVENT, handler);
   return () => window.removeEventListener(LOCAL_QUICK_SAVE_EVENT, handler);
-}
-
-export function onExtensionRefreshRequested(listener: () => void): () => void {
-  window.addEventListener(EXTENSION_REFRESH_EVENT, listener);
-  return () => window.removeEventListener(EXTENSION_REFRESH_EVENT, listener);
 }
 
 export function syncExtensionThemePreference(

@@ -19,7 +19,7 @@ import { initConvexClient, setConvexAuth, getConvexClient } from './data/convex-
 import { getAppMode, setAppMode } from './data/local-storage';
 import { showWelcomeGate, hideWelcomeGate } from './components/welcome-gate';
 import { seedLocalDefaults } from './data/store';
-import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, onExtensionRefreshRequested, onLocalQuickSave, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
+import { ackLocalQuickSaves, initExtensionDetection, onExtensionInstalled, onLocalQuickSave, requestLocalQuickSaves, syncExtensionLocalSnapshot } from './utils/extension-bridge';
 import type { BridgeLocalQuickSave } from './shared/bridge-types';
 import { api } from '../convex/_generated/api';
 import { shouldRenderSnapshotCache } from './utils/snapshot-watermark';
@@ -64,10 +64,6 @@ onLocalQuickSave((save) => {
     return;
   }
   void importPendingLocalQuickSaves();
-});
-onExtensionRefreshRequested(() => {
-  if (!appDataInitialized) return;
-  void handleExtensionRefreshRequest();
 });
 
 // Render the HTML shell
@@ -422,14 +418,6 @@ async function importPendingLocalQuickSaves(): Promise<void> {
   } catch {
     // The extension may not be installed, or may have been reloaded.
   }
-}
-
-async function handleExtensionRefreshRequest(): Promise<void> {
-  if (getAppMode() === 'local') {
-    await importPendingLocalQuickSaves();
-    publishLocalSnapshotToExtension();
-  }
-  renderCategories();
 }
 
 async function maybeRenderSyncCache(

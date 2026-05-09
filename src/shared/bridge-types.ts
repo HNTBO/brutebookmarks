@@ -125,12 +125,6 @@ export interface BridgeMsgLocalSaveNow {
   save: BridgeLocalQuickSave;
 }
 
-/** Content script → Page: extension asks the app tab to refresh its data/UI. */
-export interface BridgeMsgRefreshNow {
-  type: 'BB_EXT_REFRESH_NOW';
-  v: typeof BRIDGE_VERSION;
-}
-
 /** Union of all page ↔ content script messages */
 export type BridgeMessage =
   | BridgeMsgInstalled
@@ -144,8 +138,7 @@ export type BridgeMessage =
   | BridgeMsgLocalPendingRequest
   | BridgeMsgLocalPendingResult
   | BridgeMsgLocalPendingAck
-  | BridgeMsgLocalSaveNow
-  | BridgeMsgRefreshNow;
+  | BridgeMsgLocalSaveNow;
 
 // --- Content Script ↔ Background (runtime.sendMessage) ---
 
@@ -204,10 +197,6 @@ export interface RuntimeMsgLocalAckPendingSaves {
   ids: string[];
 }
 
-export interface RuntimeMsgRefreshOpenTabs {
-  type: 'BB_REFRESH_OPEN_TABS';
-}
-
 /** Union of all runtime messages */
 export type RuntimeMessage =
   | RuntimeMsgAuthToken
@@ -219,5 +208,4 @@ export type RuntimeMessage =
   | RuntimeMsgLocalGetData
   | RuntimeMsgLocalSaveBookmark
   | RuntimeMsgLocalGetPendingSaves
-  | RuntimeMsgLocalAckPendingSaves
-  | RuntimeMsgRefreshOpenTabs;
+  | RuntimeMsgLocalAckPendingSaves;
