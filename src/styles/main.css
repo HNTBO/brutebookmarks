@@ -223,8 +223,7 @@ body::before {
     text-transform: uppercase;
 }
 
-html.fonts-pending:not(.fonts-ready) .header-title-box h1,
-html.fonts-pending:not(.fonts-ready) .welcome-gate-title {
+html.fonts-pending:not(.fonts-ready) .header-title-box h1 {
     visibility: hidden;
 }
 
@@ -2028,6 +2027,17 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
 
 /* Welcome Gate */
 .welcome-gate {
+    --welcome-width: 440px;
+    --welcome-logo-gap: 36px;
+    --welcome-subtitle-size: 22.5px;
+    --welcome-subtitle-gap: 38px;
+    --welcome-card-gap: 16px;
+    --welcome-card-min-height: 58px;
+    --welcome-card-padding-block: 15px;
+    --welcome-card-padding-inline: 40px;
+    --welcome-card-border-width: 1.5px;
+    --welcome-card-label-size: 14px;
+    --welcome-card-desc-size: 11.5px;
     display: none;
     position: fixed;
     inset: 0;
@@ -2035,6 +2045,7 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     z-index: var(--z-gate);
     align-items: center;
     justify-content: center;
+    padding: 48px 24px;
 }
 
 .welcome-gate.active {
@@ -2043,44 +2054,41 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
 
 .welcome-gate-content {
     text-align: center;
-    max-width: 520px;
+    max-width: var(--welcome-width);
     width: 100%;
-    padding: var(--space-xl);
+    padding: 0;
 }
 
-.welcome-gate-title {
-    font-family: var(--font-display);
-    font-size: 3rem;
-    font-weight: 400;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-primary);
-    margin-bottom: var(--space-sm);
-}
-
-.welcome-gate-title em {
-    font-style: normal;
-    color: var(--accent);
+.welcome-gate-logo {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 auto var(--welcome-logo-gap);
 }
 
 .welcome-gate-subtitle {
-    color: var(--text-secondary);
-    font-size: 14px;
-    margin-bottom: var(--space-2xl);
+    color: var(--text-primary);
+    font-size: var(--welcome-subtitle-size);
+    font-weight: 400;
+    line-height: 1.15;
+    margin-bottom: var(--welcome-subtitle-gap);
 }
 
 .welcome-gate-options {
     display: flex;
     flex-direction: column;
-    gap: var(--space-md);
+    gap: var(--welcome-card-gap);
+    width: 100%;
 }
 
 .welcome-gate-btn {
     display: flex;
     flex-direction: column;
-    gap: var(--space-xs);
-    padding: var(--space-lg) var(--space-xl);
-    border: 1px solid var(--border-strong);
+    justify-content: center;
+    gap: 4px;
+    min-height: var(--welcome-card-min-height);
+    padding: var(--welcome-card-padding-block) var(--welcome-card-padding-inline);
+    border: var(--welcome-card-border-width) solid var(--accent);
     background: var(--bg-secondary);
     cursor: pointer;
     text-align: left;
@@ -2094,13 +2102,15 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
 }
 
 .gate-btn-label {
-    font-size: 1.1rem;
+    font-size: var(--welcome-card-label-size);
     font-weight: 600;
     color: var(--text-primary);
+    line-height: 1.1;
 }
 
 .gate-btn-desc {
-    font-size: 13px;
+    font-size: var(--welcome-card-desc-size);
+    line-height: 1.35;
     color: var(--text-secondary);
 }
 
@@ -2442,11 +2452,18 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
 }
 
 @media (max-width: 480px) {
-    .welcome-gate-title {
-        font-size: 2rem;
+    .welcome-gate {
+        --welcome-subtitle-size: 22px;
+        --welcome-subtitle-gap: 32px;
+        --welcome-card-min-height: 88px;
+        --welcome-card-padding-block: 20px;
+        --welcome-card-padding-inline: 24px;
+        --welcome-card-label-size: 19px;
+        --welcome-card-desc-size: 14px;
+        padding: 32px 18px;
     }
 
-    .welcome-gate-content {
-        padding: var(--space-lg);
+    .welcome-gate-logo {
+        margin-bottom: 36px;
     }
 }

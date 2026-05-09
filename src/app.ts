@@ -1,4 +1,5 @@
 import kofiLogo from './assets/kofi_logo.webp';
+import stackedLogo from '../_graphics/brutebookmarks-stacked-logo.svg';
 
 export function renderApp(): void {
   const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -6,16 +7,16 @@ export function renderApp(): void {
     <!-- Welcome Gate -->
     <div id="welcome-gate" class="welcome-gate">
       <div class="welcome-gate-content">
-        <h1 class="welcome-gate-title">Brute <em>Bookmarks</em></h1>
+        <img class="welcome-gate-logo" src="${stackedLogo}" alt="Brute Bookmarks">
         <p class="welcome-gate-subtitle">Fun. Stylish. Private.</p>
         <div class="welcome-gate-options">
           <button id="gate-local-btn" class="welcome-gate-btn gate-btn-local">
             <span class="gate-btn-label">Use Locally</span>
-            <span class="gate-btn-desc">No account needed. Stored in this browser.</span>
+            <span class="gate-btn-desc">No account needed. Stored in this browser.<br>Free forever.</span>
           </button>
           <button id="gate-sync-btn" class="welcome-gate-btn gate-btn-sync">
             <span class="gate-btn-label">Sign Up / Sign In</span>
-            <span class="gate-btn-desc">Sync across devices. Free for founding members. <span id="gate-founding-count"></span></span>
+            <span class="gate-btn-desc">Sync across devices.<br>Free for founding members. <span id="gate-founding-count"></span></span>
           </button>
         </div>
       </div>
