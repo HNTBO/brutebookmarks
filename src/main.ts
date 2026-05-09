@@ -1,7 +1,7 @@
 import './styles/main.css';
 import { renderApp } from './app';
 import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence, createBookmark as createStoreBookmark } from './data/store';
-import { renderCategories, renderStartupShell } from './components/categories';
+import { navigateTabbedCategory, renderCategories, renderStartupShell } from './components/categories';
 import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
 import { initSizeController } from './components/header';
@@ -172,8 +172,10 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+  const target = e.target as HTMLElement;
+
   // Undo/Redo — skip when typing in form inputs
-  const tag = (e.target as HTMLElement).tagName;
+  const tag = target.tagName;
   if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
     if ((e.ctrlKey || e.metaKey) && !e.altKey) {
       if (e.key === 'z' && !e.shiftKey) {
@@ -189,6 +191,14 @@ document.addEventListener('keydown', (e) => {
     }
   }
 
+  if (shouldHandleTabNavigationShortcut(e)) {
+    const direction = getKeyboardTabDirection(e);
+    if (direction && navigateTabbedCategory(direction)) {
+      e.preventDefault();
+      return;
+    }
+  }
+
   if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'd') {
     e.preventDefault();
     toggleTheme();
@@ -200,6 +210,67 @@ document.addEventListener('keydown', (e) => {
     dismissTopModal();
   }
 });
+
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
+function hasActiveModal(): boolean {
+  return document.querySelector('.modal.active, .welcome-gate.active') !== null;
+}
+
+function shouldHandleTabNavigationShortcut(e: KeyboardEvent): boolean {
+  return !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
+    && !isEditableShortcutTarget(e.target)
+    && !hasActiveModal()
+    && !dragController.active;
+}
+
+function getKeyboardTabDirection(e: KeyboardEvent): 'forward' | 'backward' | null {
+  if (e.key === 'ArrowRight') return 'forward';
+  if (e.key === 'ArrowLeft') return 'backward';
+
+  const key = e.key.toLowerCase();
+  if (key === 'd' || key === 'l') return 'forward';
+  if (key === 'a' || key === 'j') return 'backward';
+
+  return null;
+}
+
+let lastMouseTabNavigation = 0;
+
+function handleMouseTabNavigation(e: MouseEvent): void {
+  if (!shouldHandleMouseTabNavigation(e)) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const now = performance.now();
+  if (now - lastMouseTabNavigation < 120) return;
+  lastMouseTabNavigation = now;
+
+  if (!navigateTabbedCategory(e.button === 4 ? 'forward' : 'backward')) {
+    lastMouseTabNavigation = 0;
+  }
+}
+
+function shouldHandleMouseTabNavigation(e: MouseEvent): boolean {
+  return (e.button === 3 || e.button === 4)
+    && !isEditableShortcutTarget(e.target)
+    && !hasActiveModal()
+    && !dragController.active
+    && document.querySelector('.tab-group') !== null;
+}
+
+document.addEventListener('mousedown', (e) => {
+  if (shouldHandleMouseTabNavigation(e)) {
+    e.preventDefault();
+  }
+}, { capture: true });
+document.addEventListener('mouseup', handleMouseTabNavigation, { capture: true });
+document.addEventListener('auxclick', handleMouseTabNavigation, { capture: true });
 
 // Flush preferences to Convex when leaving the page (prevents lost saves on refresh)
 document.addEventListener('visibilitychange', () => {

@@ -17,10 +17,14 @@ function mobileQuery(): MediaQueryList {
 
 // Track active tab per group (not persisted — defaults to first tab)
 const activeTabPerGroup = new Map<string, string>();
+let lastInteractedTabGroupId: string | null = null;
+
+type TabDirection = 'forward' | 'backward';
 
 /** Set the active tab for a group (called by drag-drop to persist tab switch through re-renders). */
 export function setActiveTab(groupId: string, categoryId: string): void {
   activeTabPerGroup.set(groupId, categoryId);
+  lastInteractedTabGroupId = groupId;
 }
 
 // Guard: init drag listeners only once
@@ -38,15 +42,78 @@ function rotateToActive(categories: Category[], activeId: string): Category[] {
   return [...categories.slice(idx), ...categories.slice(0, idx)];
 }
 
+function getAdjacentTabId(categories: Category[], activeId: string, direction: TabDirection): string | null {
+  if (categories.length < 2) return null;
+  const idx = categories.findIndex((c) => c.id === activeId);
+  if (idx === -1) return null;
+  const nextIdx = direction === 'forward'
+    ? (idx + 1) % categories.length
+    : (idx - 1 + categories.length) % categories.length;
+  return categories[nextIdx]?.id ?? null;
+}
+
+function markInteractedTabGroup(groupId: string): void {
+  lastInteractedTabGroupId = groupId;
+}
+
+function updateTabsA11y(groupEl: HTMLElement, activeCatId: string): void {
+  groupEl.querySelectorAll<HTMLElement>('.tab').forEach((tab) => {
+    const isActive = tab.dataset.tabCategoryId === activeCatId;
+    tab.classList.toggle('tab-active', isActive);
+    tab.setAttribute('aria-selected', String(isActive));
+    tab.tabIndex = isActive ? 0 : -1;
+  });
+}
+
+function isVisibleTabGroup(groupEl: HTMLElement): boolean {
+  const rect = groupEl.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function resolveNavigationTargetGroup(): HTMLElement | null {
+  const activeEl = document.activeElement;
+  if (activeEl instanceof HTMLElement) {
+    const focusedGroup = activeEl.closest<HTMLElement>('.tab-group');
+    if (focusedGroup) return focusedGroup;
+  }
+
+  if (lastInteractedTabGroupId) {
+    const lastGroup = document.querySelector<HTMLElement>(
+      `.tab-group[data-group-id="${CSS.escape(lastInteractedTabGroupId)}"]`,
+    );
+    if (lastGroup) return lastGroup;
+  }
+
+  return Array.from(document.querySelectorAll<HTMLElement>('.tab-group')).find(isVisibleTabGroup) ?? null;
+}
+
+export function navigateTabbedCategory(direction: TabDirection): boolean {
+  const groupEl = resolveNavigationTargetGroup();
+  if (!groupEl) return false;
+
+  const event = new CustomEvent<{ direction: TabDirection }>('bb:navigate-tab', {
+    detail: { direction },
+    bubbles: false,
+    cancelable: true,
+  });
+  groupEl.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
 function wireTabClicks(
   groupEl: HTMLElement,
   switchFn: (catId: string, direction?: 'forward' | 'backward') => void
 ): void {
   groupEl.querySelectorAll<HTMLElement>('.tab-bar-mobile .tab').forEach((tab) => {
-    tab.addEventListener('click', () => switchFn(tab.dataset.tabCategoryId!));
+    tab.addEventListener('click', () => {
+      markInteractedTabGroup(tab.dataset.groupId!);
+      switchFn(tab.dataset.tabCategoryId!);
+    });
+    tab.addEventListener('focus', () => markInteractedTabGroup(tab.dataset.groupId!));
     tab.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        markInteractedTabGroup(tab.dataset.groupId!);
         switchFn(tab.dataset.tabCategoryId!);
       }
     });
@@ -351,7 +418,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
     if (catId === currentActiveId) return;
     if (sliding) return;
 
-    activeTabPerGroup.set(group.id, catId);
+    setActiveTab(group.id, catId);
     try { navigator.vibrate?.(10); } catch { /* ignored */ }
 
     // Toggle panels immediately
@@ -404,6 +471,14 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
 
   wireTabClicks(groupEl, switchToTab);
   wireTabDrags();
+
+  groupEl.addEventListener('bb:navigate-tab', ((e: CustomEvent<{ direction: TabDirection }>) => {
+    const activeId = getActiveTabId(group);
+    const nextId = getAdjacentTabId(group.categories, activeId, e.detail.direction);
+    if (!nextId) return;
+    e.preventDefault();
+    switchToTab(nextId, e.detail.direction);
+  }) as EventListener);
 
   const contentEl = groupEl.querySelector('.tab-content') as HTMLElement;
   initTabSwipe(contentEl, group.categories, () => getActiveTabId(group), switchToTab);
@@ -461,9 +536,8 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
   `;
 
   function switchToTab(catId: string): void {
-    activeTabPerGroup.set(group.id, catId);
-    groupEl.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
-    groupEl.querySelector(`[data-tab-category-id="${catId}"]`)?.classList.add('tab-active');
+    setActiveTab(group.id, catId);
+    updateTabsA11y(groupEl, catId);
     groupEl.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('tab-panel-active'));
     groupEl.querySelector(`[data-tab-panel-id="${catId}"]`)?.classList.add('tab-panel-active');
   }
@@ -471,16 +545,27 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
   // Wire tab clicks, keyboard activation, and pointer-based drag for reorder/ungroup
   groupEl.querySelectorAll<HTMLElement>('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
+      markInteractedTabGroup(group.id);
       switchToTab(tab.dataset.tabCategoryId!);
     });
+    tab.addEventListener('focus', () => markInteractedTabGroup(group.id));
     tab.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        markInteractedTabGroup(group.id);
         switchToTab(tab.dataset.tabCategoryId!);
       }
     });
     initTabDrag(tab);
   });
+
+  groupEl.addEventListener('bb:navigate-tab', ((e: CustomEvent<{ direction: TabDirection }>) => {
+    const activeId = getActiveTabId(group);
+    const nextId = getAdjacentTabId(group.categories, activeId, e.detail.direction);
+    if (!nextId) return;
+    e.preventDefault();
+    switchToTab(nextId);
+  }) as EventListener);
 
   // Wire bookmark cards in all panels
   wireBookmarkCards(groupEl);

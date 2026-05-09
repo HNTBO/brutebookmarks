@@ -388,6 +388,50 @@ test.describe('Tab group switching', () => {
     const secondPanel = tabGroup.locator('[data-tab-panel-id="tg-cat-2"]');
     await expect(secondPanel).toHaveClass(/tab-panel-active/);
   });
+
+  test('global keyboard shortcuts navigate tabbed categories', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const tabGroup = page.locator('.tab-group').first();
+    const tabs = tabGroup.locator('.tab');
+
+    await page.keyboard.press('ArrowRight');
+    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
+
+    await page.keyboard.press('ArrowLeft');
+    await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+
+    await page.keyboard.press('KeyD');
+    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
+
+    await page.keyboard.press('KeyA');
+    await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+
+    await page.keyboard.press('KeyL');
+    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
+
+    await page.keyboard.press('KeyJ');
+    await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+  });
+
+  test('mouse back and forward buttons navigate tabbed categories', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const tabGroup = page.locator('.tab-group').first();
+    const tabs = tabGroup.locator('.tab');
+
+    await page.evaluate(() => {
+      document.dispatchEvent(new MouseEvent('mouseup', { button: 4, bubbles: true, cancelable: true }));
+    });
+    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
+
+    await page.waitForTimeout(150);
+
+    await page.evaluate(() => {
+      document.dispatchEvent(new MouseEvent('mouseup', { button: 3, bubbles: true, cancelable: true }));
+    });
+    await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+  });
 });
 
 test.describe('Drag cancel', () => {
