@@ -134,21 +134,22 @@ export const createWithCategories = mutation({
   args: {
     name: v.string(),
     categoryIds: v.array(v.id('categories')),
+    order: v.optional(v.float64()),
   },
-  handler: async (ctx, { name, categoryIds }) => {
+  handler: async (ctx, { name, categoryIds, order }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
 
-    // Compute order: use the minimum order of the categories being grouped
-    // so the group appears at the same position
-    let groupOrder = 0;
+    // Compute order: use an explicit layout order when splitting out of an
+    // existing tab group, otherwise use the grouped categories' position.
+    let groupOrder = order ?? 0;
     for (const catId of categoryIds) {
       const cat = await ctx.db.get(catId);
       if (!cat || cat.userId !== userId) {
         throw new Error('Category not found');
       }
-      if (groupOrder === 0 || cat.order < groupOrder) {
+      if (order === undefined && (groupOrder === 0 || cat.order < groupOrder)) {
         groupOrder = cat.order;
       }
     }

@@ -80,7 +80,7 @@ initConfirmModal();
 initUploadArea();
 
 // Wire header action buttons
-document.getElementById('add-category-btn')!.addEventListener('click', openAddCategoryModal);
+document.getElementById('add-category-btn')!.addEventListener('click', () => openAddCategoryModal());
 document.getElementById('theme-toggle-btn')!.addEventListener('click', () => {
   toggleTheme();
   syncWireframeBtnState();
@@ -155,6 +155,12 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
   // Category edit button
   const categoryEditBtn = target.closest('.category-edit-btn') as HTMLElement | null;
   if (categoryEditBtn) {
+    const groupId = categoryEditBtn.dataset.groupId;
+    if (groupId && (e.ctrlKey || e.metaKey)) {
+      openAddCategoryModal(groupId);
+      return;
+    }
+
     let categoryId = categoryEditBtn.dataset.categoryId;
     if (!categoryId) {
       // Tab group: resolve from the currently active tab
@@ -189,8 +195,17 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
   }
 });
 
+function syncControlAddMode(active: boolean): void {
+  document.body.classList.toggle('control-add-mode', active);
+  document.querySelectorAll<HTMLElement>('.tab-group-action-btn').forEach((button) => {
+    button.title = active ? 'Add tab to this group' : 'Edit tab. Hold Ctrl to add a tab';
+  });
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Control' || e.key === 'Meta') syncControlAddMode(true);
+
   const target = e.target as HTMLElement;
 
   // Undo/Redo — skip when typing in form inputs
@@ -229,6 +244,12 @@ document.addEventListener('keydown', (e) => {
     dismissTopModal();
   }
 });
+
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'Control' || e.key === 'Meta') syncControlAddMode(false);
+});
+
+window.addEventListener('blur', () => syncControlAddMode(false));
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -299,7 +320,7 @@ document.addEventListener('visibilitychange', () => {
 
 // Wire mobile toolbar buttons
 function wireMobileToolbar(): void {
-  document.getElementById('mobile-add-btn')?.addEventListener('click', openAddCategoryModal);
+  document.getElementById('mobile-add-btn')?.addEventListener('click', () => openAddCategoryModal());
   document.getElementById('mobile-theme-btn')?.addEventListener('click', () => {
     toggleTheme();
     syncWireframeBtnState();

@@ -800,19 +800,29 @@ export function seedLocalDefaults(): void {
 
 // --- Mutation helpers ---
 
-export async function createCategory(name: string): Promise<string> {
+export async function createCategory(name: string, groupId?: string): Promise<string> {
   let newId: string;
   if (_convexActive) {
     const client = requireConvexClient();
     try {
-      newId = await client.mutation(api.categories.create, { name });
+      newId = await client.mutation(api.categories.create, {
+        name,
+        groupId: groupId as Id<'tabGroups'> | undefined,
+      });
     } catch (err) {
       console.error('[Store] createCategory failed:', err);
       throw err;
     }
   } else {
     newId = 'c' + Date.now();
-    _categories.push({ id: newId, name, bookmarks: [] });
+    const category: Category = { id: newId, name, bookmarks: [] };
+    if (groupId) {
+      const inGroup = _categories.filter((c) => c.groupId === groupId);
+      const maxOrder = inGroup.reduce((max, c) => Math.max(max, c.order ?? 0), 0);
+      category.groupId = groupId;
+      category.order = maxOrder + 1;
+    }
+    _categories.push(category);
     saveData();
     rerender();
   }
@@ -820,7 +830,7 @@ export async function createCategory(name: string): Promise<string> {
     const ref = { currentId: newId };
     pushUndo({
       undo: () => deleteCategory(ref.currentId),
-      redo: async () => { ref.currentId = await createCategory(name); },
+      redo: async () => { ref.currentId = await createCategory(name, groupId); },
     });
   }
   return newId;
@@ -1093,13 +1103,14 @@ export async function reorderBookmark(
 
 // --- Tab Group mutation helpers ---
 
-export async function createTabGroup(name: string, categoryIds: string[]): Promise<void> {
+export async function createTabGroup(name: string, categoryIds: string[], order?: number): Promise<void> {
   if (_convexActive) {
     const client = requireConvexClient();
     try {
       await client.mutation(api.tabGroups.createWithCategories, {
         name,
         categoryIds: categoryIds as Id<'categories'>[],
+        order,
       });
     } catch (err) {
       console.error('[Store] createTabGroup failed:', err);
@@ -1112,7 +1123,7 @@ export async function createTabGroup(name: string, categoryIds: string[]): Promi
       .map((id) => _categories.find((c) => c.id === id))
       .filter(Boolean)
       .map((c) => c!.order ?? 0);
-    const groupOrder = catOrders.length > 0 ? Math.min(...catOrders) : 0;
+    const groupOrder = order ?? (catOrders.length > 0 ? Math.min(...catOrders) : 0);
     _localTabGroups.push({ id: groupId, name, order: groupOrder });
     for (const catId of categoryIds) {
       const cat = _categories.find((c) => c.id === catId);

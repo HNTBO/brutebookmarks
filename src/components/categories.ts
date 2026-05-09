@@ -399,7 +399,10 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
       <div class="tab-bar tab-bar-mobile" role="tablist">
         <div class="tab-ribbon">${tabsHtml(rotated, activeTabId)}</div>
       </div>
-      <button class="category-edit-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit group">✎</button>
+      <button class="category-edit-btn tab-group-action-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit tab. Hold Ctrl to add a tab">
+        <span class="group-action-icon group-action-edit">✎</span>
+        <span class="group-action-icon group-action-add" aria-hidden="true">+</span>
+      </button>
     </div>
     <div class="tab-content">
       ${group.categories
@@ -540,7 +543,10 @@ function renderTabGroup(group: TabGroup, currentCardSize: number, showCardNames:
           )
           .join('')}
       </div>
-      <button class="category-edit-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit group">✎</button>
+      <button class="category-edit-btn tab-group-action-btn" data-group-id="${escapeHtml(group.id)}" data-action="edit-group" title="Edit tab. Hold Ctrl to add a tab">
+        <span class="group-action-icon group-action-edit">✎</span>
+        <span class="group-action-icon group-action-add" aria-hidden="true">+</span>
+      </button>
     </div>
     <div class="tab-content">
       ${group.categories

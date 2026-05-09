@@ -217,6 +217,35 @@ test.describe('Modal open/close', () => {
     await expect(modal).not.toHaveClass(/active/);
   });
 
+  test('Ctrl on a tab group action shows plus mode and adds a tab to that group', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const groupAction = page.locator('.tab-group-action-btn').first();
+    await expect(groupAction).toHaveAttribute('title', /Hold Ctrl/);
+
+    await page.keyboard.down('Control');
+    await expect(page.locator('body')).toHaveClass(/control-add-mode/);
+    await expect(groupAction).toHaveAttribute('title', 'Add tab to this group');
+    await expect(groupAction.locator('.group-action-add')).toHaveCSS('opacity', '1');
+
+    await groupAction.click({ modifiers: ['Control'] });
+    await page.keyboard.up('Control');
+
+    const modal = page.locator('#category-modal');
+    await expect(modal).toHaveClass(/active/);
+    await page.fill('#category-name', 'Tab Three');
+    await page.click('#category-save-btn');
+
+    await expect(modal).not.toHaveClass(/active/);
+    await expect(page.locator('.tab-group .tab', { hasText: 'Tab Three' })).toBeVisible();
+
+    const persistedGroupId = await page.evaluate(() => {
+      const categories = JSON.parse(localStorage.getItem('speedDialData') || '[]') as Array<{ name: string; groupId?: string }>;
+      return categories.find((category) => category.name === 'Tab Three')?.groupId;
+    });
+    expect(persistedGroupId).toBe('tg-1');
+  });
+
   test('settings modal opens and closes via Escape', async ({ page }) => {
     await setupLocalMode(page);
 

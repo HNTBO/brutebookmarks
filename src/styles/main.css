@@ -526,6 +526,35 @@ a.btn:visited {
     opacity: 1;
 }
 
+.tab-group-action-btn {
+    position: relative;
+}
+
+.group-action-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s ease, transform 0.18s ease;
+}
+
+.group-action-add {
+    font-size: 1.45rem;
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.85);
+}
+
+body.control-add-mode .tab-group-action-btn .group-action-edit {
+    opacity: 0;
+    transform: rotate(45deg) scale(0.85);
+}
+
+body.control-add-mode .tab-group-action-btn .group-action-add {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
 .category-title {
     font-family: var(--font-display);
     font-size: 1.7rem; /* Increased size */

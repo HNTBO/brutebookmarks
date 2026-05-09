@@ -13,6 +13,7 @@ import { styledConfirm, styledPrompt } from './confirm-modal';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 
 let editingCategoryId: string | null = null;
+let defaultGroupId: string | undefined;
 
 function populateGroupSelect(currentGroupId?: string): void {
   const section = document.getElementById('category-group-section') as HTMLElement;
@@ -43,19 +44,21 @@ function populateGroupSelect(currentGroupId?: string): void {
   select.value = currentGroupId ?? '';
 }
 
-export function openAddCategoryModal(): void {
+export function openAddCategoryModal(groupId?: string): void {
   editingCategoryId = null;
+  defaultGroupId = groupId;
   document.getElementById('category-modal-title')!.textContent = 'New Category';
   (document.getElementById('category-name') as HTMLInputElement).value = '';
   (document.getElementById('editing-category-id') as HTMLInputElement).value = '';
   document.getElementById('delete-category-btn')!.classList.add('hidden');
   document.getElementById('category-save-btn')!.textContent = 'Create Category';
-  populateGroupSelect();
+  populateGroupSelect(groupId);
   document.getElementById('category-modal')!.classList.add('active');
 }
 
 export function openEditCategoryModal(categoryId: string): void {
   editingCategoryId = categoryId;
+  defaultGroupId = undefined;
   const category = getCategories().find((c) => c.id === categoryId);
   if (!category) return;
 
@@ -97,16 +100,15 @@ async function saveCategory(event: Event): Promise<void> {
       if (selectedGroupValue === '__new__') {
         const groupName = await styledPrompt('Enter a name for the new group:', 'New Tab Group');
         if (groupName) {
-          await createTabGroup(groupName, [editingCategoryId]);
+          const sourceGroup = getTabGroups().find((group) => group.id === currentGroupId);
+          await createTabGroup(groupName, [editingCategoryId], sourceGroup?.order);
         }
       } else if (selectedGroupValue !== currentGroupId) {
         await setCategoryGroup(editingCategoryId, selectedGroupValue || null);
       }
     }
   } else {
-    await createCategory(name);
-    // For new categories with group assignment, we'd need the new category ID
-    // which Convex returns asynchronously via subscription. Skip for now.
+    await createCategory(name, selectedGroupValue || defaultGroupId);
   }
   closeCategoryModal();
 }

@@ -28,7 +28,14 @@ export const create = mutation({
       .query('categories')
       .withIndex('by_user_order', (q) => q.eq('userId', userId))
       .collect();
-    const maxOrder = existing.reduce((max, c) => Math.max(max, c.order), 0);
+    if (groupId) {
+      const group = await ctx.db.get(groupId);
+      if (!group || group.userId !== userId) {
+        throw new Error('Tab group not found');
+      }
+    }
+    const orderScope = groupId ? existing.filter((c) => c.groupId === groupId) : existing;
+    const maxOrder = orderScope.reduce((max, c) => Math.max(max, c.order), 0);
 
     const categoryId = await ctx.db.insert('categories', {
       name,
