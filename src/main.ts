@@ -64,6 +64,10 @@ onLocalQuickSave((save) => {
   }
   void importPendingLocalQuickSaves();
 });
+window.addEventListener('hashchange', () => {
+  if (!appDataInitialized) return;
+  void importLocalQuickSaveFromHash();
+});
 
 // Render the HTML shell
 renderApp();
@@ -381,6 +385,39 @@ function publishLocalSnapshotToExtension(): void {
 
 let localQuickSaveImportInFlight = false;
 
+function readLocalQuickSaveFromHash(): BridgeLocalQuickSave | null {
+  const marker = '#bb-quick-save=';
+  if (!window.location.hash.startsWith(marker)) return null;
+  try {
+    const raw = decodeURIComponent(window.location.hash.slice(marker.length));
+    const save = JSON.parse(raw) as Partial<BridgeLocalQuickSave>;
+    if (
+      typeof save.id !== 'string'
+      || typeof save.categoryId !== 'string'
+      || typeof save.title !== 'string'
+      || typeof save.url !== 'string'
+      || typeof save.createdAt !== 'number'
+    ) {
+      return null;
+    }
+    return {
+      id: save.id,
+      categoryId: save.categoryId,
+      categoryName: typeof save.categoryName === 'string' ? save.categoryName : undefined,
+      title: save.title,
+      url: save.url,
+      createdAt: save.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearLocalQuickSaveHash(): void {
+  if (!window.location.hash.startsWith('#bb-quick-save=')) return;
+  history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
+}
+
 function ensureLocalQuickSaveMode(options: { forceLocalFallback?: boolean } = {}): boolean {
   if (getAppMode() === 'local') return true;
   if (isConvexMode()) return false;
@@ -419,14 +456,19 @@ async function importLocalQuickSaves(
     const appliedIds: string[] = [];
     for (const save of saves) {
       const categories = getCategories();
-      const category = categories.find((item) => item.id === save.categoryId);
-      if (!category) continue;
+      const category = categories.find((item) => item.id === save.categoryId)
+        ?? categories.find((item) => save.categoryName && item.name === save.categoryName)
+        ?? categories[0];
+      if (!category) {
+        console.warn('[Local Quick Save] No local category available for save', save);
+        continue;
+      }
       const normalizedUrl = save.url.replace(/\/+$/, '').toLowerCase();
       const alreadySaved = category.bookmarks.some((bookmark) => (
         bookmark.url.replace(/\/+$/, '').toLowerCase() === normalizedUrl
       ));
       if (!alreadySaved) {
-        await createStoreBookmark(save.categoryId, save.title, save.url, null);
+        await createStoreBookmark(category.id, save.title, save.url, null);
       }
       appliedIds.push(save.id);
     }
@@ -438,6 +480,13 @@ async function importLocalQuickSaves(
   } finally {
     localQuickSaveImportInFlight = false;
   }
+}
+
+async function importLocalQuickSaveFromHash(): Promise<void> {
+  const save = readLocalQuickSaveFromHash();
+  if (!save) return;
+  await importLocalQuickSaves([save], { forceLocalFallback: true });
+  clearLocalQuickSaveHash();
 }
 
 async function importPendingLocalQuickSaves(): Promise<void> {
@@ -527,6 +576,7 @@ async function init(): Promise<void> {
   // Load bookmarks first — don't wait for auth
   await initializeData();
   appDataInitialized = true;
+  void importLocalQuickSaveFromHash();
 
   // Register post-undo/redo UI sync
   setAfterUndoRedoCallback(() => {

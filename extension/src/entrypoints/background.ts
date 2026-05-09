@@ -14,6 +14,7 @@ import {
   saveLocalBookmark,
   storeLocalSnapshot,
   type LocalCategory,
+  type LocalQuickSave,
 } from '../lib/local-quick-save';
 
 const QUICK_SAVE_THEME_CACHE_KEY = 'bb_cached_theme';
@@ -83,8 +84,27 @@ async function notifyOpenBruteBookmarksTabs(message: unknown, options: { reloadO
   }));
 }
 
-async function notifyOpenBruteBookmarksTabsOfLocalSave(save: unknown): Promise<void> {
+function makeLocalQuickSaveHash(save: LocalQuickSave): string {
+  return `#bb-quick-save=${encodeURIComponent(JSON.stringify(save))}`;
+}
+
+async function deliverLocalSaveViaTabHash(save: LocalQuickSave): Promise<void> {
+  const tabs = await getOpenBruteBookmarksTabs();
+  await Promise.all(tabs.map((tab) => {
+    if (!tab.id || !tab.url) return Promise.resolve();
+    try {
+      const url = new URL(tab.url);
+      url.hash = makeLocalQuickSaveHash(save);
+      return browser.tabs.update(tab.id, { url: url.toString() }).catch(() => {});
+    } catch {
+      return Promise.resolve();
+    }
+  }));
+}
+
+async function notifyOpenBruteBookmarksTabsOfLocalSave(save: LocalQuickSave): Promise<void> {
   await notifyOpenBruteBookmarksTabs({ type: 'BB_LOCAL_SAVE_NOW', save }, { reloadOnFailure: true });
+  await deliverLocalSaveViaTabHash(save);
 }
 
 export default defineBackground(() => {

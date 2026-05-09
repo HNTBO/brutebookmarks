@@ -156,6 +156,7 @@ describe('bridge-types', () => {
         saves: [{
           id: 'save-1',
           categoryId: 'cat-1',
+          categoryName: 'Inbox',
           title: 'Example',
           url: 'https://example.com',
           createdAt: 1,
@@ -193,6 +194,7 @@ describe('bridge-types', () => {
         save: {
           id: 'save-1',
           categoryId: 'cat-1',
+          categoryName: 'Inbox',
           title: 'Example',
           url: 'https://example.com',
           createdAt: 1,

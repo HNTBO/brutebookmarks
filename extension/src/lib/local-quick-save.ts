@@ -17,6 +17,7 @@ export interface LocalCategory {
 export interface LocalQuickSave {
   id: string;
   categoryId: string;
+  categoryName?: string;
   title: string;
   url: string;
   createdAt: number;
@@ -127,6 +128,7 @@ export async function saveLocalBookmark(
   const pending: LocalQuickSave = {
     id: `lqs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     categoryId,
+    categoryName: category.name,
     title,
     url,
     createdAt: Date.now(),

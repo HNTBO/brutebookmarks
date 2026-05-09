@@ -82,6 +82,7 @@ export interface BridgeLocalCategory {
 export interface BridgeLocalQuickSave {
   id: string;
   categoryId: string;
+  categoryName?: string;
   title: string;
   url: string;
   createdAt: number;
