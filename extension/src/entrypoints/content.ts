@@ -21,6 +21,14 @@ export default defineContentScript({
           { type: 'BB_EXT_LOCAL_SAVE_NOW', v: 1, save: message.save },
           window.location.origin,
         );
+        return;
+      }
+
+      if (message.type === 'BB_REFRESH_NOW') {
+        window.postMessage(
+          { type: 'BB_EXT_REFRESH_NOW', v: 1 },
+          window.location.origin,
+        );
       }
     });
 

@@ -49,7 +49,7 @@ async function applyThemeMessage(theme: ActionIconTheme): Promise<void> {
   await updateActionIconForTheme(theme, config.glyph);
 }
 
-async function notifyOpenBruteBookmarksTabsOfLocalSave(save: unknown): Promise<void> {
+async function notifyOpenBruteBookmarksTabs(message: unknown): Promise<void> {
   const tabs = await browser.tabs.query({
     url: [
       'https://brutebookmarks.com/*',
@@ -59,8 +59,16 @@ async function notifyOpenBruteBookmarksTabsOfLocalSave(save: unknown): Promise<v
   });
   await Promise.all(tabs.map((tab) => {
     if (!tab.id) return Promise.resolve();
-    return browser.tabs.sendMessage(tab.id, { type: 'BB_LOCAL_SAVE_NOW', save }).catch(() => {});
+    return browser.tabs.sendMessage(tab.id, message).catch(() => {});
   }));
+}
+
+async function notifyOpenBruteBookmarksTabsOfLocalSave(save: unknown): Promise<void> {
+  await notifyOpenBruteBookmarksTabs({ type: 'BB_LOCAL_SAVE_NOW', save });
+}
+
+async function notifyOpenBruteBookmarksTabsOfRefresh(): Promise<void> {
+  await notifyOpenBruteBookmarksTabs({ type: 'BB_REFRESH_NOW' });
 }
 
 export default defineBackground(() => {
@@ -174,6 +182,13 @@ export default defineBackground(() => {
             await notifyOpenBruteBookmarksTabsOfLocalSave(result.pending);
             sendResponse({ success: true, ...result });
           })
+          .catch((err) => sendResponse({ success: false, error: String(err) }));
+        return true;
+      }
+
+      if (message.type === 'BB_REFRESH_OPEN_TABS') {
+        notifyOpenBruteBookmarksTabsOfRefresh()
+          .then(() => sendResponse({ success: true }))
           .catch((err) => sendResponse({ success: false, error: String(err) }));
         return true;
       }
