@@ -127,6 +127,22 @@ Potential capabilities:
 - Preview icons against both theme backgrounds.
 - Save processed variants per bookmark.
 
+### Editable Background
+
+Explore editable background styling and better hover gradient behavior, especially in light mode.
+
+Product idea:
+
+- Let users adjust or choose the app background treatment.
+- Improve the current hover gradient so it feels intentional and readable in light mode.
+- Explore whether an overlay layer could make hover states work better across both dark and light themes.
+
+Open design questions:
+
+- Should the background be a simple theme setting, a premium personalization control, or part of a broader Studio feature?
+- Should hover gradients adapt automatically from the accent color, or should users control them directly?
+- Would a subtle overlay solve the light-mode contrast issue without adding visual clutter?
+
 ### Custom App Name
 
 Original bead: `brute-bookmarks-a4x`
