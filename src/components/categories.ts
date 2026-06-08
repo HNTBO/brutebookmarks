@@ -15,8 +15,11 @@ function mobileQuery(): MediaQueryList {
   return _mobileQuery;
 }
 
-// Track active tab per group (not persisted — defaults to first tab)
-const activeTabPerGroup = new Map<string, string>();
+const ACTIVE_TAB_STORAGE_KEY = 'activeTabPerGroup';
+
+// Track active tab per group so re-renders and reloads return to the last used tab.
+const activeTabPerGroup = readStoredActiveTabs();
+let activeBookmarkInitialFilter: string | null = null;
 let pointerTabGroupId: string | null = null;
 let fallbackTabGroupId: string | null = null;
 
@@ -25,7 +28,20 @@ type TabDirection = 'forward' | 'backward';
 /** Set the active tab for a group (called by drag-drop to persist tab switch through re-renders). */
 export function setActiveTab(groupId: string, categoryId: string): void {
   activeTabPerGroup.set(groupId, categoryId);
+  persistActiveTabs();
   fallbackTabGroupId = groupId;
+}
+
+export function getBookmarkInitialFilter(): string | null {
+  return activeBookmarkInitialFilter;
+}
+
+export function setBookmarkInitialFilter(letter: string | null): boolean {
+  const nextFilter = normalizeInitial(letter ?? '') || null;
+  if (nextFilter === activeBookmarkInitialFilter) return false;
+  activeBookmarkInitialFilter = nextFilter;
+  renderCategories();
+  return true;
 }
 
 // Guard: init drag listeners only once
@@ -34,7 +50,56 @@ let dragListenersInitialized = false;
 function getActiveTabId(group: TabGroup): string {
   const stored = activeTabPerGroup.get(group.id);
   if (stored && group.categories.some((c) => c.id === stored)) return stored;
+  if (stored) {
+    activeTabPerGroup.delete(group.id);
+    persistActiveTabs();
+  }
   return group.categories[0]?.id ?? '';
+}
+
+function readStoredActiveTabs(): Map<string, string> {
+  if (typeof window === 'undefined') return new Map();
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return new Map();
+    return new Map(
+      Object.entries(parsed)
+        .filter((entry): entry is [string, string] => (
+          typeof entry[0] === 'string' && typeof entry[1] === 'string'
+        )),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+function persistActiveTabs(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      ACTIVE_TAB_STORAGE_KEY,
+      JSON.stringify(Object.fromEntries(activeTabPerGroup)),
+    );
+  } catch {
+    // Ignore unavailable storage; in-memory tab state still works for this session.
+  }
+}
+
+function normalizeInitial(value: string): string {
+  const normalized = value
+    .trimStart()
+    .charAt(0)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return /^[a-z]$/.test(normalized) ? normalized : '';
+}
+
+function bookmarkMatchesInitialFilter(title: string): boolean {
+  if (!activeBookmarkInitialFilter) return true;
+  return normalizeInitial(title) === activeBookmarkInitialFilter;
 }
 
 function rotateToActive(categories: Category[], activeId: string): Category[] {
@@ -207,11 +272,14 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
   const cols = mobile ? `repeat(${getMobileColumns()}, 1fr)` : `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
   const nameOnHover = getShowNameOnHover();
   const btnSize = getBtnSize(currentCardSize);
+  const filteredBookmarks = category.bookmarks
+    .map((bookmark, index) => ({ bookmark, index }))
+    .filter(({ bookmark }) => bookmarkMatchesInitialFilter(bookmark.title));
   return `
     <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: ${cols}; gap: ${gap}px; --btn-size: ${btnSize}px;">
-      ${category.bookmarks
+      ${filteredBookmarks
         .map(
-          (bookmark, index) => `
+          ({ bookmark, index }) => `
         <div class="bookmark-card ${!showCardNames ? 'hide-title' : ''}"
              tabindex="0"
              role="link"
@@ -228,10 +296,12 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
       `,
         )
         .join('')}
+      ${activeBookmarkInitialFilter ? '' : `
       <div class="bookmark-card add-bookmark" data-action="add-bookmark" data-category-id="${escapeHtml(category.id)}">
         <div class="plus-icon">+</div>
         <div class="add-bookmark-text">Add</div>
       </div>
+      `}
     </div>
   `;
 }
@@ -441,7 +511,7 @@ function renderMobileTabGroup(group: TabGroup, currentCardSize: number, showCard
   }
 
   function switchToTab(catId: string, direction?: 'forward' | 'backward'): void {
-    const currentActiveId = activeTabPerGroup.get(group.id) || group.categories[0]?.id;
+    const currentActiveId = getActiveTabId(group);
     if (catId === currentActiveId) return;
     if (sliding) return;
 
@@ -612,6 +682,11 @@ export function renderCategories(): void {
   const container = document.getElementById('categories-container')!;
   container.classList.remove('startup-loading');
   container.innerHTML = '';
+  if (activeBookmarkInitialFilter) {
+    container.dataset.bookmarkInitialFilter = activeBookmarkInitialFilter;
+  } else {
+    delete container.dataset.bookmarkInitialFilter;
+  }
 
   const layoutItems = getLayoutItems();
   const categories = getCategories();

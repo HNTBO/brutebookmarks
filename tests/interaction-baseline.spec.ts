@@ -464,6 +464,23 @@ test.describe('Tab group switching', () => {
     await expect(secondPanel).toHaveClass(/tab-panel-active/);
   });
 
+  test('active tab is restored after reload', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const tabGroup = page.locator('.tab-group').first();
+    const tabs = tabGroup.locator('.tab');
+
+    await tabs.nth(1).click();
+    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
+
+    await page.reload();
+    await page.waitForSelector('.tab-group', { timeout: 10_000 });
+
+    const reloadedGroup = page.locator('.tab-group').first();
+    await expect(reloadedGroup.locator('.tab').nth(1)).toHaveClass(/tab-active/);
+    await expect(reloadedGroup.locator('[data-tab-panel-id="tg-cat-2"]')).toHaveClass(/tab-panel-active/);
+  });
+
   test('pressing Enter on a tab switches the active panel', async ({ page }) => {
     await setupWithTabGroups(page);
 
@@ -505,18 +522,34 @@ test.describe('Tab group switching', () => {
 
     await page.keyboard.press('ArrowLeft');
     await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+  });
+
+  test('letter keys filter bookmarks without switching tabs', async ({ page }) => {
+    await setupWithTabGroups(page);
+
+    const tabGroup = page.locator('.tab-group').first();
+    const tabs = tabGroup.locator('.tab');
+
+    await expect(tabs.nth(0)).toHaveClass(/tab-active/);
 
     await page.keyboard.press('KeyD');
-    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
 
-    await page.keyboard.press('KeyA');
     await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+    await expect(page.locator('#categories-container')).toHaveAttribute('data-bookmark-initial-filter', 'd');
+    await expect(page.locator('.bookmark-card:not(.add-bookmark)')).toHaveCount(0);
 
-    await page.keyboard.press('KeyL');
-    await expect(tabs.nth(1)).toHaveClass(/tab-active/);
+    await page.keyboard.press('KeyG');
 
-    await page.keyboard.press('KeyJ');
     await expect(tabs.nth(0)).toHaveClass(/tab-active/);
+    await expect(page.locator('#categories-container')).toHaveAttribute('data-bookmark-initial-filter', 'g');
+    await expect(page.locator('.bookmark-card:not(.add-bookmark)')).toHaveCount(2);
+    await expect(page.locator('.tab-group .tab')).toHaveCount(2);
+    await expect(page.locator('.category')).toHaveCount(1);
+
+    await page.keyboard.press('Escape');
+
+    await expect(page.locator('#categories-container')).not.toHaveAttribute('data-bookmark-initial-filter', /.+/);
+    await expect(page.locator('.bookmark-card:not(.add-bookmark)')).toHaveCount(3);
   });
 
   test('mouse back and forward buttons navigate tabbed categories', async ({ page }) => {

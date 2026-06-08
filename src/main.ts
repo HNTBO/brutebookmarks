@@ -1,7 +1,7 @@
 import './styles/main.css';
 import { renderApp } from './app';
 import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence, createBookmark as createStoreBookmark, isConvexMode } from './data/store';
-import { navigateTabbedCategory, renderCategories, renderStartupShell } from './components/categories';
+import { getBookmarkInitialFilter, navigateTabbedCategory, renderCategories, renderStartupShell, setBookmarkInitialFilter } from './components/categories';
 import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
 import { initSizeController } from './components/header';
@@ -240,10 +240,24 @@ document.addEventListener('keydown', (e) => {
     }
   }
 
+  if (shouldHandleBookmarkLetterFilter(e)) {
+    const filterLetter = getKeyboardFilterLetter(e);
+    if (filterLetter) {
+      setBookmarkInitialFilter(filterLetter);
+      e.preventDefault();
+      return;
+    }
+  }
+
   if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'd') {
     e.preventDefault();
     toggleTheme();
     syncWireframeBtnState();
+    return;
+  }
+
+  if (shouldClearBookmarkLetterFilter(e) && setBookmarkInitialFilter(null)) {
+    e.preventDefault();
     return;
   }
 
@@ -279,11 +293,36 @@ function getKeyboardTabDirection(e: KeyboardEvent): 'forward' | 'backward' | nul
   if (e.key === 'ArrowRight') return 'forward';
   if (e.key === 'ArrowLeft') return 'backward';
 
-  const key = e.key.toLowerCase();
-  if (key === 'd' || key === 'l') return 'forward';
-  if (key === 'a' || key === 'j') return 'backward';
-
   return null;
+}
+
+function normalizeKeyboardLetter(key: string): string | null {
+  if (key.length !== 1) return null;
+  const normalized = key
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return /^[a-z]$/.test(normalized) ? normalized : null;
+}
+
+function shouldHandleBookmarkLetterFilter(e: KeyboardEvent): boolean {
+  return !e.ctrlKey && !e.metaKey && !e.altKey
+    && !isEditableShortcutTarget(e.target)
+    && !hasActiveModal()
+    && !dragController.active
+    && normalizeKeyboardLetter(e.key) !== null;
+}
+
+function getKeyboardFilterLetter(e: KeyboardEvent): string | null {
+  return normalizeKeyboardLetter(e.key);
+}
+
+function shouldClearBookmarkLetterFilter(e: KeyboardEvent): boolean {
+  return getBookmarkInitialFilter() !== null
+    && !isEditableShortcutTarget(e.target)
+    && !hasActiveModal()
+    && !dragController.active
+    && (e.key === 'Escape' || e.key === 'Backspace');
 }
 
 let lastMouseTabNavigation = 0;
