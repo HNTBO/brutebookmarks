@@ -38,6 +38,11 @@ export function getBookmarkInitialFilter(): string | null {
 
 export function setBookmarkInitialFilter(letter: string | null): boolean {
   const nextFilter = normalizeInitial(letter ?? '') || null;
+  if (nextFilter && nextFilter === activeBookmarkInitialFilter) {
+    activeBookmarkInitialFilter = null;
+    renderCategories();
+    return true;
+  }
   if (nextFilter === activeBookmarkInitialFilter) return false;
   activeBookmarkInitialFilter = nextFilter;
   renderCategories();

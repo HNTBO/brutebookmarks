@@ -546,6 +546,14 @@ test.describe('Tab group switching', () => {
     await expect(page.locator('.tab-group .tab')).toHaveCount(2);
     await expect(page.locator('.category')).toHaveCount(1);
 
+    await page.keyboard.press('KeyG');
+
+    await expect(page.locator('#categories-container')).not.toHaveAttribute('data-bookmark-initial-filter', /.+/);
+    await expect(page.locator('.bookmark-card:not(.add-bookmark)')).toHaveCount(3);
+
+    await page.keyboard.press('KeyG');
+    await expect(page.locator('#categories-container')).toHaveAttribute('data-bookmark-initial-filter', 'g');
+
     await page.keyboard.press('Escape');
 
     await expect(page.locator('#categories-container')).not.toHaveAttribute('data-bookmark-initial-filter', /.+/);
