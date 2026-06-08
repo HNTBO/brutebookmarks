@@ -43,10 +43,6 @@ _graphics/
 .env
 .env.local
 
-# Dolt database files (added by bd init)
-.dolt/
-*.db
-
 # Local test and tool artifacts
 test-results/
 .claude/worktrees/
@@ -54,6 +50,5 @@ tmpclaude-*
 
 # Sync conflict artifacts
 *.sync-conflict-*
-.beads/sync_base.jsonl
 
 .vercel

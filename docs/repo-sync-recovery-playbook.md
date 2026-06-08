@@ -16,7 +16,7 @@ This playbook was written after recovering `brutebookmarks`, where the main prob
 - deletion of one folder after syncing
 - many local files appearing modified even though their contents already matched `HEAD`
 - sync-conflict junk files
-- broken local tool state in `.beads`
+- broken local issue-tracker/tool state
 
 ## Important Context
 
@@ -39,7 +39,7 @@ Check whether the file contents actually differ from `HEAD`.
 - The app code was already pushed and deployed.
 - Many "modified" files were only Git bookkeeping/index confusion after filesystem sync.
 - The obvious junk was removable.
-- The most fragile part was local tool state, especially `.beads`.
+- The most fragile part was local issue-tracker/tool state.
 - The safe baseline was always `origin/main`.
 
 ## Instructions For The Agent
@@ -108,7 +108,7 @@ Examples of the kind of thing to check:
 Examples:
 
 - `src/`, `tests/`, `quicksave/`, `newtab/`, `package-lock.json`
-- versus `.beads`, local caches, runtime files, tool databases
+- versus local caches, runtime files, tool databases, or retired issue-tracker state
 
 5. If code files appear modified, determine whether they are already deployed.
 
@@ -117,9 +117,9 @@ Look for matching commits and confirm whether the local contents already equal `
 
 6. If local tool state is broken, repair it without risking app code.
 
-Especially for `.beads`:
+Especially for retired issue-tracker state:
 
-- prefer recovery from tracked JSONL over trusting local runtime state
+- prefer recovery from tracked exports over trusting local runtime state
 - keep tracked issue data if it is still valid
 - remove only obvious runtime junk
 
