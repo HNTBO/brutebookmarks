@@ -313,6 +313,70 @@ test.describe('Modal open/close', () => {
     await page.keyboard.press('Escape');
     await expect(modal).not.toHaveClass(/active/);
   });
+
+  test('current icon accepts dropped images outside upload mode', async ({ page }) => {
+    await setupLocalMode(page);
+
+    await page.locator('.add-bookmark').first().click();
+    await expect(page.locator('#bookmark-modal')).toHaveClass(/active/);
+
+    await page.fill('#bookmark-url', 'https://example.com');
+    await page.click('#use-favicon-btn');
+    await expect(page.locator('#use-favicon-btn')).toHaveClass(/active/);
+    await page.click('#search-wikimedia-btn');
+    await expect(page.locator('#icon-search-container')).not.toHaveClass(/hidden/);
+
+    const dataTransfer = await page.evaluateHandle(async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 8;
+      canvas.height = 8;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#0a84ff';
+      ctx.fillRect(0, 0, 8, 8);
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((result) => {
+          if (result) resolve(result);
+          else reject(new Error('Failed to create test image'));
+        }, 'image/png');
+      });
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File([blob], 'dropped-icon.png', { type: 'image/png' }));
+      return dataTransfer;
+    });
+
+    await page.$eval('#bookmark-modal', (modal) => {
+      const preview = document.getElementById('icon-preview')!;
+      const rect = preview.getBoundingClientRect();
+      const event = new DragEvent('dragenter', { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        clientX: { value: rect.left + rect.width / 2 },
+        clientY: { value: rect.top + rect.height / 2 },
+      });
+      Object.defineProperty(event, 'dataTransfer', {
+        value: { types: ['Files'], files: [], items: [], dropEffect: 'none' },
+      });
+      modal.dispatchEvent(event);
+    });
+    await expect(page.locator('#upload-custom-btn')).toHaveClass(/active/);
+    await expect(page.locator('#icon-search-container')).toHaveClass(/hidden/);
+
+    const previewBox = await page.locator('#icon-preview').boundingBox();
+    expect(previewBox).toBeTruthy();
+
+    await page.dispatchEvent('#bookmark-modal', 'drop', {
+      dataTransfer,
+      clientX: previewBox!.x + previewBox!.width / 2,
+      clientY: previewBox!.y + previewBox!.height / 2,
+    });
+
+    await expect(page.locator('#bookmark-icon-path')).toHaveValue(/^data:image\/png;base64,/);
+    await expect(page.locator('#icon-source')).toHaveText('Custom: dropped-icon.png');
+    await expect(page.locator('#preview-icon')).toHaveAttribute('src', /^data:image\/png;base64,/);
+
+    await dataTransfer.dispose();
+  });
 });
 
 test.describe('Bookmark drag reorder (mouse)', () => {

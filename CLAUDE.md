@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **MANDATORY**: Read [AGENTS.md](AGENTS.md) before starting any work. It contains the repo's backlog and session completion protocol.
+> **MANDATORY**: Read [AGENTS.md](AGENTS.md) before starting any work. The project has been un-beaded; do not use `bd` / Beads workflows.
 
 ## Project Conventions
 - This is a TypeScript-first workspace. Always use TypeScript (.ts/.tsx) over JavaScript unless explicitly told otherwise.

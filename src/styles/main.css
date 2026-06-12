@@ -997,6 +997,7 @@ body:has(.modal.active) {
 }
 
 .icon-preview {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--space-md);
@@ -1096,7 +1097,6 @@ body:has(.modal.active) {
 }
 
 .icon-preview.upload-mode {
-    position: relative;
     border-style: dashed;
     border-color: var(--accent);
     cursor: pointer;

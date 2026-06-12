@@ -16,7 +16,7 @@ This playbook was written after recovering `brutebookmarks`, where the main prob
 - deletion of one folder after syncing
 - many local files appearing modified even though their contents already matched `HEAD`
 - sync-conflict junk files
-- broken local issue-tracker/tool state
+- obsolete local tool state from the retired `.beads` workflow
 
 ## Important Context
 
@@ -39,7 +39,7 @@ Check whether the file contents actually differ from `HEAD`.
 - The app code was already pushed and deployed.
 - Many "modified" files were only Git bookkeeping/index confusion after filesystem sync.
 - The obvious junk was removable.
-- The most fragile part was local issue-tracker/tool state.
+- The most fragile part was local tool state. The old `.beads` workflow has since been retired.
 - The safe baseline was always `origin/main`.
 
 ## Instructions For The Agent
@@ -108,20 +108,20 @@ Examples of the kind of thing to check:
 Examples:
 
 - `src/`, `tests/`, `quicksave/`, `newtab/`, `package-lock.json`
-- versus local caches, runtime files, tool databases, or retired issue-tracker state
+- versus retired `.beads` artifacts, local caches, runtime files, tool databases
 
 5. If code files appear modified, determine whether they are already deployed.
 
 Compare current local changes to recent commits.
 Look for matching commits and confirm whether the local contents already equal `HEAD`.
 
-6. If local tool state is broken, repair it without risking app code.
+6. If local tool state is broken, separate it from app code before cleanup.
 
-Especially for retired issue-tracker state:
+For retired `.beads` artifacts:
 
-- prefer recovery from tracked exports over trusting local runtime state
-- keep tracked issue data if it is still valid
-- remove only obvious runtime junk
+- do not run `bd`
+- treat bead files as archived context, not active project state
+- remove only obvious runtime junk when cleanup is explicitly requested
 
 ## Questions I Want Answered
 

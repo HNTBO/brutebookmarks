@@ -42,7 +42,7 @@ export function setActiveIconButton(type: IconSourceType): void {
   if (type && BUTTON_ID_BY_TYPE[type]) {
     document.getElementById(BUTTON_ID_BY_TYPE[type])?.classList.add('active');
   }
-  // Toggle upload-mode on preview (dashed border, click/drop target)
+  // Toggle upload-mode on preview (dashed border and click target)
   const iconPreview = document.getElementById('icon-preview');
   if (iconPreview) {
     iconPreview.classList.toggle('upload-mode', type === 'custom');
@@ -59,6 +59,12 @@ export function setActiveIconButton(type: IconSourceType): void {
       existing.remove();
     }
   }
+}
+
+export function activateCustomUploadMode(): void {
+  document.getElementById('icon-search-container')?.classList.add('hidden');
+  document.getElementById('emoji-search-container')?.classList.add('hidden');
+  setActiveIconButton('custom');
 }
 
 export function iconTypeLabel(type: IconSourceType): string {
@@ -380,29 +386,108 @@ export function initUploadArea(): void {
     }
   });
 
-  iconPreview.addEventListener('dragover', (e) => {
-    if (iconPreview.classList.contains('upload-mode')) {
-      e.preventDefault();
-      iconPreview.classList.add('dragover');
+  iconPreview.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    activateCustomUploadMode();
+    iconPreview.classList.add('dragover');
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
     }
   });
 
-  iconPreview.addEventListener('dragleave', () => {
+  iconPreview.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    activateCustomUploadMode();
+    iconPreview.classList.add('dragover');
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  });
+
+  iconPreview.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     iconPreview.classList.remove('dragover');
   });
 
   iconPreview.addEventListener('drop', (e) => {
-    if (!iconPreview.classList.contains('upload-mode')) return;
     e.preventDefault();
-    iconPreview.classList.remove('dragover');
-    const file = e.dataTransfer?.files[0];
-    if (file && file.type.startsWith('image/')) {
-      uploadCustomIcon(file);
-    }
+    e.stopPropagation();
+    void acceptIconDrop(e.dataTransfer, iconPreview);
   });
+
+  document.addEventListener('dragenter', (e) => {
+    if (!shouldRouteIconDrag(e, iconPreview)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    activateIconDropTarget(e, iconPreview);
+  }, true);
+
+  document.addEventListener('dragover', (e) => {
+    if (!shouldRouteIconDrag(e, iconPreview)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    activateIconDropTarget(e, iconPreview);
+  }, true);
+
+  document.addEventListener('drop', (e) => {
+    if (!shouldRouteIconDrag(e, iconPreview)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    void acceptIconDrop(e.dataTransfer, iconPreview);
+  }, true);
 
   customInput.addEventListener('change', () => {
     const file = customInput.files?.[0];
     if (file) uploadCustomIcon(file);
   });
+}
+
+function activateIconDropTarget(event: DragEvent, iconPreview: HTMLElement): void {
+  activateCustomUploadMode();
+  iconPreview.classList.add('dragover');
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy';
+  }
+}
+
+async function acceptIconDrop(dataTransfer: DataTransfer | null, iconPreview: HTMLElement): Promise<void> {
+  activateCustomUploadMode();
+  iconPreview.classList.remove('dragover');
+  const file = getDroppedImageFile(dataTransfer);
+  if (file) {
+    await uploadCustomIcon(file);
+  }
+}
+
+function getDroppedImageFile(dataTransfer: DataTransfer | null): File | null {
+  if (!dataTransfer) return null;
+
+  return Array.from(dataTransfer.files).find((file) =>
+    file.type.startsWith('image/'),
+  ) ?? null;
+}
+
+function shouldRouteIconDrag(event: DragEvent, iconPreview: HTMLElement): boolean {
+  if (!document.getElementById('bookmark-modal')?.classList.contains('active')) return false;
+
+  const target = event.target;
+  if (target instanceof Node && iconPreview.contains(target)) return true;
+
+  return isPointInsideElement(event, iconPreview);
+}
+
+function isPointInsideElement(event: DragEvent, element: HTMLElement): boolean {
+  const { clientX, clientY } = event;
+  if (clientX === 0 && clientY === 0) return false;
+
+  const rect = element.getBoundingClientRect();
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
 }
