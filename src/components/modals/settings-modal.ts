@@ -4,7 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 import { registerModal } from '../../utils/modal-manager';
 import { renderCategories } from '../categories';
-import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleOpenBookmarksInNewTab, getOpenBookmarksInNewTab, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
+import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleOpenBookmarksInNewTab, getOpenBookmarksInNewTab, toggleUseBruteProfilePicture, getUseBruteProfilePicture, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
@@ -23,6 +23,7 @@ export function openSettingsModal(): void {
   (document.getElementById('show-card-names') as HTMLInputElement).checked = getShowCardNames();
   (document.getElementById('autofill-url') as HTMLInputElement).checked = getAutofillUrl();
   (document.getElementById('open-bookmarks-in-new-tab') as HTMLInputElement).checked = getOpenBookmarksInNewTab();
+  (document.getElementById('use-brute-picture-profile') as HTMLInputElement).checked = getUseBruteProfilePicture();
   (document.getElementById('easter-eggs') as HTMLInputElement).checked = getEasterEggs();
   (document.getElementById('show-name-on-hover') as HTMLInputElement).checked = getShowNameOnHover();
   syncColumnPicker();
@@ -34,6 +35,7 @@ function populateAccountSection(): void {
   if (!section) return;
 
   const mode = getAppMode();
+  document.getElementById('brute-profile-picture-row')?.classList.toggle('hidden', mode !== 'sync');
 
   if (mode === 'local') {
     section.innerHTML = `
@@ -353,6 +355,7 @@ async function fetchAllFavicons(): Promise<void> {
       if (client) {
         const results = await client.action(api.favicons.resolveFaviconBulk, {
           bookmarks: allBookmarks.map((bk) => ({ bookmarkId: bk.bookmarkId, url: bk.url })),
+          forceRefresh: true,
         });
 
         let applied = 0;
@@ -515,6 +518,10 @@ export function initSettingsModal(): void {
 
   document.getElementById('open-bookmarks-in-new-tab')!.addEventListener('change', (e) => {
     toggleOpenBookmarksInNewTab((e.target as HTMLInputElement).checked);
+  });
+
+  document.getElementById('use-brute-picture-profile')!.addEventListener('change', (e) => {
+    toggleUseBruteProfilePicture((e.target as HTMLInputElement).checked);
   });
 
   document.getElementById('easter-eggs')!.addEventListener('change', (e) => {

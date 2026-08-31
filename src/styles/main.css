@@ -2327,6 +2327,14 @@ html:not([data-wireframe]) .tab-bar > .tab-drop-indicator:first-child {
     z-index: 3;
 }
 
+.avatar-image-loaded > .default-avatar-overlay {
+    display: none;
+}
+
+.force-brute-avatar > .default-avatar-overlay {
+    display: block;
+}
+
 .default-avatar-overlay .avatar-bg {
     fill: var(--accent);
 }

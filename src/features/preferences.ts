@@ -8,6 +8,7 @@ let currentPageWidth = 100;
 let showCardNames = true;
 let autofillUrl = false;
 let openBookmarksInNewTab = true;
+let useBruteProfilePicture = false;
 let easterEggs = true;
 let showNameOnHover = true;
 let mobileColumns: 3 | 4 | 5 = 5;
@@ -38,6 +39,7 @@ function ensurePrefsInit(): void {
   showCardNames = localStorage.getItem('showCardNames') !== 'false';
   autofillUrl = localStorage.getItem('autofillUrl') === 'true';
   openBookmarksInNewTab = localStorage.getItem('openBookmarksInNewTab') !== 'false';
+  useBruteProfilePicture = localStorage.getItem('useBruteProfilePicture') === 'true';
   easterEggs = localStorage.getItem('easterEggs') !== 'false';
   showNameOnHover = localStorage.getItem('showNameOnHover') !== 'false';
   mobileColumns = (parseInt(localStorage.getItem('mobileColumns') || '5') || 5) as 3 | 4 | 5;
@@ -85,6 +87,11 @@ export function getOpenBookmarksInNewTab(): boolean {
   return openBookmarksInNewTab;
 }
 
+export function getUseBruteProfilePicture(): boolean {
+  ensurePrefsInit();
+  return useBruteProfilePicture;
+}
+
 export function getEasterEggs(): boolean {
   ensurePrefsInit();
   return easterEggs;
@@ -130,6 +137,7 @@ export function collectPreferences(): UserPreferences {
     showCardNames,
     autofillUrl,
     openBookmarksInNewTab,
+    useBruteProfilePicture,
   };
 }
 
@@ -182,6 +190,13 @@ export function toggleOpenBookmarksInNewTab(enabled: boolean): void {
   syncToConvex();
 }
 
+export function toggleUseBruteProfilePicture(enabled: boolean): void {
+  useBruteProfilePicture = enabled;
+  localStorage.setItem('useBruteProfilePicture', String(useBruteProfilePicture));
+  applyBruteProfilePictureToDOM();
+  syncToConvex();
+}
+
 /** Apply preferences from Convex subscription — updates state + DOM + localStorage, no save back. */
 export function applyPreferences(prefs: UserPreferences, renderCallback: () => void): void {
   ensurePrefsInit();
@@ -195,6 +210,7 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   showCardNames = prefs.showCardNames;
   autofillUrl = prefs.autofillUrl;
   openBookmarksInNewTab = prefs.openBookmarksInNewTab;
+  useBruteProfilePicture = prefs.useBruteProfilePicture;
   wireframeDark = prefs.wireframeDark;
   wireframeLight = prefs.wireframeLight;
 
@@ -203,6 +219,7 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   localStorage.setItem('showCardNames', String(showCardNames));
   localStorage.setItem('autofillUrl', String(autofillUrl));
   localStorage.setItem('openBookmarksInNewTab', String(openBookmarksInNewTab));
+  localStorage.setItem('useBruteProfilePicture', String(useBruteProfilePicture));
   localStorage.setItem('wireframe_dark', String(wireframeDark));
   localStorage.setItem('wireframe_light', String(wireframeLight));
 
@@ -210,6 +227,7 @@ export function applyPreferences(prefs: UserPreferences, renderCallback: () => v
   if (widthChanged) applyPageWidthToDOM();
   if (wireframeChanged) applyWireframeToDOM();
   if (namesChanged) renderCallback();
+  applyBruteProfilePictureToDOM();
 
   syncPreferencesUI();
 }
@@ -246,16 +264,26 @@ function applyPageWidthToDOM(): void {
 }
 
 export function syncPreferencesUI(): void {
+  ensurePrefsInit();
   const checkbox = document.getElementById('show-card-names') as HTMLInputElement | null;
   if (checkbox) checkbox.checked = showCardNames;
   const autofillCheckbox = document.getElementById('autofill-url') as HTMLInputElement | null;
   if (autofillCheckbox) autofillCheckbox.checked = autofillUrl;
   const openInNewTabCheckbox = document.getElementById('open-bookmarks-in-new-tab') as HTMLInputElement | null;
   if (openInNewTabCheckbox) openInNewTabCheckbox.checked = openBookmarksInNewTab;
+  const bruteProfileCheckbox = document.getElementById('use-brute-picture-profile') as HTMLInputElement | null;
+  if (bruteProfileCheckbox) bruteProfileCheckbox.checked = useBruteProfilePicture;
   const easterEggsCheckbox = document.getElementById('easter-eggs') as HTMLInputElement | null;
   if (easterEggsCheckbox) easterEggsCheckbox.checked = easterEggs;
   const hoverCheckbox = document.getElementById('show-name-on-hover') as HTMLInputElement | null;
   if (hoverCheckbox) hoverCheckbox.checked = showNameOnHover;
+  applyBruteProfilePictureToDOM();
+}
+
+function applyBruteProfilePictureToDOM(): void {
+  for (const id of ['clerk-user-button', 'mobile-avatar-btn']) {
+    document.getElementById(id)?.classList.toggle('force-brute-avatar', useBruteProfilePicture);
+  }
 }
 
 // --- Randomize XY (size controller) ---

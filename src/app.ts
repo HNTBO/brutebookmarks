@@ -199,6 +199,10 @@ export function renderApp(): void {
               <label for="open-bookmarks-in-new-tab">Open Bookmarks in New Tab</label>
               <input type="checkbox" id="open-bookmarks-in-new-tab" checked>
             </div>
+            <div class="settings-row hidden" id="brute-profile-picture-row">
+              <label for="use-brute-picture-profile">Use brute picture profile</label>
+              <input type="checkbox" id="use-brute-picture-profile">
+            </div>
             <div class="settings-row mobile-only">
               <label for="easter-eggs">Easter Eggs</label>
               <input type="checkbox" id="easter-eggs" checked>

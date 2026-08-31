@@ -6,6 +6,11 @@ import { BRIDGE_VERSION } from '../shared/bridge-types';
 import type { BridgeMsgDisconnect, BridgeMsgAuth } from '../shared/bridge-types';
 
 let clerk: ClerkInstance | null = null;
+const mountedUserButtonTargets = new WeakSet<HTMLElement>();
+const avatarObservers = new WeakMap<HTMLElement, MutationObserver>();
+const monitoredAvatarImages = new WeakSet<HTMLImageElement>();
+
+const CLERK_JS_VERSION = '5.122.1';
 
 declare global {
   interface Window {
@@ -25,7 +30,7 @@ function loadClerkScript(publishableKey: string): Promise<void> {
     script.async = true;
     script.crossOrigin = 'anonymous';
     script.dataset.clerkPublishableKey = publishableKey;
-    script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+    script.src = `https://cdn.jsdelivr.net/npm/@clerk/clerk-js@${CLERK_JS_VERSION}/dist/clerk.browser.js`;
 
     script.addEventListener('load', () => {
       // Auto-init may use microtasks — poll until window.Clerk is set
@@ -132,17 +137,46 @@ function mountUserButton(): void {
     const container = document.getElementById(id) as HTMLDivElement | null;
     if (!container) continue;
     const mount = container.querySelector<HTMLDivElement>('.clerk-user-button-mount') ?? container;
-    mount.innerHTML = '';
-    clerk.mountUserButton(mount, { afterSignOutUrl: '/' });
-
-    // Overlay custom avatar when user hasn't uploaded a profile photo
-    if (!clerk.user?.hasImage) {
-      container.classList.add('no-custom-avatar');
-    } else {
-      container.classList.remove('no-custom-avatar');
-      container.querySelector('.default-avatar-overlay')?.remove();
+    if (!mountedUserButtonTargets.has(mount)) {
+      clerk.mountUserButton(mount, { afterSignOutUrl: '/' });
+      mountedUserButtonTargets.add(mount);
+      monitorAvatarImage(container, mount);
     }
   }
+}
+
+/**
+ * Keep our local avatar visible until Clerk's remote image has actually loaded.
+ * `user.hasImage` only describes account metadata; it does not guarantee that
+ * the Google/Clerk image request succeeded in this browser session.
+ */
+function monitorAvatarImage(container: HTMLElement, mount: HTMLElement): void {
+  const syncFallback = () => {
+    const images = Array.from(mount.querySelectorAll<HTMLImageElement>('.cl-avatarImage'));
+
+    for (const image of images) {
+      if (monitoredAvatarImages.has(image)) continue;
+      monitoredAvatarImages.add(image);
+      image.addEventListener('load', syncFallback);
+      image.addEventListener('error', syncFallback);
+    }
+
+    const hasLoadedImage = images.some(
+      (image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0,
+    );
+    container.classList.toggle('avatar-image-loaded', hasLoadedImage);
+  };
+
+  avatarObservers.get(mount)?.disconnect();
+  const observer = new MutationObserver(syncFallback);
+  observer.observe(mount, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['src'],
+  });
+  avatarObservers.set(mount, observer);
+  syncFallback();
 }
 
 // Resolvers for sign-in completion (used by triggerSignIn)

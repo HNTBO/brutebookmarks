@@ -366,7 +366,8 @@ function preferencesEqual(a: UserPreferences, b: UserPreferences): boolean {
     && a.pageWidth === b.pageWidth
     && a.showCardNames === b.showCardNames
     && a.autofillUrl === b.autofillUrl
-    && a.openBookmarksInNewTab === b.openBookmarksInNewTab;
+    && a.openBookmarksInNewTab === b.openBookmarksInNewTab
+    && a.useBruteProfilePicture === b.useBruteProfilePicture;
 }
 
 function markPendingLocalPrefs(prefs: UserPreferences): void {
@@ -412,6 +413,7 @@ export function savePreferencesToConvex(getPrefs: () => UserPreferences): void {
         showCardNames: prefs.showCardNames,
         autofillUrl: prefs.autofillUrl ?? undefined,
         openBookmarksInNewTab: prefs.openBookmarksInNewTab,
+        useBruteProfilePicture: prefs.useBruteProfilePicture,
       });
     } catch (err) {
       if (_pendingLocalPrefs && preferencesEqual(_pendingLocalPrefs, prefs)) {
@@ -449,6 +451,7 @@ export function flushPreferencesToConvex(getPrefs: () => UserPreferences): void 
     showCardNames: prefs.showCardNames,
     autofillUrl: prefs.autofillUrl ?? undefined,
     openBookmarksInNewTab: prefs.openBookmarksInNewTab,
+    useBruteProfilePicture: prefs.useBruteProfilePicture,
   }).catch((err) => {
     if (_pendingLocalPrefs && preferencesEqual(_pendingLocalPrefs, prefs)) {
       _pendingLocalPrefs = null;
@@ -523,6 +526,7 @@ export function activateConvex(): void {
       showCardNames: result.showCardNames ?? true,
       autofillUrl: result.autofillUrl ?? false,
       openBookmarksInNewTab: result.openBookmarksInNewTab ?? true,
+      useBruteProfilePicture: result.useBruteProfilePicture ?? false,
     };
     if (shouldIgnoreIncomingPrefs(prefs)) return;
     _applyingFromConvex = true;

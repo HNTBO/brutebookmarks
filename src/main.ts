@@ -95,6 +95,16 @@ document.getElementById('wireframe-btn')!.addEventListener('click', () => {
 // Easter eggs on brand text — responsive (mobile taps full words, desktop taps individual letters)
 const isMobileQuery = window.matchMedia('(max-width: 768px)');
 
+// The category/tab markup and grid columns are selected in JavaScript, so a
+// CSS media-query transition alone is not enough. Rebuild the responsive
+// structure whenever the viewport crosses the mobile breakpoint.
+isMobileQuery.addEventListener('change', () => {
+  if (!appDataInitialized) return;
+  initBarscaleAndWireframe();
+  syncWireframeBtnState();
+  dragController.requestRender(renderCategories);
+});
+
 function syncWireframeBtnState(): void {
   const isWF = document.documentElement.hasAttribute('data-wireframe');
   document.getElementById('wireframe-btn')?.classList.toggle('wireframe-active', isWF);

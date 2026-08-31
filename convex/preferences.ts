@@ -35,6 +35,7 @@ export const set = mutation({
     showCardNames: v.boolean(),
     autofillUrl: v.optional(v.boolean()),
     openBookmarksInNewTab: v.optional(v.boolean()),
+    useBruteProfilePicture: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -57,6 +58,7 @@ export const set = mutation({
       showCardNames: args.showCardNames,
       autofillUrl: args.autofillUrl,
       openBookmarksInNewTab: args.openBookmarksInNewTab,
+      useBruteProfilePicture: args.useBruteProfilePicture,
       userId,
       updatedAt: Date.now(),
     };

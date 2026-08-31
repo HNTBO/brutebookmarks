@@ -7,6 +7,7 @@ import { isPrivateHost, safeFetch } from "./ssrf_guard";
 
 const FETCH_TIMEOUT = 4000;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const FALLBACK_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // Retry provider fallbacks promptly
 const USER_AGENT = "Mozilla/5.0 (compatible; BruteBookmarks/1.0)";
 const SVGL_API_URL = "https://api.svgl.app";
 
@@ -48,15 +49,89 @@ async function fetchWithTimeout(
   });
 }
 
-// Check if a URL points to a valid image (HEAD then GET fallback)
+function isFreshCacheEntry(cached: { fetchedAt: number; source: string }): boolean {
+  const isProviderFallback = ["icon-horse", "duckduckgo", "google-s2"].includes(cached.source);
+  const ttl = isProviderFallback ? FALLBACK_CACHE_TTL_MS : CACHE_TTL_MS;
+  return Date.now() - cached.fetchedAt < ttl;
+}
+
+async function readResponsePrefix(resp: Response, limit = 4096): Promise<Uint8Array> {
+  const reader = resp.body?.getReader();
+  if (!reader) return new Uint8Array();
+
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (length < limit) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const remaining = limit - length;
+      const chunk = value.length > remaining ? value.slice(0, remaining) : value;
+      chunks.push(chunk);
+      length += chunk.length;
+      if (value.length > remaining) break;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+
+  const prefix = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    prefix.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return prefix;
+}
+
+function hasImageSignature(bytes: Uint8Array): boolean {
+  if (bytes.length < 4) return false;
+  const ascii = new TextDecoder().decode(bytes);
+  return (
+    // PNG
+    (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) ||
+    // JPEG
+    (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) ||
+    // GIF
+    ascii.startsWith("GIF87a") || ascii.startsWith("GIF89a") ||
+    // ICO / CUR
+    (bytes[0] === 0 && bytes[1] === 0 && (bytes[2] === 1 || bytes[2] === 2) && bytes[3] === 0) ||
+    // WebP
+    (ascii.startsWith("RIFF") && ascii.slice(8, 12) === "WEBP") ||
+    // AVIF
+    ascii.slice(4, 12).includes("ftypavif") ||
+    // SVG, optionally preceded by an XML declaration/comments/whitespace
+    /<svg[\s>]/i.test(ascii.slice(0, 1024))
+  );
+}
+
+// Check if a URL points to a valid image (HEAD, then a bounded GET fallback).
 async function isValidIcon(url: string): Promise<boolean> {
   try {
-    const resp = await fetchWithTimeout(url, { method: "HEAD" });
+    const head = await fetchWithTimeout(url, { method: "HEAD" });
+    const contentType = head.headers.get("content-type") || "";
+    const contentLength = Number(head.headers.get("content-length") || "0");
+    if (head.ok && contentType.startsWith("image/") && contentLength > 0) {
+      return true;
+    }
+  } catch {
+    // HEAD is frequently unsupported for otherwise valid favicon files.
+  }
+
+  try {
+    const resp = await fetchWithTimeout(url, {
+      method: "GET",
+      headers: {
+        Accept: "image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8",
+        Range: "bytes=0-4095",
+      },
+    });
     if (!resp.ok) return false;
-    const ct = resp.headers.get("content-type") || "";
-    const cl = parseInt(resp.headers.get("content-length") || "0", 10);
-    // content-type must be image, content-length >= 100 bytes (avoid empty/placeholder)
-    return ct.startsWith("image/") && (cl >= 100 || cl === 0); // cl=0 means unknown size, still try
+
+    const bytes = await readResponsePrefix(resp);
+    if (bytes.length === 0) return false;
+    const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+    return contentType.startsWith("image/") || hasImageSignature(bytes);
   } catch {
     return false;
   }
@@ -69,15 +144,19 @@ function parseIconLinks(
 ): { href: string; size: number }[] {
   const results: { href: string; size: number }[] = [];
   // Match <link> tags with rel containing "icon" or "apple-touch-icon"
-  const linkRegex =
-    /<link\s[^>]*rel\s*=\s*["'](?:[^"']*\b(?:icon|apple-touch-icon)\b[^"']*)["'][^>]*>/gi;
+  const linkRegex = /<link\b[^>]*>/gi;
   let match;
   while ((match = linkRegex.exec(html)) !== null) {
     const tag = match[0];
+    const relMatch = tag.match(/\brel\s*=\s*(?:["']([^"']+)["']|([^\s>]+))/i);
+    const rel = (relMatch?.[1] ?? relMatch?.[2] ?? "").toLowerCase().split(/\s+/);
+    if (!rel.some((token) => token === "icon" || token === "apple-touch-icon" || token === "apple-touch-icon-precomposed" || token === "mask-icon")) {
+      continue;
+    }
     // Extract href
-    const hrefMatch = tag.match(/href\s*=\s*["']([^"']+)["']/i);
+    const hrefMatch = tag.match(/\bhref\s*=\s*(?:["']([^"']+)["']|([^\s>]+))/i);
     if (!hrefMatch) continue;
-    let href = hrefMatch[1];
+    let href = hrefMatch[1] ?? hrefMatch[2];
 
     // Resolve relative URLs
     try {
@@ -87,7 +166,7 @@ function parseIconLinks(
     }
 
     // Extract sizes (e.g. "180x180", "any")
-    const sizesMatch = tag.match(/sizes\s*=\s*["']([^"']+)["']/i);
+    const sizesMatch = tag.match(/\bsizes\s*=\s*["']([^"']+)["']/i);
     let size = 0;
     if (sizesMatch) {
       const sizeStr = sizesMatch[1];
@@ -229,6 +308,7 @@ async function searchSvglIcon(domain: string): Promise<FaviconResult | null> {
 
 async function resolveForDomain(domain: string): Promise<FaviconResult> {
   const baseUrl = `https://${domain}`;
+  let pageUrl = baseUrl;
 
   // Tier 1: apple-touch-icon.png
   const ati = `${baseUrl}/apple-touch-icon.png`;
@@ -252,6 +332,7 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
       resp.ok &&
       resp.headers.get("content-type")?.includes("text/html")
     ) {
+      pageUrl = resp.url || baseUrl;
       const reader = resp.body?.getReader();
       if (reader) {
         const decoder = new TextDecoder();
@@ -269,7 +350,7 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
 
   if (html) {
     // Parse <link> icon tags
-    const icons = parseIconLinks(html, baseUrl);
+    const icons = parseIconLinks(html, pageUrl);
     for (const icon of icons) {
       if (await isValidIcon(icon.href)) {
         return { iconUrl: icon.href, source: "html-link" };
@@ -284,7 +365,7 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
     );
     if (manifestMatch) {
       try {
-        const manifestUrl = new URL(manifestMatch[1], baseUrl).href;
+        const manifestUrl = new URL(manifestMatch[1], pageUrl).href;
         const mResp = await fetchWithTimeout(manifestUrl);
         if (mResp.ok) {
           const mText = await mResp.text();
@@ -301,25 +382,32 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
     }
   }
 
-  // Tier 5: SVGL brand logo library
+  // Tier 5: Browser-standard implicit favicon path. Browsers try this even
+  // when a page has no explicit <link rel="icon"> declaration.
+  const conventionalFavicon = new URL("/favicon.ico", pageUrl).href;
+  if (await isValidIcon(conventionalFavicon)) {
+    return { iconUrl: conventionalFavicon, source: "favicon-ico" };
+  }
+
+  // Tier 6: SVGL brand logo library
   const svgl = await searchSvglIcon(domain);
   if (svgl) {
     return svgl;
   }
 
-  // Tier 6: Icon Horse
+  // Tier 7: Icon Horse
   const iconHorse = `https://icon.horse/icon/${domain}`;
   if (await isValidIcon(iconHorse)) {
     return { iconUrl: iconHorse, source: "icon-horse" };
   }
 
-  // Tier 7: DuckDuckGo
+  // Tier 8: DuckDuckGo
   const ddg = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
   if (await isValidIcon(ddg)) {
     return { iconUrl: ddg, source: "duckduckgo" };
   }
 
-  // Tier 8: Google S2 (always available, even for garbage domains)
+  // Tier 9: Google S2 (always available, even for garbage domains)
   return {
     iconUrl: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
     source: "google-s2",
@@ -329,8 +417,8 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
 // --- Public actions ---
 
 export const resolveFavicon = action({
-  args: { url: v.string() },
-  handler: async (ctx, { url }): Promise<FaviconResult> => {
+  args: { url: v.string(), forceRefresh: v.optional(v.boolean()) },
+  handler: async (ctx, { url, forceRefresh }): Promise<FaviconResult> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -344,7 +432,7 @@ export const resolveFavicon = action({
 
     // Check cache
     const cached = await ctx.runQuery(internal.faviconCache.getCachedFavicon, { domain });
-    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    if (!forceRefresh && cached && isFreshCacheEntry(cached)) {
       return { iconUrl: cached.iconUrl, source: cached.source };
     }
 
@@ -399,7 +487,7 @@ export const resolveFaviconBulk = action({
       // Check cache (unless force refresh)
       if (!forceRefresh) {
         const cached = await ctx.runQuery(internal.faviconCache.getCachedFavicon, { domain });
-        if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+        if (cached && isFreshCacheEntry(cached)) {
           domainResults.set(domain, {
             iconUrl: cached.iconUrl,
             source: cached.source,

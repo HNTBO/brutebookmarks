@@ -151,6 +151,31 @@ test.describe('App loads', () => {
   });
 });
 
+test.describe('Responsive breakpoint transitions', () => {
+  test('rebuilds mobile tab groups and card grids when widening to desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 900 });
+    await setupWithTwoTabGroups(page);
+
+    await expect(page.locator('.tab-group-mobile')).toHaveCount(2);
+    await expect(page.locator('.tab-group-mobile .bookmarks-grid').first()).toHaveAttribute(
+      'style',
+      /grid-template-columns: repeat\(5, 1fr\)/,
+    );
+
+    await page.setViewportSize({ width: 1200, height: 900 });
+
+    await expect(page.locator('.tab-group-mobile')).toHaveCount(0);
+    await expect(page.locator('.tab-group')).toHaveCount(2);
+    await expect(page.locator('.tab-group .bookmarks-grid').first()).toHaveAttribute(
+      'style',
+      /grid-template-columns: repeat\(auto-fill, minmax\(90px, 1fr\)\)/,
+    );
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.style.getPropertyValue('--bar-height'),
+    )).toBe('44px');
+  });
+});
+
 test.describe('Bookmark card click', () => {
   test('clicking a card opens its URL in a new tab', async ({ page, context }) => {
     await setupLocalMode(page);

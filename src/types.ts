@@ -36,4 +36,5 @@ export interface UserPreferences {
   showCardNames: boolean;
   autofillUrl: boolean;
   openBookmarksInNewTab: boolean;
+  useBruteProfilePicture: boolean;
 }

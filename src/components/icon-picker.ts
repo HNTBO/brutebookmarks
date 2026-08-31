@@ -1,5 +1,8 @@
 import { styledAlert } from './modals/confirm-modal';
 import { escapeHtml } from '../utils/escape-html';
+import { isConvexMode } from '../data/store';
+import { getConvexClient } from '../data/convex-client';
+import { api } from '../../convex/_generated/api';
 
 let selectedIconUrl: string | null = null;
 let selectedIconPath: string | null = null;
@@ -30,6 +33,7 @@ export function detectIconType(iconPath: string | null | undefined): IconSourceT
   if (iconPath.includes('upload.wikimedia.org') || iconPath.includes('commons.wikimedia.org')) return 'wikimedia';
   if (iconPath.includes('twemoji') || iconPath.includes('cdn.jsdelivr.net/gh/twitter/twemoji')) return 'emoji';
   if (iconPath.startsWith('data:')) return 'custom';
+  if (/^https?:\/\//i.test(iconPath)) return 'favicon';
   return null;
 }
 
@@ -111,10 +115,27 @@ export async function useFavicon(): Promise<void> {
 
   try {
     const domain = new URL(url).hostname;
-    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    let faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    const sourceEl = document.getElementById('icon-source')!;
+    sourceEl.textContent = 'Finding favicon...';
+
+    if (isConvexMode()) {
+      const client = getConvexClient();
+      if (client) {
+        try {
+          const result = await client.action(api.favicons.resolveFavicon, { url, forceRefresh: true });
+          if (result.iconUrl) faviconUrl = result.iconUrl;
+        } catch {
+          // Keep Google S2 as a resilient client-side fallback.
+        }
+      }
+    }
+
+    if ((document.getElementById('bookmark-url') as HTMLInputElement).value !== url) return;
+
     selectedIconPath = faviconUrl;
     (document.getElementById('preview-icon') as HTMLImageElement).src = faviconUrl;
-    document.getElementById('icon-source')!.textContent = 'Favicon';
+    sourceEl.textContent = 'Favicon';
     (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = faviconUrl;
     setActiveIconButton('favicon');
   } catch {

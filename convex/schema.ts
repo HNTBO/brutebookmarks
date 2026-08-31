@@ -51,6 +51,7 @@ export default defineSchema({
     showCardNames: v.boolean(),
     autofillUrl: v.optional(v.boolean()),
     openBookmarksInNewTab: v.optional(v.boolean()),
+    useBruteProfilePicture: v.optional(v.boolean()),
     foundingMemberSince: v.optional(v.float64()),
     updatedAt: v.float64(),
   }).index('by_user', ['userId']),
