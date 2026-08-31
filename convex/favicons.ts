@@ -4,6 +4,7 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { isPrivateHost, safeFetch } from "./ssrf_guard";
+import { parseIconLinks } from "./favicon_candidates";
 
 const FETCH_TIMEOUT = 4000;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -50,7 +51,13 @@ async function fetchWithTimeout(
 }
 
 function isFreshCacheEntry(cached: { fetchedAt: number; source: string }): boolean {
-  const isProviderFallback = ["icon-horse", "duckduckgo", "google-s2"].includes(cached.source);
+  const isProviderFallback = [
+    "apple-touch-icon",
+    "html-link",
+    "icon-horse",
+    "duckduckgo",
+    "google-s2",
+  ].includes(cached.source);
   const ttl = isProviderFallback ? FALLBACK_CACHE_TTL_MS : CACHE_TTL_MS;
   return Date.now() - cached.fetchedAt < ttl;
 }
@@ -135,59 +142,6 @@ async function isValidIcon(url: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-// Parse <link> tags from HTML to find icon declarations
-function parseIconLinks(
-  html: string,
-  baseUrl: string,
-): { href: string; size: number }[] {
-  const results: { href: string; size: number }[] = [];
-  // Match <link> tags with rel containing "icon" or "apple-touch-icon"
-  const linkRegex = /<link\b[^>]*>/gi;
-  let match;
-  while ((match = linkRegex.exec(html)) !== null) {
-    const tag = match[0];
-    const relMatch = tag.match(/\brel\s*=\s*(?:["']([^"']+)["']|([^\s>]+))/i);
-    const rel = (relMatch?.[1] ?? relMatch?.[2] ?? "").toLowerCase().split(/\s+/);
-    if (!rel.some((token) => token === "icon" || token === "apple-touch-icon" || token === "apple-touch-icon-precomposed" || token === "mask-icon")) {
-      continue;
-    }
-    // Extract href
-    const hrefMatch = tag.match(/\bhref\s*=\s*(?:["']([^"']+)["']|([^\s>]+))/i);
-    if (!hrefMatch) continue;
-    let href = hrefMatch[1] ?? hrefMatch[2];
-
-    // Resolve relative URLs
-    try {
-      href = new URL(href, baseUrl).href;
-    } catch {
-      continue;
-    }
-
-    // Extract sizes (e.g. "180x180", "any")
-    const sizesMatch = tag.match(/\bsizes\s*=\s*["']([^"']+)["']/i);
-    let size = 0;
-    if (sizesMatch) {
-      const sizeStr = sizesMatch[1];
-      const dimMatch = sizeStr.match(/(\d+)x(\d+)/);
-      if (dimMatch) {
-        size = Math.max(parseInt(dimMatch[1], 10), parseInt(dimMatch[2], 10));
-      }
-    }
-
-    results.push({ href, size });
-  }
-
-  // Sort by size descending (largest first), unknown (0) last
-  results.sort((a, b) => {
-    if (a.size === 0 && b.size === 0) return 0;
-    if (a.size === 0) return 1;
-    if (b.size === 0) return -1;
-    return b.size - a.size;
-  });
-
-  return results;
 }
 
 // Parse web app manifest for icons
@@ -309,20 +263,6 @@ async function searchSvglIcon(domain: string): Promise<FaviconResult | null> {
 async function resolveForDomain(domain: string): Promise<FaviconResult> {
   const baseUrl = `https://${domain}`;
   let pageUrl = baseUrl;
-
-  // Tier 1: apple-touch-icon.png
-  const ati = `${baseUrl}/apple-touch-icon.png`;
-  if (await isValidIcon(ati)) {
-    return { iconUrl: ati, source: "apple-touch-icon" };
-  }
-
-  // Tier 2: apple-touch-icon-precomposed.png
-  const atip = `${baseUrl}/apple-touch-icon-precomposed.png`;
-  if (await isValidIcon(atip)) {
-    return { iconUrl: atip, source: "apple-touch-icon" };
-  }
-
-  // Tier 3: Fetch HTML, parse <link> icons
   let html = "";
   try {
     const resp = await fetchWithTimeout(baseUrl, {
@@ -348,16 +288,51 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
     // Page fetch failed — continue to fallback tiers
   }
 
+  const pageIcons = html ? parseIconLinks(html, pageUrl) : [];
+
   if (html) {
-    // Parse <link> icon tags
-    const icons = parseIconLinks(html, pageUrl);
-    for (const icon of icons) {
+    // Tier 1: Browser-declared favicons. These are what tabs/sidebars use,
+    // and are more likely to retain transparency than Apple/PWA tiles.
+    for (const icon of pageIcons.filter((candidate) => candidate.kind === "favicon")) {
       if (await isValidIcon(icon.href)) {
-        return { iconUrl: icon.href, source: "html-link" };
+        return { iconUrl: icon.href, source: "html-favicon" };
       }
     }
+  }
 
-    // Tier 4: Web App Manifest
+  // Tier 2: Browser-standard implicit favicon path.
+  const conventionalFavicon = new URL("/favicon.ico", pageUrl).href;
+  if (await isValidIcon(conventionalFavicon)) {
+    return { iconUrl: conventionalFavicon, source: "favicon-ico" };
+  }
+
+  // Tier 3: Declared Apple touch icons, only after browser favicon options.
+  for (const icon of pageIcons.filter((candidate) => candidate.kind === "apple-touch-icon")) {
+    if (await isValidIcon(icon.href)) {
+      return { iconUrl: icon.href, source: "apple-touch-icon" };
+    }
+  }
+
+  // Tier 4: Conventional Apple touch paths.
+  for (const iconUrl of [
+    new URL("/apple-touch-icon.png", pageUrl).href,
+    new URL("/apple-touch-icon-precomposed.png", pageUrl).href,
+  ]) {
+    if (await isValidIcon(iconUrl)) {
+      return { iconUrl, source: "apple-touch-icon" };
+    }
+  }
+
+  // Tier 5: Safari mask icons. They can still be a useful transparent SVG,
+  // but often depend on a browser-supplied color.
+  for (const icon of pageIcons.filter((candidate) => candidate.kind === "mask-icon")) {
+    if (await isValidIcon(icon.href)) {
+      return { iconUrl: icon.href, source: "mask-icon" };
+    }
+  }
+
+  if (html) {
+    // Tier 6: Web App Manifest
     const manifestMatch = html.match(
       /<link\s[^>]*rel\s*=\s*["']manifest["'][^>]*href\s*=\s*["']([^"']+)["'][^>]*>/i,
     ) ?? html.match(
@@ -382,32 +357,25 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
     }
   }
 
-  // Tier 5: Browser-standard implicit favicon path. Browsers try this even
-  // when a page has no explicit <link rel="icon"> declaration.
-  const conventionalFavicon = new URL("/favicon.ico", pageUrl).href;
-  if (await isValidIcon(conventionalFavicon)) {
-    return { iconUrl: conventionalFavicon, source: "favicon-ico" };
-  }
-
-  // Tier 6: SVGL brand logo library
+  // Tier 7: SVGL brand logo library
   const svgl = await searchSvglIcon(domain);
   if (svgl) {
     return svgl;
   }
 
-  // Tier 7: Icon Horse
+  // Tier 8: Icon Horse
   const iconHorse = `https://icon.horse/icon/${domain}`;
   if (await isValidIcon(iconHorse)) {
     return { iconUrl: iconHorse, source: "icon-horse" };
   }
 
-  // Tier 8: DuckDuckGo
+  // Tier 9: DuckDuckGo
   const ddg = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
   if (await isValidIcon(ddg)) {
     return { iconUrl: ddg, source: "duckduckgo" };
   }
 
-  // Tier 9: Google S2 (always available, even for garbage domains)
+  // Tier 10: Google S2 (always available, even for garbage domains)
   return {
     iconUrl: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
     source: "google-s2",
