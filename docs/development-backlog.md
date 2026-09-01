@@ -30,11 +30,13 @@ Planned shape:
 
 Specific remaining work:
 
-- Implement the Chromium path using Clerk Chrome Extension SDK primitives such as `createClerkClient` and Sync Host.
 - Define and implement the non-Chromium fallback path.
-- Refactor popup and future extension entrypoints to request fresh auth on demand.
 - Add focused tests and manual verification scripts for token expiry, browser restart, sign-out propagation, reconnect flows, and at least one fallback path.
 - Add enough observability to diagnose auth drift in production without exposing sensitive tokens.
+- Verify both published extension origins in production Clerk `allowed_origins`, publish the Clerk-enabled builds, and run the browser-level rollout matrix.
+- Enable Clerk Native API for the production instance. It was disabled during the August 12, 2026 dashboard audit.
+- Retrieve and track the New Tab developer public key if stable unpacked-build IDs are required.
+- Decide whether to upgrade Clerk from Hobby to Pro to increase the production maximum session lifetime from the current 7 days (inactivity timeout is currently disabled).
 
 Dependencies and order:
 

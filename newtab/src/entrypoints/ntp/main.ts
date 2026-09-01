@@ -1,6 +1,6 @@
 import './style.css';
 import backIconSvg from '../../../../src/assets/back.svg?raw';
-import { getClient, setAuthToken } from '../../lib/api';
+import { runAuthenticatedRequest, setAuthToken } from '../../lib/api';
 import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
 import { updateActionIconForTheme } from '../../lib/action-icon';
@@ -139,6 +139,20 @@ async function loadNativeFallback(): Promise<void> {
   if (!token) {
     if (showingCachedSnapshot) return;
 
+    const refreshFailure = extensionAuth.getLastRefreshFailure();
+    if (refreshFailure === 'offline') {
+      showStatus('You are offline', 'Open a new tab when your connection returns to refresh bookmarks.', false);
+      return;
+    }
+    if (refreshFailure === 'transient') {
+      showStatus('Refresh temporarily unavailable', 'Your session was not disconnected. Try again shortly.', true);
+      return;
+    }
+    if (refreshFailure === 'misconfigured') {
+      showStatus('Extension update required', 'This build cannot refresh authentication. Update or reinstall the extension.', true);
+      return;
+    }
+
     const authState = await extensionAuth.getAuthState();
     if (authState.state === 'expired') {
       showStatus('Session expired', 'Open BruteBookmarks once to reconnect the extension fallback.', true);
@@ -180,8 +194,9 @@ async function applyCachedTheme(): Promise<void> {
 
 async function fetchAndCacheTheme(): Promise<void> {
   try {
-    const client = getClient();
-    const prefs = await client.query('preferences:get' as any, {}) as any;
+    const prefs = await runAuthenticatedRequest(
+      (client) => client.query('preferences:get' as any, {}) as Promise<any>,
+    );
     if (!prefs) return;
 
     const theme = prefs.theme === 'light' || prefs.theme === 'auto' ? prefs.theme : 'dark';
@@ -320,18 +335,18 @@ function mountFallbackShell(): void {
 }
 
 async function fetchCategories(): Promise<Category[]> {
-  const client = getClient();
-  const [categories, tabGroups] = await Promise.all([
+  const [categories, tabGroups] = await runAuthenticatedRequest((client) => Promise.all([
     client.query('categories:list' as any, {}) as Promise<Category[]>,
     client.query('tabGroups:list' as any, {}) as Promise<TabGroup[]>,
-  ]);
+  ]));
 
   return orderCategories(categories, tabGroups);
 }
 
 async function fetchBookmarks(): Promise<Bookmark[]> {
-  const client = getClient();
-  return await client.query('bookmarks:listAll' as any, {}) as Bookmark[];
+  return await runAuthenticatedRequest(
+    (client) => client.query('bookmarks:listAll' as any, {}) as Promise<Bookmark[]>,
+  );
 }
 
 function orderCategories(categories: Category[], tabGroups: TabGroup[]): Category[] {

@@ -2,22 +2,20 @@
 
 ## Why this exists
 
-The current extension authentication model is good enough for initial popup use, but it is not durable enough for long-lived extension surfaces such as a future new-tab extension.
+The original extension authentication model stored a single Convex JWT in `browser.storage.local` and treated that cached token as authentication truth. That was not durable enough for the Quick Save popup or the New Tab extension.
 
-Today the extension stores a single Convex JWT in `browser.storage.local` and treats that cached token as the extension's auth state. The token is minted by the web app and relayed through the content script bridge when a `brutebookmarks.com` tab is open.
+Chromium production builds now use Clerk's background client and Sync Host to renew Convex tokens on demand. The stored token remains a short-lived cache, while the website bridge remains a fallback for Firefox and recovery flows.
 
-That means the extension does **not** currently own session renewal.
-
-## Current flow
+## Current Chromium flow
 
 1. The user signs into `brutebookmarks.com` with Clerk.
-2. The web app calls `clerk.session.getToken({ template: 'convex' })`.
-3. The web app posts `BB_EXT_AUTH` to the page.
-4. The content script relays the token to the background worker as `BB_AUTH_TOKEN`.
-5. The background worker stores the token in `browser.storage.local`.
-6. The popup reads the stored token and sends it to `ConvexHttpClient`.
+2. The extension asks its background worker for a usable Convex token.
+3. The background worker creates Clerk's background client with the production publishable key and `https://clerk.brutebookmarks.com` Sync Host.
+4. Clerk syncs the website session and mints a fresh `convex` template token.
+5. The worker updates the short-lived local cache and returns the token.
+6. Authenticated Convex operations re-check token validity, refresh within 30 seconds of expiry, and retry one authentication failure once.
 
-## Failure mode
+## Original failure mode
 
 The cached Convex token expires after some time, but the extension can only get a fresh one if the website is open and able to answer `BB_EXT_REQUEST_TOKEN`.
 
@@ -27,7 +25,7 @@ Practical consequence:
 - after expiry, the extension falls back to reconnect/onboarding
 - users experience re-auth every few days even if their Clerk web session is still valid
 
-This is acceptable as a temporary bridge, but not as the foundation for a second extension that would run on every new tab.
+This failure mode remains relevant only for unsupported/fallback builds or until a Clerk-enabled extension update is published.
 
 ## Constraints
 
@@ -57,43 +55,41 @@ Use Clerk's extension-native session sync so extension contexts can mint or refr
 
 Retain the existing site bridge for browsers where the Chromium path is unavailable, but isolate it behind the same adapter.
 
-## First step shipped in this session
+## Implemented
 
-- Added this architecture note.
-- Introduced a shared extension auth module as the seam for future work.
-- Refactored the popup to ask the auth module for a valid token instead of treating storage as the source of truth.
-- Added one silent background refresh attempt for expired tokens before showing onboarding.
+- Shared auth adapters are used by Quick Save and New Tab.
+- Chromium uses `createClerkClient({ background: true, syncHost })`.
+- Production public configuration is tracked in each package's `.env.production`.
+- Production Chrome builds fail when the Clerk key, stable Quick Save key, Sync Host, `cookies`, or Clerk host permissions are missing.
+- JWT payloads are decoded as base64url, near-expiry tokens refresh proactively, concurrent refreshes are deduplicated, and Convex auth failures retry once.
+- Offline, transient Clerk failure, invalid build configuration, and genuine sign-out are distinct UI states.
+- `@clerk/chrome-extension` is pinned to the tested `3.1.63` release.
 
-## Chromium groundwork
+## Production identifiers
 
-The next step is an optional Chromium-native refresh path:
-
-- background worker can try Clerk's extension client to mint a fresh Convex token
-- shared auth adapter tries that path first on Chromium
-- existing website bridge remains the fallback for Firefox and unsupported setups
+- Quick Save: `opkpophbbkkmdjnfedbpcmoajhfebbho` (reproduced by tracked `CRX_PUBLIC_KEY`).
+- New Tab: `iplabfiejeppdjkecmeicegjeenlglin` in the Chrome Web Store. The published Store artifact does not expose a manifest key, so clean unpacked builds will not reproduce this ID until the developer key is copied from the Store dashboard.
 
 This path is config-sensitive and remains additive until fully verified in production.
 
 ### Activation notes
 
-- Extension builds read Clerk extension auth config from the package-local `.env`, not the repo-root `.env`.
-- For Quick Save, use `quicksave/.env` and `CRX_PUBLIC_KEY=...`.
-- For New Tab, use `newtab/.env` and `CRX_PUBLIC_KEY_NEWTAB=...`.
+- Production values are in package-local `.env.production` files. Ignored `.env` files are development overrides only.
 - Chromium refresh only activates when the Chrome build has `VITE_CLERK_PUBLISHABLE_KEY`.
 - `VITE_CLERK_FRONTEND_API` stays optional; when omitted, the extension derives the Clerk frontend host from the publishable key.
-- `VITE_CLERK_SYNC_HOST` should point at the web app origin whose cookies carry the signed-in Clerk session.
-- If `VITE_CLERK_SYNC_HOST` is omitted, the extension defaults to `VITE_APP_URL`, then `https://brutebookmarks.com`.
+- Production `VITE_CLERK_SYNC_HOST` points at `https://clerk.brutebookmarks.com`, matching the Clerk Frontend API domain.
 
 ### Remaining rollout work
 
-- configure a consistent extension ID/CRX key so Clerk allowed origins remain stable
-- add the extension origin to Clerk `allowed_origins`
-- validate the Chrome manifest with the final production Clerk host permissions before rollout
+- Verify that both `chrome-extension://opkpophbbkkmdjnfedbpcmoajhfebbho` and `chrome-extension://iplabfiejeppdjkecmeicegjeenlglin` are present in the production Clerk instance's `allowed_origins`.
+- Enable Native API in the production Clerk instance, as required by Clerk's current Chrome Extension deployment guide. It was disabled when inspected on August 12, 2026.
+- Copy the New Tab developer public key from the Chrome Web Store dashboard if reproducible unpacked IDs are required.
+- Publish Clerk-enabled updates and manually verify browser restart, token expiry, website sign-out propagation, offline mode, and recovery.
+- The production instance is on Clerk Hobby with the default 7-day maximum session lifetime and no inactivity timeout. A custom 30-day lifetime requires upgrading to Pro; it would reduce genuine sign-ins but does not replace background token renewal.
 
 ### Operator checklist
 
-1. Upload the extension zip to the Chrome Developer Dashboard and copy the public key from the package page.
-2. Put that value in the relevant package `.env` as `CRX_PUBLIC_KEY=...` for Quick Save or `CRX_PUBLIC_KEY_NEWTAB=...` for New Tab.
-3. Build or load the unpacked Chrome extension and note the resulting extension ID from `chrome://extensions`.
-4. Add `chrome-extension://<that-id>` to Clerk `allowed_origins` for the matching Clerk instance.
-5. Set `VITE_CLERK_SYNC_HOST` to the app origin that carries the Clerk session cookies if it differs from `https://brutebookmarks.com`.
+1. Build with `npm run build` inside the package.
+2. Inspect `.output/chrome-mv3/manifest.json` for `cookies` and `https://clerk.brutebookmarks.com/*`.
+3. Confirm the Store extension origin is in production Clerk `allowed_origins`.
+4. Load or publish the build and run the manual expiry/restart/sign-out scenarios above.

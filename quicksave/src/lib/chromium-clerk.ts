@@ -45,19 +45,50 @@ export function isChromiumClerkRefreshSupported(): boolean {
   return IS_CHROMIUM_BUILD && !!CLERK_PUBLISHABLE_KEY;
 }
 
-export async function getFreshChromiumConvexToken(): Promise<string | null> {
-  if (!isChromiumClerkRefreshSupported()) return null;
+export type ChromiumTokenFailureReason = 'signed_out' | 'offline' | 'transient' | 'misconfigured';
+
+export type ChromiumTokenResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: ChromiumTokenFailureReason; message: string };
+
+export async function getFreshChromiumConvexToken(): Promise<ChromiumTokenResult> {
+  if (!isChromiumClerkRefreshSupported()) {
+    return {
+      ok: false,
+      reason: 'misconfigured',
+      message: 'Chromium Clerk refresh is not configured in this build.',
+    };
+  }
 
   const publishableKey = getClerkPublishableKey();
-  if (!publishableKey) return null;
+  if (!publishableKey) {
+    return { ok: false, reason: 'misconfigured', message: 'Clerk publishable key is missing.' };
+  }
 
-  const { createClerkClient } = await import('@clerk/chrome-extension/client');
-  const clerk = await createClerkClient({
-    publishableKey,
-    background: true,
-    syncHost: getClerkSyncHost() ?? undefined,
-  });
+  try {
+    const { createClerkClient } = await import('@clerk/chrome-extension/client');
+    const clerk = await createClerkClient({
+      publishableKey,
+      background: true,
+      syncHost: getClerkSyncHost() ?? undefined,
+    });
 
-  if (!clerk.session) return null;
-  return await clerk.session.getToken({ template: 'convex' });
+    if (!clerk.session) {
+      return { ok: false, reason: 'signed_out', message: 'No signed-in Clerk session is available.' };
+    }
+
+    const token = await clerk.session.getToken({ template: 'convex' });
+    if (!token) {
+      return { ok: false, reason: 'transient', message: 'Clerk did not return a Convex token.' };
+    }
+    return { ok: true, token };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    return {
+      ok: false,
+      reason: offline || /network|fetch|offline/i.test(message) ? 'offline' : 'transient',
+      message,
+    };
+  }
 }

@@ -137,11 +137,31 @@ function mountUserButton(): void {
     const container = document.getElementById(id) as HTMLDivElement | null;
     if (!container) continue;
     const mount = container.querySelector<HTMLDivElement>('.clerk-user-button-mount') ?? container;
-    if (!mountedUserButtonTargets.has(mount)) {
-      clerk.mountUserButton(mount, { afterSignOutUrl: '/' });
+
+    // The DOM marker survives a re-evaluated module (for example after an HMR
+    // update), while the WeakSet above does not. Without it, a second Clerk
+    // root can be appended to the same target and show two profile pictures.
+    const alreadyMounted = mount.dataset.clerkUserButtonMounted === 'true'
+      || mount.querySelector('.cl-userButtonRootBox, .cl-userButtonTrigger') !== null;
+
+    if (!mountedUserButtonTargets.has(mount) && !alreadyMounted) {
+      // Mark before calling Clerk so concurrent/re-entrant initialization is
+      // also idempotent. Clerk's mountUserButton API is synchronous.
+      mount.dataset.clerkUserButtonMounted = 'true';
       mountedUserButtonTargets.add(mount);
-      monitorAvatarImage(container, mount);
+      try {
+        clerk.mountUserButton(mount, { afterSignOutUrl: '/' });
+      } catch (error) {
+        delete mount.dataset.clerkUserButtonMounted;
+        mountedUserButtonTargets.delete(mount);
+        throw error;
+      }
+    } else if (alreadyMounted) {
+      mount.dataset.clerkUserButtonMounted = 'true';
+      mountedUserButtonTargets.add(mount);
     }
+
+    monitorAvatarImage(container, mount);
   }
 }
 

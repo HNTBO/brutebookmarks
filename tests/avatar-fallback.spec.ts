@@ -76,6 +76,24 @@ test('shows a loaded Clerk image, restores fallback on failure, and mounts once'
   await expect(desktopAvatar.locator('.default-avatar-overlay')).toBeVisible();
 });
 
+test('does not duplicate the Clerk profile button when the auth module is re-evaluated', async ({ page }) => {
+  const avatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32"%3E%3Crect width="32" height="32" fill="red"/%3E%3C/svg%3E';
+  await installAuthenticatedMocks(page, avatar);
+  await page.goto('/');
+
+  await expect.poll(() => page.evaluate(() => (window as any).__avatarMountCount)).toBe(2);
+
+  await page.evaluate(async () => {
+    const freshModuleUrl = '/src/auth/clerk.ts?profile-mount-regression';
+    const freshClerkModule = await import(/* @vite-ignore */ freshModuleUrl);
+    await freshClerkModule.initClerk();
+  });
+
+  await expect.poll(() => page.evaluate(() => (window as any).__avatarMountCount)).toBe(2);
+  await expect(page.locator('#clerk-user-button .cl-userButtonTrigger')).toHaveCount(1);
+  await expect(page.locator('#mobile-avatar-btn .cl-userButtonTrigger')).toHaveCount(1);
+});
+
 test('Use brute picture profile overrides the loaded Clerk photo and persists', async ({ page }) => {
   const avatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32"%3E%3Crect width="32" height="32" fill="red"/%3E%3C/svg%3E';
   await installAuthenticatedMocks(page, avatar);

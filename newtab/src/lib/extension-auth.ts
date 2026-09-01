@@ -1,5 +1,8 @@
-import { clearToken, getAppUrl, getStoredToken, isConnected, TOKEN_KEY } from './auth';
-import { isChromiumClerkRefreshSupported } from './chromium-clerk';
+import { clearToken, getAppUrl, getStoredToken, getTokenExpiry, isConnected, TOKEN_KEY } from './auth';
+import {
+  isChromiumClerkRefreshSupported,
+  type ChromiumTokenFailureReason,
+} from './chromium-clerk';
 
 export type ExtensionAuthState = 'connected' | 'expired' | 'signed_out';
 
@@ -13,6 +16,8 @@ export interface ExtensionAuthAdapter {
   clearSession(): Promise<void>;
   getAuthState(): Promise<ExtensionAuthSnapshot>;
   getValidConvexToken(): Promise<string | null>;
+  refreshConvexToken(): Promise<string | null>;
+  getLastRefreshFailure(): ChromiumTokenFailureReason | null;
   requestFreshTokenFromApp(options?: RefreshTokenOptions): Promise<RefreshTokenResult>;
   subscribeToAuthChanges(listener: (snapshot: ExtensionAuthSnapshot) => void): () => void;
 }
@@ -27,6 +32,9 @@ export type RefreshTokenResult =
   | { ok: false; reason: 'signed_out' | 'timed_out' | 'failed'; message: string };
 
 const DEFAULT_REFRESH_TIMEOUT_MS = 15_000;
+const TOKEN_MIN_VALIDITY_MS = 30_000;
+let lastRefreshFailure: ChromiumTokenFailureReason | null = null;
+let backgroundRefreshPromise: Promise<string | null> | null = null;
 
 export async function getAuthState(): Promise<ExtensionAuthSnapshot> {
   const token = await getStoredToken();
@@ -36,7 +44,7 @@ export async function getAuthState(): Promise<ExtensionAuthSnapshot> {
     return { state: 'signed_out', token: null, expiresAt: null };
   }
 
-  if (!isConnected(token)) {
+  if (!isConnected(token, TOKEN_MIN_VALIDITY_MS)) {
     return { state: 'expired', token, expiresAt };
   }
 
@@ -47,9 +55,19 @@ export async function getValidConvexToken(): Promise<string | null> {
   const snapshot = await getAuthState();
   if (snapshot.state === 'connected') return snapshot.token;
 
-  const refreshed = await requestFreshTokenFromBackground();
-  if (refreshed) return refreshed;
-  return null;
+  return await refreshConvexToken();
+}
+
+export async function refreshConvexToken(): Promise<string | null> {
+  if (backgroundRefreshPromise) return await backgroundRefreshPromise;
+  backgroundRefreshPromise = requestFreshTokenFromBackground().finally(() => {
+    backgroundRefreshPromise = null;
+  });
+  return await backgroundRefreshPromise;
+}
+
+export function getLastRefreshFailure(): ChromiumTokenFailureReason | null {
+  return lastRefreshFailure;
 }
 
 export async function clearSession(): Promise<void> {
@@ -110,6 +128,7 @@ export async function requestFreshTokenFromApp(
       if (typeof rawToken !== 'string' || !isConnected(rawToken)) return;
 
       void getAuthState().then((snapshot) => {
+        lastRefreshFailure = null;
         finish({ ok: true, token: rawToken, snapshot });
       });
     }
@@ -119,31 +138,31 @@ export async function requestFreshTokenFromApp(
 }
 
 async function requestFreshTokenFromBackground(): Promise<string | null> {
-  if (!isChromiumClerkRefreshSupported()) return null;
+  if (!isChromiumClerkRefreshSupported()) {
+    lastRefreshFailure = import.meta.env.BROWSER === 'chrome' ? 'misconfigured' : 'signed_out';
+    return null;
+  }
 
   try {
     const response = await browser.runtime.sendMessage({
       type: 'BB_GET_AUTH_TOKEN',
-    }) as { success?: boolean; token?: string | null };
+    }) as {
+      success?: boolean;
+      token?: string | null;
+      reason?: ChromiumTokenFailureReason;
+    };
 
-    if (typeof response?.token !== 'string' || !isConnected(response.token)) {
+    if (typeof response?.token !== 'string' || !isConnected(response.token, TOKEN_MIN_VALIDITY_MS)) {
+      lastRefreshFailure = response?.reason ?? 'transient';
       return null;
     }
 
+    lastRefreshFailure = null;
     return response.token;
   } catch {
-    return null;
-  }
-}
-
-function getTokenExpiry(token: string | null): number | null {
-  if (!token) return null;
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
-  } catch {
+    lastRefreshFailure = typeof navigator !== 'undefined' && navigator.onLine === false
+      ? 'offline'
+      : 'transient';
     return null;
   }
 }
@@ -152,6 +171,8 @@ export const extensionAuth: ExtensionAuthAdapter = {
   clearSession,
   getAuthState,
   getValidConvexToken,
+  refreshConvexToken,
+  getLastRefreshFailure,
   requestFreshTokenFromApp,
   subscribeToAuthChanges,
 };

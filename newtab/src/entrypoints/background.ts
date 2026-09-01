@@ -137,11 +137,18 @@ export default defineBackground(() => {
     ) => {
       if (message.type === 'BB_GET_AUTH_TOKEN') {
         getFreshChromiumConvexToken()
-          .then(async (token) => {
-            if (token) {
-              await storeToken(token);
+          .then(async (result) => {
+            if (result.ok) {
+              await storeToken(result.token);
+              sendResponse({ success: true, token: result.token });
+              return;
             }
-            sendResponse({ success: true, token });
+            sendResponse({
+              success: false,
+              token: null,
+              reason: result.reason,
+              error: result.message,
+            });
           })
           .catch((err) => {
             console.error('[Background] Chromium auth refresh failed:', err);

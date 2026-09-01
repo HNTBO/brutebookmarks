@@ -1,4 +1,4 @@
-import { getClient, setAuthToken } from '../../lib/api';
+import { runAuthenticatedRequest, setAuthToken } from '../../lib/api';
 import { getAppUrl } from '../../lib/auth';
 import { extensionAuth } from '../../lib/extension-auth';
 import { updateActionIconForTheme } from '../../lib/action-icon';
@@ -55,8 +55,9 @@ function applyTheme(t: CachedTheme): void {
 
 async function fetchAndCacheTheme(): Promise<void> {
   try {
-    const client = getClient();
-    const prefs = await client.query('preferences:get' as any, {}) as any;
+    const prefs = await runAuthenticatedRequest(
+      (client) => client.query('preferences:get' as any, {}) as Promise<any>,
+    );
     if (!prefs) return;
 
     const theme = prefs.theme === 'light' || prefs.theme === 'auto' ? prefs.theme : 'dark';
@@ -126,11 +127,10 @@ interface TabGroup {
 }
 
 async function fetchCategories(): Promise<Category[]> {
-  const client = getClient();
-  const [categories, tabGroups] = await Promise.all([
+  const [categories, tabGroups] = await runAuthenticatedRequest((client) => Promise.all([
     client.query('categories:list' as any, {}) as Promise<Category[]>,
     client.query('tabGroups:list' as any, {}) as Promise<TabGroup[]>,
-  ]);
+  ]));
 
   // Replicate main app visual order: ungrouped categories and tab groups
   // are sorted together by their order values. Categories inside a group
@@ -168,8 +168,9 @@ async function fetchCategories(): Promise<Category[]> {
 }
 
 async function fetchBookmarks(): Promise<Bookmark[]> {
-  const client = getClient();
-  const result = await client.query('bookmarks:listAll' as any, {});
+  const result = await runAuthenticatedRequest(
+    (client) => client.query('bookmarks:listAll' as any, {}),
+  );
   return result as Bookmark[];
 }
 
@@ -186,12 +187,11 @@ async function createBookmark(categoryId: string, title: string, url: string): P
     return;
   }
 
-  const client = getClient();
-  await client.mutation('bookmarks:create' as any, {
-    categoryId,
-    title,
-    url,
-  });
+  await runAuthenticatedRequest((client) => client.mutation('bookmarks:create' as any, {
+      categoryId,
+      title,
+      url,
+    }));
 }
 
 // --- Check if URL already saved ---
@@ -418,6 +418,19 @@ function showErrorWithReconnect(message: string): void {
   showView('error');
 }
 
+function getAuthRefreshErrorMessage(): string | null {
+  switch (extensionAuth.getLastRefreshFailure()) {
+    case 'offline':
+      return 'You appear to be offline. Cached bookmarks remain available; try again when connected.';
+    case 'transient':
+      return 'Authentication refresh is temporarily unavailable. Your session was not disconnected.';
+    case 'misconfigured':
+      return 'This extension build cannot refresh authentication. Update or reinstall the extension.';
+    default:
+      return null;
+  }
+}
+
 async function reconnect(): Promise<void> {
   const reconnectBtn = document.getElementById('reconnect-btn')!;
   reconnectBtn.textContent = 'Reconnecting…';
@@ -456,6 +469,11 @@ async function run(): Promise<void> {
       }
 
       if (!token) {
+        const refreshError = getAuthRefreshErrorMessage();
+        if (refreshError) {
+          showErrorWithReconnect(refreshError);
+          return;
+        }
         showView('onboarding');
         return;
       }
