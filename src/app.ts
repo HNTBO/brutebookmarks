@@ -132,8 +132,11 @@ export function renderApp(): void {
           </div>
 
           <div class="modal-actions">
-            <button type="button" class="modal-btn cancel" id="bookmark-cancel-btn">Cancel</button>
-            <button type="submit" class="modal-btn save">Save Bookmark</button>
+            <button type="button" class="modal-btn delete hidden" id="delete-bookmark-btn">Delete</button>
+            <div class="modal-actions-right">
+              <button type="button" class="modal-btn cancel" id="bookmark-cancel-btn">Cancel</button>
+              <button type="submit" class="modal-btn save">Save Bookmark</button>
+            </div>
           </div>
         </form>
       </div>

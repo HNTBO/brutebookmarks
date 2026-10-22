@@ -69,6 +69,7 @@ async function fetchAndSetTitle(url: string): Promise<void> {
 export async function openAddBookmarkModal(categoryId: string): Promise<void> {
   editingBookmarkId = null;
   document.getElementById('bookmark-modal-title')!.textContent = 'Add Bookmark';
+  document.getElementById('delete-bookmark-btn')!.classList.add('hidden');
   (document.getElementById('bookmark-title') as HTMLInputElement).value = '';
   (document.getElementById('bookmark-url') as HTMLInputElement).value = '';
   (document.getElementById('bookmark-category-id') as HTMLInputElement).value = categoryId;
@@ -106,6 +107,7 @@ export function openEditBookmarkModal(categoryId: string, bookmarkId: string): v
   if (!bookmark) return;
 
   document.getElementById('bookmark-modal-title')!.textContent = 'Edit Bookmark';
+  document.getElementById('delete-bookmark-btn')!.classList.remove('hidden');
   (document.getElementById('bookmark-title') as HTMLInputElement).value = bookmark.title;
   (document.getElementById('bookmark-url') as HTMLInputElement).value = bookmark.url;
   (document.getElementById('bookmark-category-id') as HTMLInputElement).value = categoryId;
@@ -184,12 +186,21 @@ export async function deleteBookmark(categoryId: string, bookmarkId: string): Pr
   }
 }
 
+async function deleteBookmarkFromModal(): Promise<void> {
+  if (!editingBookmarkId) return;
+  if (await styledConfirm('Delete this bookmark?', 'Delete Bookmark')) {
+    await deleteBookmarkById(editingBookmarkId);
+    closeBookmarkModal();
+  }
+}
+
 export function initBookmarkModal(): void {
   registerModal('bookmark-modal', closeBookmarkModal);
 
   // Close button
   document.getElementById('bookmark-modal-close')!.addEventListener('click', closeBookmarkModal);
   document.getElementById('bookmark-cancel-btn')!.addEventListener('click', closeBookmarkModal);
+  document.getElementById('delete-bookmark-btn')!.addEventListener('click', deleteBookmarkFromModal);
 
   // Form submit
   document.getElementById('bookmark-form')!.addEventListener('submit', saveBookmark);

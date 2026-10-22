@@ -545,12 +545,14 @@ a.btn:visited {
     transform: rotate(-90deg) scale(0.85);
 }
 
-body.control-add-mode .tab-group-action-btn .group-action-edit {
+body.control-add-mode .tab-group-action-btn .group-action-edit,
+body.control-add-mode .bookmark-action-btn .group-action-edit {
     opacity: 0;
     transform: rotate(45deg) scale(0.85);
 }
 
-body.control-add-mode .tab-group-action-btn .group-action-add {
+body.control-add-mode .tab-group-action-btn .group-action-add,
+body.control-add-mode .bookmark-action-btn .bookmark-action-delete {
     opacity: 1;
     transform: rotate(0deg) scale(1);
 }
@@ -712,11 +714,11 @@ body.control-add-mode .tab-group-action-btn .group-action-add {
     font-weight: 500;
 }
 
-/* Edit button — size driven by --btn-size custom prop (set in JS from card size) */
+/* Bookmark action button (edit, or delete while Ctrl/Cmd is held) — size driven by --btn-size custom prop (set in JS from card size) */
 .edit-btn {
     position: absolute;
     top: 4px;
-    left: 4px;
+    right: 4px;
     width: var(--btn-size, 20px);
     height: var(--btn-size, 20px);
     background: var(--bg-primary);
@@ -745,37 +747,15 @@ body.control-add-mode .tab-group-action-btn .group-action-add {
     color: var(--bg-primary);
 }
 
-/* Delete button — size driven by --btn-size custom prop (set in JS from card size) */
-.delete-btn {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: var(--btn-size, 20px);
-    height: var(--btn-size, 20px);
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity var(--duration-normal) ease, background var(--duration-normal) ease;
-    z-index: var(--z-card-btn);
-    pointer-events: none;
-}
-
-.bookmark-card .delete-btn.visible,
-.bookmark-card:focus-within .delete-btn {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.delete-btn:hover {
+body.control-add-mode .edit-btn:hover {
     background: var(--danger);
     border-color: var(--danger);
-    color: var(--bg-primary);
+}
+
+.bookmark-action-delete {
+    font-size: 12px;
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.85);
 }
 
 /* Modal - Stark overlay */
@@ -1566,9 +1546,8 @@ footer {
         gap: var(--space-xs);
     }
 
-    /* Hide edit/delete buttons */
-    .edit-btn,
-    .delete-btn {
+    /* Hide bookmark action button */
+    .edit-btn {
         display: none !important;
     }
 

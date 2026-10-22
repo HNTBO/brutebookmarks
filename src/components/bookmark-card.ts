@@ -3,15 +3,12 @@ import { getOpenBookmarksInNewTab } from '../features/preferences';
 import { LONG_PRESS_DELAY, DRAG_THRESHOLD, LONG_PRESS_CANCEL_DISTANCE, MENU_SWIPE_DISMISS } from '../utils/interaction-constants';
 
 // Cache button element references per card to avoid repeated querySelector calls
-const btnCache = new WeakMap<HTMLElement, { edit: HTMLElement | null; delete: HTMLElement | null }>();
+const btnCache = new WeakMap<HTMLElement, HTMLElement | null>();
 
-function getCachedBtns(card: HTMLElement) {
+function getCachedActionBtn(card: HTMLElement): HTMLElement | null {
   let cached = btnCache.get(card);
-  if (!cached) {
-    cached = {
-      edit: card.querySelector<HTMLElement>('.edit-btn'),
-      delete: card.querySelector<HTMLElement>('.delete-btn'),
-    };
+  if (cached === undefined) {
+    cached = card.querySelector<HTMLElement>('.bookmark-action-btn');
     btnCache.set(card, cached);
   }
   return cached;
@@ -27,20 +24,12 @@ export function handleCardPointerMove(e: PointerEvent): void {
   // Proximity radius scales with card size (matches CSS % button sizing)
   const proximityRadius = Math.max(25, rect.width * 0.35);
 
-  const { edit: editBtn, delete: deleteBtn } = getCachedBtns(card);
-
-  if (editBtn) {
-    const br = editBtn.getBoundingClientRect();
+  const actionBtn = getCachedActionBtn(card);
+  if (actionBtn) {
+    const br = actionBtn.getBoundingClientRect();
     const dx = e.clientX - (br.left + br.width / 2);
     const dy = e.clientY - (br.top + br.height / 2);
-    editBtn.classList.toggle('visible', Math.sqrt(dx * dx + dy * dy) <= proximityRadius);
-  }
-
-  if (deleteBtn) {
-    const br = deleteBtn.getBoundingClientRect();
-    const dx = e.clientX - (br.left + br.width / 2);
-    const dy = e.clientY - (br.top + br.height / 2);
-    deleteBtn.classList.toggle('visible', Math.sqrt(dx * dx + dy * dy) <= proximityRadius);
+    actionBtn.classList.toggle('visible', Math.sqrt(dx * dx + dy * dy) <= proximityRadius);
   }
 }
 
@@ -48,10 +37,7 @@ export function handleCardPointerLeave(e: PointerEvent): void {
   if (e.pointerType === 'touch') return;
 
   const card = e.currentTarget as HTMLElement;
-  const { edit: editBtn, delete: deleteBtn } = getCachedBtns(card);
-
-  if (editBtn) editBtn.classList.remove('visible');
-  if (deleteBtn) deleteBtn.classList.remove('visible');
+  getCachedActionBtn(card)?.classList.remove('visible');
 }
 
 type BookmarkOpenOptions = {

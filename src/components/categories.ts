@@ -293,8 +293,10 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
              data-index="${index}"
              data-url="${escapeHtml(bookmark.url)}"
              ${nameOnHover ? `title="${escapeHtml(bookmark.title)}"` : ''}>
-          <button class="edit-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">✎</button>
-          <button class="delete-btn" data-action="delete-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}">×</button>
+          <button class="edit-btn bookmark-action-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}" title="Edit bookmark. Hold Ctrl to delete" aria-label="Edit bookmark">
+            <span class="group-action-icon group-action-edit" aria-hidden="true">✎</span>
+            <span class="group-action-icon bookmark-action-delete" aria-hidden="true">×</span>
+          </button>
           <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" draggable="false" referrerpolicy="no-referrer" ${!bookmark.iconPath || bookmark.iconPath.includes('google.com/s2/favicons') ? 'data-auto-icon' : ''}>
           <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         </div>

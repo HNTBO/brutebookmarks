@@ -187,19 +187,16 @@ document.getElementById('categories-container')!.addEventListener('click', (e) =
     return;
   }
 
-  // Edit bookmark button
+  // Bookmark action button: edit, or delete while Ctrl/Cmd is held
   const editBookmarkBtn = target.closest('[data-action="edit-bookmark"]') as HTMLElement | null;
   if (editBookmarkBtn) {
     e.stopPropagation();
-    openEditBookmarkModal(editBookmarkBtn.dataset.categoryId!, editBookmarkBtn.dataset.bookmarkId!);
-    return;
-  }
-
-  // Delete bookmark button
-  const deleteBookmarkBtn = target.closest('[data-action="delete-bookmark"]') as HTMLElement | null;
-  if (deleteBookmarkBtn) {
-    e.stopPropagation();
-    deleteBookmark(deleteBookmarkBtn.dataset.categoryId!, deleteBookmarkBtn.dataset.bookmarkId!);
+    const { categoryId, bookmarkId } = editBookmarkBtn.dataset;
+    if (e.ctrlKey || e.metaKey) {
+      deleteBookmark(categoryId!, bookmarkId!);
+    } else {
+      openEditBookmarkModal(categoryId!, bookmarkId!);
+    }
     return;
   }
 });
@@ -210,6 +207,10 @@ function syncControlAddMode(active: boolean): void {
     button.title = active
       ? button.dataset.groupId ? 'Add tab to this group' : 'Add tab beside this category'
       : button.dataset.groupId ? 'Edit tab. Hold Ctrl to add a tab' : 'Edit category. Hold Ctrl to add a tab';
+  });
+  document.querySelectorAll<HTMLElement>('.bookmark-action-btn').forEach((button) => {
+    button.title = active ? 'Delete bookmark' : 'Edit bookmark. Hold Ctrl to delete';
+    button.setAttribute('aria-label', active ? 'Delete bookmark' : 'Edit bookmark');
   });
 }
 
