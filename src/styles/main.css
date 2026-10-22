@@ -131,7 +131,7 @@ html, body {
     --shadow-accent: 4px 4px 0 var(--accent);
 
     /* Card hover highlights instead of darkening: brighter tile */
-    --card-hover-bg: color-mix(in srgb, var(--bg-primary), white 70%);
+    --card-hover-bg: color-mix(in srgb, var(--bg-primary), white 35%);
 
     --overlay-bg: rgba(0, 0, 0, 0.7);
     --overlay-heavy: rgba(0, 0, 0, 0.85);
