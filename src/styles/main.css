@@ -70,6 +70,12 @@ html, body {
     --shadow-lg: 8px 8px 0 var(--bg-primary);
     --shadow-accent: 4px 4px 0 var(--accent);
 
+    /* Bookmark card hover — lifted tile with a hard offset */
+    --card-hover-bg: var(--bg-hover);
+    --card-hover-sheen: var(--accent-glow);
+    --card-hover-shadow: 6px 6px 0 var(--accent);
+    --card-active-shadow: var(--shadow-accent);
+
     /* Overlays */
     --overlay-bg: rgba(0, 0, 0, 0.9);
     --overlay-heavy: rgba(0, 0, 0, 0.95);
@@ -124,6 +130,10 @@ html, body {
     --shadow-md: 6px 6px 0 rgba(0,0,0,0.05);
     --shadow-lg: 8px 8px 0 rgba(0,0,0,0.02);
     --shadow-accent: 4px 4px 0 var(--accent);
+
+    /* Card hover highlights instead of darkening: brighter tile and white sheen */
+    --card-hover-bg: color-mix(in srgb, var(--bg-primary), white 70%);
+    --card-hover-sheen: rgba(255, 255, 255, 0.9);
 
     --overlay-bg: rgba(0, 0, 0, 0.7);
     --overlay-heavy: rgba(0, 0, 0, 0.85);
@@ -609,16 +619,16 @@ body.control-add-mode .bookmark-action-btn .bookmark-action-delete {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, transparent 50%, var(--accent-glow) 100%);
+    background: linear-gradient(135deg, transparent 50%, var(--card-hover-sheen) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .bookmark-card:hover {
-    background: var(--bg-hover);
+    background: var(--card-hover-bg);
     border-color: var(--accent);
     transform: translate(-2px, -2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--card-hover-shadow);
 }
 
 .bookmark-card:hover::before {
@@ -627,7 +637,7 @@ body.control-add-mode .bookmark-action-btn .bookmark-action-delete {
 
 .bookmark-card:active {
     transform: translate(-2px, -2px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--card-active-shadow);
 }
 
 /* Add bookmark card */
@@ -1693,7 +1703,7 @@ footer {
 /* Long-press active state (mobile context menu trigger) */
 .bookmark-card.long-press-active {
     transform: scale(1.05) translate(-2px, -2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--card-hover-shadow);
     border-color: var(--accent);
     z-index: 5;
 }
