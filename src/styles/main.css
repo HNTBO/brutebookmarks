@@ -72,7 +72,6 @@ html, body {
 
     /* Bookmark card hover — lifted tile with a hard offset */
     --card-hover-bg: var(--bg-hover);
-    --card-hover-sheen: var(--accent-glow);
     --card-hover-shadow: 6px 6px 0 var(--accent);
     --card-active-shadow: var(--shadow-accent);
 
@@ -131,9 +130,8 @@ html, body {
     --shadow-lg: 8px 8px 0 rgba(0,0,0,0.02);
     --shadow-accent: 4px 4px 0 var(--accent);
 
-    /* Card hover highlights instead of darkening: brighter tile and white sheen */
+    /* Card hover highlights instead of darkening: brighter tile */
     --card-hover-bg: color-mix(in srgb, var(--bg-primary), white 70%);
-    --card-hover-sheen: rgba(255, 255, 255, 0.9);
 
     --overlay-bg: rgba(0, 0, 0, 0.7);
     --overlay-heavy: rgba(0, 0, 0, 0.85);
@@ -615,24 +613,11 @@ body.control-add-mode .bookmark-action-btn .bookmark-action-delete {
     container-type: inline-size; /* For scaling children */
 }
 
-.bookmark-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, transparent 50%, var(--card-hover-sheen) 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
 .bookmark-card:hover {
     background: var(--card-hover-bg);
     border-color: var(--accent);
     transform: translate(-2px, -2px);
     box-shadow: var(--card-hover-shadow);
-}
-
-.bookmark-card:hover::before {
-    opacity: 1;
 }
 
 .bookmark-card:active {
@@ -652,10 +637,6 @@ body.control-add-mode .bookmark-action-btn .bookmark-action-delete {
 .bookmark-card.add-bookmark:hover {
     border-color: var(--accent);
     background: var(--accent-glow);
-}
-
-.bookmark-card.add-bookmark::before {
-    display: none;
 }
 
 .bookmark-icon {
