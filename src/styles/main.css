@@ -1806,6 +1806,11 @@ body.dragging {
     -webkit-user-drag: none;
 }
 
+/* Flat letter view cards can't be reordered */
+.letter-view .bookmark-card:not(.add-bookmark) {
+    cursor: pointer;
+}
+
 .bookmark-card:not(.add-bookmark):active {
     cursor: grabbing;
 }

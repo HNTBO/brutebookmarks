@@ -20,6 +20,9 @@ export const HOVER_SWITCH_DELAY = 400;
 /** Post-drag click guard duration (prevents URL open after desktop drag). */
 export const CLICK_GUARD_TIMEOUT = 100;
 
+/** Max gap between two presses of the same letter to open the flat letter view. */
+export const LETTER_DOUBLE_PRESS_WINDOW = 400;
+
 // --- Distance thresholds (px) ---
 
 /** Mouse/pen drag starts after moving this far from pointerdown. */

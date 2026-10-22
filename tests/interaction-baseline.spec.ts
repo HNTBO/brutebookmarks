@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { LETTER_DOUBLE_PRESS_WINDOW } from '../src/utils/interaction-constants';
 
 /**
  * Baseline interaction test suite.
@@ -635,18 +636,48 @@ test.describe('Tab group switching', () => {
     await expect(page.locator('.tab-group .tab')).toHaveCount(2);
     await expect(page.locator('.category')).toHaveCount(1);
 
+    // Wait out the double-press window so the next press toggles instead of flattening
+    await page.waitForTimeout(LETTER_DOUBLE_PRESS_WINDOW + 100);
     await page.keyboard.press('KeyG');
 
     await expect(page.locator('#categories-container')).not.toHaveAttribute('data-bookmark-initial-filter', /.+/);
     await expect(page.locator('.bookmark-card:not(.add-bookmark)')).toHaveCount(3);
 
+    await page.waitForTimeout(LETTER_DOUBLE_PRESS_WINDOW + 100);
     await page.keyboard.press('KeyG');
     await expect(page.locator('#categories-container')).toHaveAttribute('data-bookmark-initial-filter', 'g');
+    await expect(page.locator('#categories-container')).toHaveAttribute('data-bookmark-filter-mode', 'category');
 
     await page.keyboard.press('Escape');
 
     await expect(page.locator('#categories-container')).not.toHaveAttribute('data-bookmark-initial-filter', /.+/);
     await expect(page.locator('.bookmark-card:not(.add-bookmark)')).toHaveCount(3);
+  });
+
+  test('double letter press flattens all categories into one letter view', async ({ page }) => {
+    await setupWithTabGroups(page);
+    const container = page.locator('#categories-container');
+
+    await page.keyboard.press('KeyG');
+    await page.keyboard.press('KeyG');
+
+    await expect(container).toHaveAttribute('data-bookmark-filter-mode', 'flat');
+    await expect(page.locator('.tab-group')).toHaveCount(0);
+    await expect(page.locator('.letter-view')).toHaveCount(1);
+    // Includes bookmarks from inactive tabs, sorted alphabetically
+    await expect(page.locator('.letter-view .bookmark-title')).toHaveText(['GitHub', 'Google']);
+
+    await page.waitForTimeout(LETTER_DOUBLE_PRESS_WINDOW + 100);
+    await page.keyboard.press('KeyR');
+    await expect(container).toHaveAttribute('data-bookmark-filter-mode', 'flat');
+    await expect(page.locator('.letter-view .bookmark-title')).toHaveText(['Reddit']);
+
+    await page.waitForTimeout(LETTER_DOUBLE_PRESS_WINDOW + 100);
+    await page.keyboard.press('KeyR');
+
+    await expect(container).not.toHaveAttribute('data-bookmark-initial-filter', /.+/);
+    await expect(page.locator('.tab-group')).toHaveCount(1);
+    await expect(bookmarkCards(page)).toHaveCount(3);
   });
 
   test('mouse back and forward buttons navigate tabbed categories', async ({ page }) => {

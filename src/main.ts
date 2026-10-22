@@ -1,7 +1,9 @@
 import './styles/main.css';
 import { renderApp } from './app';
 import { initializeData, setRenderCallback, setPreferencesCallback, setPreferencesCollector, activateConvex, getSnapshotCacheMeta, hasConvexHydrated, setSyncWatermark, getCategories, getLayoutItems, flushDeferredLocalPersistence, createBookmark as createStoreBookmark, isConvexMode } from './data/store';
-import { getBookmarkInitialFilter, navigateTabbedCategory, renderCategories, renderStartupShell, setBookmarkInitialFilter } from './components/categories';
+import { applyBookmarkLetterKey, clearBookmarkInitialFilter, getBookmarkInitialFilter, navigateTabbedCategory, renderCategories, renderStartupShell } from './components/categories';
+import { createDoublePressDetector } from './features/letter-filter';
+import { LETTER_DOUBLE_PRESS_WINDOW } from './utils/interaction-constants';
 import { consumeLongPressGuard } from './components/bookmark-card';
 import { dragController } from './features/drag-drop';
 import { initSizeController } from './components/header';
@@ -248,7 +250,8 @@ document.addEventListener('keydown', (e) => {
   if (shouldHandleBookmarkLetterFilter(e)) {
     const filterLetter = getKeyboardFilterLetter(e);
     if (filterLetter) {
-      setBookmarkInitialFilter(filterLetter);
+      // Held keys auto-repeat; only a fresh press should toggle or double-tap
+      if (!e.repeat) applyBookmarkLetterKey(filterLetter, isLetterDoublePress(filterLetter, e.timeStamp));
       e.preventDefault();
       return;
     }
@@ -261,7 +264,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (shouldClearBookmarkLetterFilter(e) && setBookmarkInitialFilter(null)) {
+  if (shouldClearBookmarkLetterFilter(e) && clearBookmarkInitialFilter()) {
     e.preventDefault();
     return;
   }
@@ -324,6 +327,9 @@ function shouldHandleBookmarkLetterFilter(e: KeyboardEvent): boolean {
     && !dragController.active
     && normalizeKeyboardLetter(e.key) !== null;
 }
+
+// Pressing the same letter twice quickly opens the flat view across all categories
+const isLetterDoublePress = createDoublePressDetector(LETTER_DOUBLE_PRESS_WINDOW);
 
 function getKeyboardFilterLetter(e: KeyboardEvent): string | null {
   return normalizeKeyboardLetter(e.key);

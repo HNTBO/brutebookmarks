@@ -1,5 +1,5 @@
 import { getCategories, getLayoutItems } from '../data/store';
-import type { Category, TabGroup } from '../types';
+import type { Bookmark, Category, TabGroup } from '../types';
 import { getIconUrl, FALLBACK_ICON } from '../utils/icons';
 import { escapeHtml } from '../utils/escape-html';
 import { getCardGap, getCardSize, getShowCardNames, getShowNameOnHover, getBtnSize, getMobileColumns } from '../features/preferences';
@@ -7,6 +7,7 @@ import { handleCardPointerMove, handleCardPointerLeave, initLongPress, initAddCa
 import { dragController, initDragListeners } from '../features/drag-drop';
 import { TAB_SWIPE_THRESHOLD, TAB_SWIPE_VERTICAL_CANCEL } from '../utils/interaction-constants';
 import { attachDragTracking } from '../utils/pointer-tracker';
+import { nextLetterFilterState, NO_LETTER_FILTER, type LetterFilterState } from '../features/letter-filter';
 
 // Cached media query for mobile breakpoint (lazy-init for Node test compat)
 let _mobileQuery: MediaQueryList | null = null;
@@ -19,7 +20,7 @@ const ACTIVE_TAB_STORAGE_KEY = 'activeTabPerGroup';
 
 // Track active tab per group so re-renders and reloads return to the last used tab.
 const activeTabPerGroup = readStoredActiveTabs();
-let activeBookmarkInitialFilter: string | null = null;
+let letterFilter: LetterFilterState = NO_LETTER_FILTER;
 let pointerTabGroupId: string | null = null;
 let fallbackTabGroupId: string | null = null;
 
@@ -33,18 +34,22 @@ export function setActiveTab(groupId: string, categoryId: string): void {
 }
 
 export function getBookmarkInitialFilter(): string | null {
-  return activeBookmarkInitialFilter;
+  return letterFilter.letter;
 }
 
-export function setBookmarkInitialFilter(letter: string | null): boolean {
-  const nextFilter = normalizeInitial(letter ?? '') || null;
-  if (nextFilter && nextFilter === activeBookmarkInitialFilter) {
-    activeBookmarkInitialFilter = null;
-    renderCategories();
-    return true;
-  }
-  if (nextFilter === activeBookmarkInitialFilter) return false;
-  activeBookmarkInitialFilter = nextFilter;
+/** Apply a letter key press: filter per category, open the flat view on a double press, or clear. */
+export function applyBookmarkLetterKey(letter: string, isDoublePress: boolean): void {
+  const initial = normalizeInitial(letter);
+  if (!initial) return;
+  const next = nextLetterFilterState(letterFilter, initial, isDoublePress);
+  if (next.letter === letterFilter.letter && next.mode === letterFilter.mode) return;
+  letterFilter = next;
+  renderCategories();
+}
+
+export function clearBookmarkInitialFilter(): boolean {
+  if (!letterFilter.letter) return false;
+  letterFilter = NO_LETTER_FILTER;
   renderCategories();
   return true;
 }
@@ -103,8 +108,8 @@ function normalizeInitial(value: string): string {
 }
 
 function bookmarkMatchesInitialFilter(title: string): boolean {
-  if (!activeBookmarkInitialFilter) return true;
-  return normalizeInitial(title) === activeBookmarkInitialFilter;
+  if (!letterFilter.letter) return true;
+  return normalizeInitial(title) === letterFilter.letter;
 }
 
 function rotateToActive(categories: Category[], activeId: string): Category[] {
@@ -271,29 +276,29 @@ function initTabSwipe(
   });
 }
 
-function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
+type GridEntry = { bookmark: Bookmark; categoryId: string; index: number };
+
+function bookmarksGridStyle(currentCardSize: number): string {
   const mobile = mobileQuery().matches;
   const gap = mobile ? getCardGap(60) : getCardGap(currentCardSize);
   const cols = mobile ? `repeat(${getMobileColumns()}, 1fr)` : `repeat(auto-fill, minmax(${currentCardSize}px, 1fr))`;
+  return `grid-template-columns: ${cols}; gap: ${gap}px; --btn-size: ${getBtnSize(currentCardSize)}px;`;
+}
+
+function renderBookmarkCards(entries: GridEntry[], showCardNames: boolean): string {
   const nameOnHover = getShowNameOnHover();
-  const btnSize = getBtnSize(currentCardSize);
-  const filteredBookmarks = category.bookmarks
-    .map((bookmark, index) => ({ bookmark, index }))
-    .filter(({ bookmark }) => bookmarkMatchesInitialFilter(bookmark.title));
-  return `
-    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="grid-template-columns: ${cols}; gap: ${gap}px; --btn-size: ${btnSize}px;">
-      ${filteredBookmarks
-        .map(
-          ({ bookmark, index }) => `
+  return entries
+    .map(
+      ({ bookmark, categoryId, index }) => `
         <div class="bookmark-card ${!showCardNames ? 'hide-title' : ''}"
              tabindex="0"
              role="link"
              data-bookmark-id="${escapeHtml(bookmark.id)}"
-             data-category-id="${escapeHtml(category.id)}"
+             data-category-id="${escapeHtml(categoryId)}"
              data-index="${index}"
              data-url="${escapeHtml(bookmark.url)}"
              ${nameOnHover ? `title="${escapeHtml(bookmark.title)}"` : ''}>
-          <button class="edit-btn bookmark-action-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(category.id)}" data-bookmark-id="${escapeHtml(bookmark.id)}" title="Edit bookmark. Hold Ctrl to delete" aria-label="Edit bookmark">
+          <button class="edit-btn bookmark-action-btn" data-action="edit-bookmark" data-category-id="${escapeHtml(categoryId)}" data-bookmark-id="${escapeHtml(bookmark.id)}" title="Edit bookmark. Hold Ctrl to delete" aria-label="Edit bookmark">
             <span class="group-action-icon group-action-edit" aria-hidden="true">✎</span>
             <span class="group-action-icon bookmark-action-delete" aria-hidden="true">×</span>
           </button>
@@ -301,9 +306,18 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
           <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         </div>
       `,
-        )
-        .join('')}
-      ${activeBookmarkInitialFilter ? '' : `
+    )
+    .join('');
+}
+
+function renderBookmarksGrid(category: Category, currentCardSize: number, showCardNames: boolean): string {
+  const entries = category.bookmarks
+    .map((bookmark, index) => ({ bookmark, categoryId: category.id, index }))
+    .filter(({ bookmark }) => bookmarkMatchesInitialFilter(bookmark.title));
+  return `
+    <div class="bookmarks-grid" data-category-id="${escapeHtml(category.id)}" style="${bookmarksGridStyle(currentCardSize)}">
+      ${renderBookmarkCards(entries, showCardNames)}
+      ${letterFilter.letter ? '' : `
       <div class="bookmark-card add-bookmark" data-action="add-bookmark" data-category-id="${escapeHtml(category.id)}">
         <div class="plus-icon">+</div>
         <div class="add-bookmark-text">Add</div>
@@ -313,7 +327,8 @@ function renderBookmarksGrid(category: Category, currentCardSize: number, showCa
   `;
 }
 
-function wireBookmarkCards(el: HTMLElement): void {
+function wireBookmarkCards(el: HTMLElement, options: { draggable?: boolean } = {}): void {
+  const { draggable = true } = options;
   // Fallback icon for broken images (replaces inline onerror)
   el.querySelectorAll<HTMLImageElement>('.bookmark-icon').forEach((img) => {
     img.addEventListener('error', () => { img.src = FALLBACK_ICON; }, { once: true });
@@ -335,7 +350,7 @@ function wireBookmarkCards(el: HTMLElement): void {
     card.addEventListener('pointerleave', handleCardPointerLeave);
     // Prevent native browser drag (img/link) from stealing pointer events
     card.addEventListener('dragstart', (e) => e.preventDefault());
-    initLongPress(card);
+    if (draggable) initLongPress(card);
 
     card.addEventListener('click', (e) => {
       if (consumeLongPressGuard()) return;
@@ -413,6 +428,31 @@ function initTabDrag(tab: HTMLElement): void {
       }
     },
   });
+}
+
+/** Flat letter view: every bookmark starting with the letter, across all categories. */
+function renderFlatLetterView(letter: string, currentCardSize: number, showCardNames: boolean): HTMLElement {
+  const entries = getCategories()
+    .flatMap((category) => category.bookmarks.map((bookmark, index) => ({ bookmark, categoryId: category.id, index })))
+    .filter(({ bookmark }) => bookmarkMatchesInitialFilter(bookmark.title))
+    .sort((a, b) => a.bookmark.title.localeCompare(b.bookmark.title, undefined, { sensitivity: 'base' }));
+
+  const viewEl = document.createElement('div');
+  viewEl.className = 'category letter-view';
+  viewEl.innerHTML = `
+    <div class="category-header">
+      <div class="tab-bar">
+        <div class="category-title">${escapeHtml(letter)}</div>
+      </div>
+    </div>
+    ${entries.length > 0
+      ? `<div class="bookmarks-grid" style="${bookmarksGridStyle(currentCardSize)}">${renderBookmarkCards(entries, showCardNames)}</div>`
+      : `<div class="empty-state"><p>No bookmarks start with ${escapeHtml(letter.toUpperCase())}</p></div>`}
+  `;
+
+  // Cards here don't map to one category's order, so reordering is disabled
+  wireBookmarkCards(viewEl, { draggable: false });
+  return viewEl;
 }
 
 function renderSingleCategory(category: Category, currentCardSize: number, showCardNames: boolean): HTMLElement {
@@ -689,10 +729,12 @@ export function renderCategories(): void {
   const container = document.getElementById('categories-container')!;
   container.classList.remove('startup-loading');
   container.innerHTML = '';
-  if (activeBookmarkInitialFilter) {
-    container.dataset.bookmarkInitialFilter = activeBookmarkInitialFilter;
+  if (letterFilter.letter) {
+    container.dataset.bookmarkInitialFilter = letterFilter.letter;
+    container.dataset.bookmarkFilterMode = letterFilter.mode;
   } else {
     delete container.dataset.bookmarkInitialFilter;
+    delete container.dataset.bookmarkFilterMode;
   }
 
   const layoutItems = getLayoutItems();
@@ -716,15 +758,19 @@ export function renderCategories(): void {
 
   const isMobile = mobileQuery().matches;
 
-  items.forEach((item) => {
-    if (item.type === 'category') {
-      container.appendChild(renderSingleCategory(item.category, currentCardSize, showCardNames));
-    } else if (isMobile) {
-      container.appendChild(renderMobileTabGroup(item.group, currentCardSize, showCardNames));
-    } else {
-      container.appendChild(renderTabGroup(item.group, currentCardSize, showCardNames));
-    }
-  });
+  if (letterFilter.letter && letterFilter.mode === 'flat') {
+    container.appendChild(renderFlatLetterView(letterFilter.letter, currentCardSize, showCardNames));
+  } else {
+    items.forEach((item) => {
+      if (item.type === 'category') {
+        container.appendChild(renderSingleCategory(item.category, currentCardSize, showCardNames));
+      } else if (isMobile) {
+        container.appendChild(renderMobileTabGroup(item.group, currentCardSize, showCardNames));
+      } else {
+        container.appendChild(renderTabGroup(item.group, currentCardSize, showCardNames));
+      }
+    });
+  }
 
   // Initialize drag controller once
   if (!dragListenersInitialized) {
