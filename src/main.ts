@@ -277,6 +277,13 @@ document.addEventListener('keyup', (e) => {
 
 window.addEventListener('blur', () => syncControlAddMode(false));
 
+// Key events never reach an unfocused window, but pointer events still carry
+// modifier state, so hovering with Ctrl/Cmd held works without focusing the page.
+document.addEventListener('pointermove', (e) => {
+  const active = e.ctrlKey || e.metaKey;
+  if (active !== document.body.classList.contains('control-add-mode')) syncControlAddMode(active);
+});
+
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
