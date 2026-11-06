@@ -82,10 +82,11 @@ This path is config-sensitive and remains additive until fully verified in produ
 ### Remaining rollout work
 
 - Verify that both `chrome-extension://opkpophbbkkmdjnfedbpcmoajhfebbho` and `chrome-extension://iplabfiejeppdjkecmeicegjeenlglin` are present in the production Clerk instance's `allowed_origins`.
-- Enable Native API in the production Clerk instance, as required by Clerk's current Chrome Extension deployment guide. It was disabled when inspected on August 12, 2026.
+- Native API in the production Clerk instance, required by Clerk's Chrome Extension deployment guide, was enabled on November 6, 2026 (it was disabled on August 12, 2026).
 - Copy the New Tab developer public key from the Chrome Web Store dashboard if reproducible unpacked IDs are required.
 - Publish Clerk-enabled updates and manually verify browser restart, token expiry, website sign-out propagation, offline mode, and recovery.
 - The production instance is on Clerk Hobby with the default 7-day maximum session lifetime and no inactivity timeout. A custom 30-day lifetime requires upgrading to Pro; it would reduce genuine sign-ins but does not replace background token renewal.
+- To soften the weekly expiry without Pro, the website retries sign-in through Google Identity Services with `auto_select` on (`src/auth/google-reauth.ts`) for browsers that last signed in with Google. A deliberate sign-out disables it until the next Google sign-in. Clerk's built-in One Tap component hard-codes `auto_select: false`, so it is not used.
 
 ### Operator checklist
 

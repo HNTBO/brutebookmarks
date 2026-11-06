@@ -4,6 +4,7 @@ type ClerkInstance = import('@clerk/clerk-js').Clerk;
 import { setAppMode } from '../data/local-storage';
 import { BRIDGE_VERSION } from '../shared/bridge-types';
 import type { BridgeMsgDisconnect, BridgeMsgAuth } from '../shared/bridge-types';
+import { guardSignOut, rememberGoogleSignIn, tryGoogleReauth } from './google-reauth';
 
 let clerk: ClerkInstance | null = null;
 const mountedUserButtonTargets = new WeakSet<HTMLElement>();
@@ -96,6 +97,7 @@ export async function initClerk(): Promise<ClerkInstance | null> {
     await clerk.load();
 
     console.log('[Auth] Clerk loaded, user:', clerk.user ? 'signed in' : 'not signed in');
+    guardSignOut(clerk);
 
     if (clerk.user) {
       console.log('[Auth] User:', clerk.user.primaryEmailAddress?.emailAddress);
@@ -103,11 +105,13 @@ export async function initClerk(): Promise<ClerkInstance | null> {
     } else {
       console.log('[Auth] Showing sign-in overlay');
       showSignInOverlay({ showLocalEscape: true });
+      void tryGoogleReauth(clerk);
     }
 
     // Listen for user sign-in/sign-out events
     clerk.addListener(({ user }) => {
       if (user) {
+        if (clerk) rememberGoogleSignIn(clerk);
         removeSignInOverlay();
         mountUserButton();
         if (_signInResolve) {
