@@ -33,7 +33,7 @@ Specific remaining work:
 - Define and implement the non-Chromium fallback path.
 - Add focused tests and manual verification scripts for token expiry, browser restart, sign-out propagation, reconnect flows, and at least one fallback path.
 - Add enough observability to diagnose auth drift in production without exposing sensitive tokens.
-- Verify both published extension origins in production Clerk `allowed_origins`, publish the Clerk-enabled builds, and run the browser-level rollout matrix.
+- Run the browser-level rollout matrix for the published Clerk-enabled builds (both extension origins were added to production `allowed_origins` on November 6, 2026).
 - Retrieve and track the New Tab developer public key if stable unpacked-build IDs are required.
 - Decide whether to upgrade Clerk from Hobby to Pro to increase the production maximum session lifetime from the current 7 days (inactivity timeout is currently disabled).
 

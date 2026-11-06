@@ -81,7 +81,7 @@ This path is config-sensitive and remains additive until fully verified in produ
 
 ### Remaining rollout work
 
-- Verify that both `chrome-extension://opkpophbbkkmdjnfedbpcmoajhfebbho` and `chrome-extension://iplabfiejeppdjkecmeicegjeenlglin` are present in the production Clerk instance's `allowed_origins`.
+- Both `chrome-extension://opkpophbbkkmdjnfedbpcmoajhfebbho` and `chrome-extension://iplabfiejeppdjkecmeicegjeenlglin` were added to the production Clerk instance's `allowed_origins` on November 6, 2026 (it was empty before).
 - Native API in the production Clerk instance, required by Clerk's Chrome Extension deployment guide, was enabled on November 6, 2026 (it was disabled on August 12, 2026).
 - Copy the New Tab developer public key from the Chrome Web Store dashboard if reproducible unpacked IDs are required.
 - Publish Clerk-enabled updates and manually verify browser restart, token expiry, website sign-out propagation, offline mode, and recovery.
