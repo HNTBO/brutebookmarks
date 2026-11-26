@@ -16,7 +16,7 @@ function validateUrl(url: string): void {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error(`Invalid URL scheme: ${parsed.protocol} â€” only http and https are allowed`);
+      throw new Error(`Invalid URL scheme: ${parsed.protocol} — only http and https are allowed`);
     }
   } catch (e) {
     if (e instanceof Error && e.message.startsWith('Invalid URL scheme')) throw e;
