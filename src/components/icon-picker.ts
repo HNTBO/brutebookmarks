@@ -136,12 +136,21 @@ export async function useFavicon(): Promise<void> {
   }
 
   const status = document.getElementById('favicon-status')!;
+  const offlineMessage = 'You’re offline. Reconnect and try again.';
+  if (!navigator.onLine) {
+    status.textContent = offlineMessage;
+    return;
+  }
   status.textContent = 'Finding favicon…';
   const candidate = isConvexMode()
     ? getConvexClient()!.action(api.favicons.resolveFavicon, { url, forceRefresh: true }).then(discoveredIcon)
     : localFavicon(domain);
   const result = await loadFavicon(candidate, signal);
   if (signal.aborted) return;
+  if (result.status !== 'found' && !navigator.onLine) {
+    status.textContent = offlineMessage;
+    return;
+  }
   switch (result.status) {
     case 'found':
       setSelectedIconPath(result.url);
@@ -151,7 +160,7 @@ export async function useFavicon(): Promise<void> {
       setActiveIconButton('favicon');
       status.textContent = 'Favicon selected.';
       break;
-    case 'missing': status.textContent = 'No favicon found.'; break;
+    case 'missing': status.textContent = 'No favicon found, or the image could not be loaded.'; break;
     case 'timeout': status.textContent = 'Favicon lookup timed out.'; break;
     case 'error': status.textContent = 'Favicon lookup failed.'; break;
   }

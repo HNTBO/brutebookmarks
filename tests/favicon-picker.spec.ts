@@ -55,6 +55,15 @@ test('local miss keeps the imported preview, path and provenance through save', 
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('speedDialData')!)[0].bookmarks[0])).toMatchObject(bookmark);
 });
 
+test('offline lookup preserves the icon and explains how to retry', async ({ page, context }) => {
+  await edit(page);
+  await context.setOffline(true);
+  await page.click('#use-favicon-btn');
+  await expect(page.locator('#favicon-status')).toContainText('offline');
+  await expect(page.locator('#bookmark-icon-path')).toHaveValue(custom);
+  await expect(page.locator('#preview-icon')).toHaveAttribute('src', custom);
+});
+
 test('local lookup loads a real 16px icon before selecting it', async ({ page }) => {
   await page.route(provider, route => route.fulfill({ contentType: 'image/svg+xml', body: svg }));
   await edit(page);
