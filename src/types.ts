@@ -3,6 +3,7 @@ export interface Bookmark {
   title: string;
   url: string;
   iconPath: string | null;
+  importedFavicon?: true;
   order?: number;
 }
 

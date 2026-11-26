@@ -5,7 +5,7 @@ import { ConvexHttpClient } from 'convex/browser';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { getIconUrl } from '../../utils/icons';
-import { resetIconPicker, setSelectedIconPath, getSelectedIconPath, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
+import { resetIconPicker, setSelectedIconPath, getSelectedImportedFavicon, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
 import { styledConfirm } from './confirm-modal';
 import { getAutofillUrl } from '../../features/preferences';
 import { escapeHtml } from '../../utils/escape-html';
@@ -114,10 +114,10 @@ export function openEditBookmarkModal(categoryId: string, bookmarkId: string): v
   (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = bookmark.iconPath || '';
 
   if (bookmark.iconPath) {
-    const type = detectIconType(bookmark.iconPath);
+    const type = detectIconType(bookmark.iconPath, bookmark.importedFavicon);
     (document.getElementById('preview-icon') as HTMLImageElement).src = bookmark.iconPath;
     document.getElementById('icon-source')!.textContent = iconTypeLabel(type);
-    setSelectedIconPath(bookmark.iconPath);
+    setSelectedIconPath(bookmark.iconPath, bookmark.importedFavicon);
     setActiveIconButton(type);
   } else {
     (document.getElementById('preview-icon') as HTMLImageElement).src = getIconUrl(bookmark);
@@ -147,7 +147,7 @@ async function saveBookmark(event: Event): Promise<void> {
 
   if (editingBookmarkId) {
     const movedCategory = selectedCategoryId !== originalCategoryId ? selectedCategoryId : undefined;
-    await updateBookmark(editingBookmarkId, title, url, iconPath, movedCategory);
+    await updateBookmark(editingBookmarkId, title, url, iconPath, movedCategory, getSelectedImportedFavicon() ?? false);
   } else {
     const newId = await createBookmark(selectedCategoryId, title, url, iconPath);
     // Auto-fetch favicon if user didn't manually pick an icon

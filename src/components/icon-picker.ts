@@ -6,6 +6,7 @@ import { api } from '../../convex/_generated/api';
 
 let selectedIconUrl: string | null = null;
 let selectedIconPath: string | null = null;
+let selectedImportedFavicon: true | undefined;
 let emojiSearchTimeout: ReturnType<typeof setTimeout>;
 let emojiSearchGeneration = 0;
 let emojiDataPromise: Promise<EmojiEntry[]> | null = null;
@@ -27,12 +28,12 @@ const BUTTON_ID_BY_TYPE: Record<string, string> = {
   custom: 'upload-custom-btn',
 };
 
-export function detectIconType(iconPath: string | null | undefined): IconSourceType {
+export function detectIconType(iconPath: string | null | undefined, importedFavicon?: true): IconSourceType {
   if (!iconPath) return null;
+  if (/^data:/i.test(iconPath)) return importedFavicon === true ? 'favicon' : 'custom';
   if (iconPath.includes('google.com/s2/favicons')) return 'favicon';
   if (iconPath.includes('upload.wikimedia.org') || iconPath.includes('commons.wikimedia.org')) return 'wikimedia';
   if (iconPath.includes('twemoji') || iconPath.includes('cdn.jsdelivr.net/gh/twitter/twemoji')) return 'emoji';
-  if (iconPath.startsWith('data:')) return 'custom';
   if (/^https?:\/\//i.test(iconPath)) return 'favicon';
   return null;
 }
@@ -81,17 +82,18 @@ export function iconTypeLabel(type: IconSourceType): string {
   }
 }
 
-export function getSelectedIconPath(): string | null {
-  return selectedIconPath;
+export function getSelectedImportedFavicon(): true | undefined {
+  return selectedImportedFavicon;
 }
 
-export function setSelectedIconPath(path: string | null): void {
+export function setSelectedIconPath(path: string | null, importedFavicon?: true): void {
   selectedIconPath = path;
+  selectedImportedFavicon = importedFavicon;
 }
 
 export function resetIconPicker(): void {
   selectedIconUrl = null;
-  selectedIconPath = null;
+  setSelectedIconPath(null);
 }
 
 export function handleUrlChange(): void {
@@ -133,7 +135,7 @@ export async function useFavicon(): Promise<void> {
 
     if ((document.getElementById('bookmark-url') as HTMLInputElement).value !== url) return;
 
-    selectedIconPath = faviconUrl;
+    setSelectedIconPath(faviconUrl);
     (document.getElementById('preview-icon') as HTMLImageElement).src = faviconUrl;
     sourceEl.textContent = 'Favicon';
     (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = faviconUrl;
@@ -257,7 +259,7 @@ function selectWikimediaIcon(thumbUrl: string, title: string, index: number): vo
   document.querySelectorAll('#icon-results .icon-result').forEach((el) => el.classList.remove('selected'));
   document.querySelectorAll('#icon-results .icon-result')[index]?.classList.add('selected');
 
-  selectedIconPath = thumbUrl;
+  setSelectedIconPath(thumbUrl);
   (document.getElementById('preview-icon') as HTMLImageElement).src = thumbUrl;
   document.getElementById('icon-source')!.textContent = `Wikimedia: ${title.substring(0, 25)}...`;
   (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = thumbUrl;
@@ -339,7 +341,7 @@ function selectEmoji(codepoint: string, keyword: string, index: number): void {
   document.querySelectorAll('#emoji-results .icon-result')[index]?.classList.add('selected');
 
   const svgUrl = `${TWEMOJI_BASE}${codepoint}.svg`;
-  selectedIconPath = svgUrl;
+  setSelectedIconPath(svgUrl);
   (document.getElementById('preview-icon') as HTMLImageElement).src = svgUrl;
   document.getElementById('icon-source')!.textContent = `Emoji: ${keyword}`;
   (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = svgUrl;
@@ -350,7 +352,7 @@ export async function uploadCustomIcon(file: File): Promise<void> {
 
   try {
     const dataUri = await resizeImageToDataUri(file, 128);
-    selectedIconPath = dataUri;
+    setSelectedIconPath(dataUri);
     (document.getElementById('preview-icon') as HTMLImageElement).src = dataUri;
     document.getElementById('icon-source')!.textContent = `Custom: ${file.name}`;
     (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = dataUri;

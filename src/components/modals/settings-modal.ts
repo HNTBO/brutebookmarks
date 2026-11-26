@@ -15,6 +15,7 @@ import type { Category } from '../../types';
 import { getAppMode } from '../../data/local-storage';
 import { getFoundingMemberStats } from '../../data/founding-stats';
 import { pushUndo } from '../../features/undo';
+import { isImportCapacityError } from '../../shared/import-capacity';
 
 let settingsBusy = false;
 let accentPickerOldColor: string | null = null;
@@ -235,10 +236,17 @@ function importFromFile(): void {
           const content = event.target!.result as string;
           const format = detectFormat(content);
 
-          if (format === 'json') {
-            importedData = parseJSON(content);
-          } else if (format === 'netscape-html') {
-            importedData = parseNetscapeHTML(content);
+          if (format === 'json' || format === 'netscape-html') {
+            const { categories, oversizedImages } = format === 'json' ? parseJSON(content) : parseNetscapeHTML(content);
+            if (oversizedImages > 0) {
+              const images = oversizedImages === 1 ? 'image' : 'images';
+              const skip = await styledConfirm(
+                `This file contains ${oversizedImages} embedded ${images} over the 50,000-character limit. Skip the oversized ${images} and keep all bookmarks and other icons?`,
+                'Oversized images', `Skip oversized ${images}`, 'Cancel',
+              );
+              if (!skip) return;
+            }
+            importedData = categories;
           } else {
             await styledAlert('Unrecognized file format. Please use a JSON backup or browser HTML export.', 'Import');
             return;
@@ -303,19 +311,42 @@ async function executeImport(importedData: Category[]): Promise<void> {
   try {
     await importBulk(importedData, replace);
   } catch (error) {
-    const reason = error instanceof Error && error.name === 'QuotaExceededError'
-      ? 'This browser has insufficient storage for the import.'
-      : error instanceof Error ? error.message : 'Could not save the import.';
-    await styledAlert(`Import failed. ${reason}`, 'Import');
-    return;
+    const reason = importFailureMessage(error);
+    const embeddedCount = importedData.reduce((sum, cat) => sum + cat.bookmarks.filter(b => b.iconPath?.startsWith('data:')).length, 0);
+    if (!isImportCapacityError(error) || !embeddedCount) {
+      await styledAlert(`Import failed. ${reason}`, 'Import');
+      return;
+    }
+    const retry = await styledConfirm(
+      `${reason} Retry ${replace ? 'replacing your library' : 'appending the bookmarks'} without the ${embeddedCount} incoming embedded ${embeddedCount === 1 ? 'image' : 'images'}? All incoming bookmarks and linked icons will be kept.`,
+      'Import', 'Retry without images', 'Cancel',
+    );
+    if (!retry) return;
+    const withoutImages = importedData.map(cat => ({
+      ...cat,
+      bookmarks: cat.bookmarks.map(b => b.iconPath?.startsWith('data:') ? { ...b, iconPath: null, importedFavicon: undefined } : b),
+    }));
+    try {
+      await importBulk(withoutImages, replace);
+    } catch (retryError) {
+      await styledAlert(`Retry failed. ${importFailureMessage(retryError)}`, 'Import');
+      return;
+    }
   }
   if (!isConvexMode()) rerender();
 
   const totalBookmarks = importedData.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
   await styledAlert(
-    `Imported ${importedData.length} categories with ${totalBookmarks} bookmarks.`,
+    `Imported ${importedData.length} ${importedData.length === 1 ? 'category' : 'categories'} with ${totalBookmarks} ${totalBookmarks === 1 ? 'bookmark' : 'bookmarks'}.`,
     'Import',
   );
+}
+
+function importFailureMessage(error: unknown): string {
+  if (isImportCapacityError(error)) {
+    return isConvexMode() ? 'The import exceeds the sync storage limit.' : 'This browser has insufficient storage for the import.';
+  }
+  return error instanceof Error ? error.message : 'Could not save the import.';
 }
 
 async function fetchAllFavicons(): Promise<void> {
@@ -333,7 +364,7 @@ async function fetchAllFavicons(): Promise<void> {
     const allBookmarks: { bookmarkId: string; url: string; title: string; iconPath: string | null }[] = [];
     for (const cat of categories) {
       for (const bk of cat.bookmarks) {
-        const iconType = detectIconType(bk.iconPath);
+        const iconType = detectIconType(bk.iconPath, bk.importedFavicon);
         if (iconType === 'custom' || iconType === 'emoji' || iconType === 'wikimedia') continue;
         try {
           new URL(bk.url); // validate

@@ -23,6 +23,7 @@ export default defineSchema({
     title: v.string(),
     url: v.string(),
     iconPath: v.optional(v.string()),
+    importedFavicon: v.optional(v.literal(true)),
     storageId: v.optional(v.id('_storage')),
     categoryId: v.id('categories'),
     order: v.float64(),

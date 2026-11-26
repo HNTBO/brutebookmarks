@@ -525,7 +525,7 @@ async function importExtensionLocalSnapshot(snapshot: BridgeLocalSnapshot | null
         || bookmark.url.replace(/\/+$/, '').toLowerCase() === normalizedUrl
       ));
       if (!alreadySaved) {
-        await createStoreBookmark(category.id, snapshotBookmark.title, snapshotBookmark.url, snapshotBookmark.iconPath ?? null);
+        await createStoreBookmark(category.id, snapshotBookmark.title, snapshotBookmark.url, snapshotBookmark.iconPath ?? null, snapshotBookmark.importedFavicon);
       }
     }
   }

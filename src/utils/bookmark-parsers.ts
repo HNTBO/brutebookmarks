@@ -37,9 +37,10 @@ export function detectFormat(content: string): Format {
  * Parse Netscape HTML bookmark export format.
  * Used by Chrome, Firefox, Safari, Edge ("Export bookmarks" feature).
  */
-export function parseNetscapeHTML(html: string): Category[] {
+export function parseNetscapeHTML(html: string): { categories: Category[]; oversizedImages: number } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
+  let oversizedImages = 0;
 
   const categories: Category[] = [];
   const orphanBookmarks: Bookmark[] = [];
@@ -79,11 +80,15 @@ export function parseNetscapeHTML(html: string): Category[] {
         if (!href || href.length > MAX_URL_LENGTH || isSkippableUrl(href)) continue;
 
         const title = anchor.textContent?.trim() || '';
+        const rawIcon = anchor.getAttribute('ICON');
+        if (rawIcon && rawIcon.length > MAX_ICON_LENGTH && EMBEDDED_ICON_HEADER.test(rawIcon)) oversizedImages++;
+        const iconPath = embeddedIcon(rawIcon);
         const bookmark: Bookmark = {
           id: 'b' + Date.now() + Math.random().toString(36).slice(2, 6),
           title: title || href,
           url: href,
-          iconPath: embeddedIcon(anchor.getAttribute('ICON')),
+          iconPath,
+          ...(iconPath && { importedFavicon: true }),
         };
 
         if (currentFolderName) {
@@ -137,15 +142,16 @@ export function parseNetscapeHTML(html: string): Category[] {
     addCategory('Imported', orphanBookmarks);
   }
 
-  return categories;
+  return { categories, oversizedImages };
 }
 
 /**
  * Parse JSON bookmark export (Brute Bookmarks native format).
  * Validates the structure matches Category[], enforces URL schemes and field lengths.
  */
-export function parseJSON(content: string): Category[] {
+export function parseJSON(content: string): { categories: Category[]; oversizedImages: number } {
   const data = JSON.parse(content);
+  let oversizedImages = 0;
 
   if (!Array.isArray(data)) {
     throw new Error('Expected an array of categories');
@@ -173,13 +179,15 @@ export function parseJSON(content: string): Category[] {
         if (typeof b.iconPath !== 'string') {
           b.iconPath = null;
         } else if (/^data:/i.test(b.iconPath)) {
+          if (b.iconPath.length > MAX_ICON_LENGTH && EMBEDDED_ICON_HEADER.test(b.iconPath)) oversizedImages++;
           b.iconPath = embeddedIcon(b.iconPath);
         } else if (b.iconPath.length > MAX_URL_LENGTH || !/^https?:\/\//i.test(b.iconPath)) {
           b.iconPath = null;
         }
       }
+      if (b.importedFavicon !== true || !b.iconPath?.startsWith('data:')) delete b.importedFavicon;
     }
   }
 
-  return data as Category[];
+  return { categories: data as Category[], oversizedImages };
 }

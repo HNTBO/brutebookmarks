@@ -189,7 +189,7 @@ export function initConfirmModal(): void {
 
   // Enter → true, Escape → null (dismiss)
   els.modal.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
       e.preventDefault();
       if (_promptResolve) {
         closePrompt(els.input.value);

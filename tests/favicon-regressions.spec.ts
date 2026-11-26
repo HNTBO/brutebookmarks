@@ -22,12 +22,16 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-async function importFile(page: Page, file: { name: string; mimeType: string; buffer: Buffer }) {
+async function importFile(page: Page, file: { name: string; mimeType: string; buffer: Buffer }, expectOversizedImage = false) {
   await page.click('#settings-btn');
   await page.click('#import-data-btn');
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'From File' }).click();
   await (await chooser).setFiles(file);
+  if (expectOversizedImage) {
+    await expect(page.locator('#confirm-modal-message')).toContainText('1 embedded image over the 50,000-character limit');
+    await page.getByRole('button', { name: 'Skip oversized image', exact: true }).click();
+  }
   await page.getByRole('button', { name: 'Replace', exact: true }).click();
   await expect(page.locator('#confirm-modal-message')).toContainText('Imported');
   await page.click('#confirm-modal-ok');
@@ -77,7 +81,7 @@ test('a Netscape HTML icon survives import and reload', async ({ page }) => {
     <DT><A HREF="${site}" ICON="${pngUri.padEnd(50_001, ' ')}">Oversize</A>
     <DT><A HREF="${site.padEnd(2049, 'x')}" ICON="${pngUri}">Long URL</A>
   </DL>`;
-  await importFile(page, { name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(html) });
+  await importFile(page, { name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(html) }, true);
   await page.reload();
   await expectEmbeddedIcon(page, 'Imported PNG', pngUri, 16);
   expect(await storedBookmark(page, 'Long URL')).toBeUndefined();
@@ -94,6 +98,28 @@ test('a genuine 16 × 16 automatic favicon stays on its card', async ({ page }, 
   await testInfo.attach('Automatic bookmark card', { body: await card.screenshot(), contentType: 'image/png' });
   await expect(img).toHaveAttribute('src', automatic);
   expect(await img.evaluate((image: HTMLImageElement) => [image.naturalWidth, image.naturalHeight])).toEqual([16, 16]);
+});
+
+test('a browser icon stays refreshable after editing and restoring a backup alongside an upload', async ({ page }) => {
+  const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><DT><A HREF="${site}" ICON="${pngUri}">Browser</A></DL>`;
+  await importFile(page, { name: 'browser.html', mimeType: 'text/html', buffer: Buffer.from(html) });
+  const uploaded = await upload(page);
+  await page.locator('.bookmark-card').filter({ has: page.getByAltText('Browser', { exact: true }) })
+    .getByRole('button', { name: 'Edit bookmark' }).click({ force: true });
+  await page.fill('#bookmark-title', 'Renamed');
+  await page.getByRole('button', { name: 'Save Bookmark' }).click();
+  await page.click('#settings-btn');
+  const download = page.waitForEvent('download');
+  await page.click('#export-data-btn');
+  const buffer = await readFile((await (await download).path())!);
+  await page.keyboard.press('Escape');
+  await importFile(page, { name: 'backup.json', mimeType: 'application/json', buffer });
+  await page.reload();
+  await page.click('#settings-btn');
+  await page.click('#fetch-favicons-btn');
+  await expect(page.locator('#confirm-modal-message')).toHaveText('Updated favicons for 1 bookmark.');
+  expect((await storedBookmark(page, 'Renamed'))?.iconPath).toBe(automatic);
+  await expectEmbeddedIcon(page, 'Uploaded', uploaded, 128);
 });
 
 test('Fetch Favicons preserves uploaded, emoji and Wikimedia icons while refreshing an automatic bookmark', async ({ page }) => {

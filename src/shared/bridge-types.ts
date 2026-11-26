@@ -68,6 +68,7 @@ export interface BridgeLocalBookmark {
   title: string;
   url: string;
   iconPath?: string | null;
+  importedFavicon?: true;
   order?: number;
 }
 

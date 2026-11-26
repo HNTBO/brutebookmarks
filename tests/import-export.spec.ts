@@ -1,6 +1,7 @@
 import { test, expect, Page } from './fixtures/browser';
 import * as fs from 'fs';
 import * as path from 'path';
+import { selectBackup } from './fixtures/import';
 
 /**
  * E2E tests for import/export round-trip.
@@ -33,6 +34,78 @@ async function setupLocalMode(page: Page): Promise<void> {
   await page.goto('/');
   await page.waitForSelector('.category', { timeout: 10_000 });
 }
+
+const embedded = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>');
+const remoteIcon = 'https://www.google.com/s2/favicons?domain=fixture.example&sz=64';
+
+function importFixture(oversized = false) {
+  const icons = [embedded, remoteIcon];
+  if (oversized) icons.push(embedded.padEnd(50_001, ' '));
+  return [{ name: 'Incoming', bookmarks: icons.map((iconPath, i) => ({
+    title: 'Incoming ' + i, url: 'https://fixture.example/' + i, iconPath,
+  })) }];
+}
+
+test('oversized image warning allows cancellation or keeping all other images', async ({ page }, testInfo) => {
+  await setupLocalMode(page);
+  const backup = importFixture(true);
+  for (const proceed of [false, true]) {
+    await selectBackup(page, backup);
+    const modal = page.locator('#confirm-modal');
+    await expect(modal).toContainText('50,000');
+    await testInfo.attach('Oversized image warning', { body: await modal.locator('.modal-content').screenshot(), contentType: 'image/png' });
+    expect(await page.evaluate(() => localStorage.getItem('speedDialData'))).toBe(SEED_DATA);
+    if (!proceed) {
+      await page.getByRole('button', { name: 'Cancel', exact: true }).press('Enter');
+      await expect(modal).toBeHidden();
+      continue;
+    }
+    await page.getByRole('button', { name: 'Skip oversized image' }).click();
+    await page.getByRole('button', { name: 'Replace', exact: true }).click();
+    await expect(modal).toContainText('Imported 1 category with 3 bookmarks');
+    const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('speedDialData')!));
+    expect(restored[0].bookmarks).toMatchObject(backup[0].bookmarks.map((bk, i) => ({ ...bk, iconPath: i === 2 ? null : bk.iconPath })));
+  }
+});
+
+test('local quota offers one cancellable append without incoming embedded images', async ({ page }, testInfo) => {
+  await setupLocalMode(page);
+  const backup = importFixture();
+  backup[0].bookmarks[0].iconPath = embedded.padEnd(40_000, ' ');
+  await page.evaluate(() => {
+    // Fill this isolated Chromium origin, leaving space for links and titles.
+    let available = 0;
+    for (let step = 1024 * 1024; step >= 1024; step /= 2) {
+      for (;;) {
+        try {
+          localStorage.setItem('quota-fixture', 'x'.repeat(available + step));
+          available += step;
+        } catch (error) {
+          if (!(error instanceof DOMException) || error.name !== 'QuotaExceededError') throw error;
+          break;
+        }
+      }
+    }
+    localStorage.setItem('quota-fixture', 'x'.repeat(available - 2048));
+  });
+  for (const proceed of [false, true]) {
+    await selectBackup(page, backup);
+    await page.getByRole('button', { name: 'Append', exact: true }).click();
+    const retry = page.getByRole('button', { name: 'Retry without images' });
+    await expect(retry).toBeVisible();
+    await testInfo.attach('Append recovery choice', { body: await page.locator('#confirm-modal .modal-content').screenshot(), contentType: 'image/png' });
+    expect(await page.evaluate(() => localStorage.getItem('speedDialData'))).toBe(SEED_DATA);
+    if (!proceed) {
+      await page.keyboard.press('Escape');
+      continue;
+    }
+    await retry.click();
+    await expect(page.locator('#confirm-modal')).toContainText('Imported 1 category with 2 bookmarks');
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('speedDialData')!));
+    expect(saved.slice(0, 2)).toEqual(JSON.parse(SEED_DATA));
+    expect(saved[2].bookmarks).toMatchObject(backup[0].bookmarks.map((bk, i) => ({ ...bk, iconPath: i === 0 ? null : remoteIcon })));
+  }
+});
 
 test.describe('Import/Export round-trip', () => {
   test('Replace keeps the visible and saved library when browser storage rejects the new data', async ({ page }) => {
