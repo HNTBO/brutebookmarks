@@ -1,4 +1,5 @@
 import { query, mutation } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import { v } from 'convex/values';
 import { bumpUserWatermark } from './syncMeta';
 
@@ -180,6 +181,7 @@ export const reorder = mutation({
 
 export const importBulk = mutation({
   args: {
+    replace: v.optional(v.boolean()),
     data: v.array(
       v.object({
         name: v.string(),
@@ -193,7 +195,7 @@ export const importBulk = mutation({
       }),
     ),
   },
-  handler: async (ctx, { data }) => {
+  handler: async (ctx, { data, replace }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
@@ -215,6 +217,11 @@ export const importBulk = mutation({
         validateUrl(bk.url);
         if (bk.iconPath) validateIconPath(bk.iconPath);
       }
+    }
+
+    if (replace) {
+      if (data.length === 0) throw new Error('No categories to import');
+      await deleteUserLibrary(ctx, userId);
     }
 
     for (let ci = 0; ci < data.length; ci++) {
@@ -240,35 +247,23 @@ export const importBulk = mutation({
   },
 });
 
+async function deleteUserLibrary(ctx: MutationCtx, userId: string): Promise<void> {
+  for (const table of ['bookmarks', 'categories', 'tabGroups'] as const) {
+    const rows = await ctx.db
+      .query(table)
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
+    }
+  }
+}
+
 export const eraseAll = mutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
-    const userId = identity.subject;
-
-    const bookmarks = await ctx.db
-      .query('bookmarks')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    for (const b of bookmarks) {
-      await ctx.db.delete(b._id);
-    }
-
-    const categories = await ctx.db
-      .query('categories')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    for (const c of categories) {
-      await ctx.db.delete(c._id);
-    }
-
-    const tabGroups = await ctx.db
-      .query('tabGroups')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    for (const g of tabGroups) {
-      await ctx.db.delete(g._id);
-    }
-    await bumpUserWatermark(ctx, userId);
+    await deleteUserLibrary(ctx, identity.subject);
+    await bumpUserWatermark(ctx, identity.subject);
   },
 });

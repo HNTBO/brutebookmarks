@@ -302,7 +302,7 @@ function renderBookmarkCards(entries: GridEntry[], showCardNames: boolean): stri
             <span class="group-action-icon group-action-edit" aria-hidden="true">✎</span>
             <span class="group-action-icon bookmark-action-delete" aria-hidden="true">×</span>
           </button>
-          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" draggable="false" referrerpolicy="no-referrer" ${!bookmark.iconPath || bookmark.iconPath.includes('google.com/s2/favicons') ? 'data-auto-icon' : ''}>
+          <img class="bookmark-icon" src="${escapeHtml(getIconUrl(bookmark))}" alt="${escapeHtml(bookmark.title)}" draggable="false" referrerpolicy="no-referrer">
           <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
         </div>
       `,
@@ -332,13 +332,6 @@ function wireBookmarkCards(el: HTMLElement, options: { draggable?: boolean } = {
   // Fallback icon for broken images (replaces inline onerror)
   el.querySelectorAll<HTMLImageElement>('.bookmark-icon').forEach((img) => {
     img.addEventListener('error', () => { img.src = FALLBACK_ICON; }, { once: true });
-    img.addEventListener('load', () => {
-      // Google S2 returns a 16x16 globe for unknown domains — replace with our fallback.
-      // Only check auto-generated icons (no explicit iconPath); trust resolver-set icons.
-      if (img.hasAttribute('data-auto-icon') && img.naturalWidth <= 16 && img.naturalHeight <= 16) {
-        img.src = FALLBACK_ICON;
-      }
-    }, { once: true });
   });
 
   const bookmarkCards = el.querySelectorAll<HTMLElement>('.bookmark-card:not(.add-bookmark)');

@@ -113,9 +113,10 @@ function hasImageSignature(bytes: Uint8Array): boolean {
 }
 
 // Check if a URL points to a valid image (HEAD, then a bounded GET fallback).
-async function isValidIcon(url: string): Promise<boolean> {
+async function isValidIcon(url: string, { rejectIconHorseFallback = false } = {}): Promise<boolean> {
   try {
     const head = await fetchWithTimeout(url, { method: "HEAD" });
+    if (head.ok && rejectIconHorseFallback && head.headers.get("x-icon-fallback") === "true") return false;
     const contentType = head.headers.get("content-type") || "";
     const contentLength = Number(head.headers.get("content-length") || "0");
     if (head.ok && contentType.startsWith("image/") && contentLength > 0) {
@@ -134,6 +135,10 @@ async function isValidIcon(url: string): Promise<boolean> {
       },
     });
     if (!resp.ok) return false;
+    if (rejectIconHorseFallback && resp.headers.get("x-icon-fallback") === "true") {
+      await resp.body?.cancel();
+      return false;
+    }
 
     const bytes = await readResponsePrefix(resp);
     if (bytes.length === 0) return false;
@@ -365,7 +370,7 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
 
   // Tier 8: Icon Horse
   const iconHorse = `https://icon.horse/icon/${domain}`;
-  if (await isValidIcon(iconHorse)) {
+  if (await isValidIcon(iconHorse, { rejectIconHorseFallback: true })) {
     return { iconUrl: iconHorse, source: "icon-horse" };
   }
 

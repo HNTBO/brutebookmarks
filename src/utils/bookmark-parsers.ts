@@ -1,6 +1,23 @@
-import type { Category } from '../types';
+import type { Bookmark, Category } from '../types';
 
 type Format = 'netscape-html' | 'json' | 'unknown';
+
+const MAX_URL_LENGTH = 2048;
+const MAX_ICON_LENGTH = 50_000; // Convex bookmark iconPath limit, including the data URI header.
+const EMBEDDED_ICON_HEADER = /^data:image\/(?:png|jpeg|gif|webp|avif|bmp|x-icon|vnd\.microsoft\.icon|svg\+xml)(?:;charset=utf-8)?(;base64)?,/i;
+
+function embeddedIcon(value: string | null): string | null {
+  if (!value || value.length > MAX_ICON_LENGTH) return null;
+  const header = value.match(EMBEDDED_ICON_HEADER);
+  if (!header || header[0].length === value.length) return null;
+  const payload = value.slice(header[0].length);
+  try {
+    if (header[1] && !atob(payload).length) return null;
+  } catch {
+    return null;
+  }
+  return 'data:' + value.slice(5);
+}
 
 export function detectFormat(content: string): Format {
   const trimmed = content.trimStart();
@@ -25,7 +42,7 @@ export function parseNetscapeHTML(html: string): Category[] {
   const doc = parser.parseFromString(html, 'text/html');
 
   const categories: Category[] = [];
-  const orphanBookmarks: { title: string; url: string }[] = [];
+  const orphanBookmarks: Bookmark[] = [];
 
   function isSkippableUrl(href: string): boolean {
     return /^(javascript:|chrome:|about:|edge:|file:|place:)/i.test(href);
@@ -33,7 +50,7 @@ export function parseNetscapeHTML(html: string): Category[] {
 
   function processFolder(dl: Element, folderName: string | null): void {
     const children = dl.children;
-    let currentBookmarks: { title: string; url: string }[] = [];
+    let currentBookmarks: Bookmark[] = [];
     let currentFolderName = folderName;
 
     for (let i = 0; i < children.length; i++) {
@@ -59,10 +76,15 @@ export function parseNetscapeHTML(html: string): Category[] {
       const anchor = dt.querySelector(':scope > A');
       if (anchor) {
         const href = anchor.getAttribute('HREF') || anchor.getAttribute('href') || '';
-        if (!href || isSkippableUrl(href)) continue;
+        if (!href || href.length > MAX_URL_LENGTH || isSkippableUrl(href)) continue;
 
         const title = anchor.textContent?.trim() || '';
-        const bookmark = { title: title || href, url: href };
+        const bookmark: Bookmark = {
+          id: 'b' + Date.now() + Math.random().toString(36).slice(2, 6),
+          title: title || href,
+          url: href,
+          iconPath: embeddedIcon(anchor.getAttribute('ICON')),
+        };
 
         if (currentFolderName) {
           currentBookmarks.push(bookmark);
@@ -78,28 +100,16 @@ export function parseNetscapeHTML(html: string): Category[] {
     }
   }
 
-  function addCategory(name: string, bookmarks: { title: string; url: string }[]): void {
+  function addCategory(name: string, bookmarks: Bookmark[]): void {
     // Merge into existing category if same name
     const existing = categories.find((c) => c.name === name);
     if (existing) {
-      for (const b of bookmarks) {
-        existing.bookmarks.push({
-          id: 'b' + Date.now() + Math.random().toString(36).slice(2, 6),
-          title: b.title,
-          url: b.url,
-          iconPath: null,
-        });
-      }
+      for (const bookmark of bookmarks) existing.bookmarks.push(bookmark);
     } else {
       categories.push({
         id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6),
         name,
-        bookmarks: bookmarks.map((b) => ({
-          id: 'b' + Date.now() + Math.random().toString(36).slice(2, 6),
-          title: b.title,
-          url: b.url,
-          iconPath: null,
-        })),
+        bookmarks,
       });
     }
   }
@@ -155,14 +165,16 @@ export function parseJSON(content: string): Category[] {
       if (!/^https?:\/\//i.test(b.url)) {
         throw new Error(`Invalid URL scheme in bookmark "${b.title.slice(0, 50)}" — only http and https are allowed`);
       }
-      if (b.url.length > 2048) {
+      if (b.url.length > MAX_URL_LENGTH) {
         throw new Error('Bookmark URL exceeds maximum length');
       }
       if (b.title.length > 500) b.title = b.title.slice(0, 500);
       if (b.iconPath !== undefined && b.iconPath !== null) {
         if (typeof b.iconPath !== 'string') {
           b.iconPath = null;
-        } else if (b.iconPath.length > 2048) {
+        } else if (/^data:/i.test(b.iconPath)) {
+          b.iconPath = embeddedIcon(b.iconPath);
+        } else if (b.iconPath.length > MAX_URL_LENGTH || !/^https?:\/\//i.test(b.iconPath)) {
           b.iconPath = null;
         }
       }
