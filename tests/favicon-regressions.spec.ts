@@ -22,12 +22,16 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-async function importFile(page: Page, file: { name: string; mimeType: string; buffer: Buffer }) {
+async function importFile(page: Page, file: { name: string; mimeType: string; buffer: Buffer }, expectOversizedImage = false) {
   await page.click('#settings-btn');
   await page.click('#import-data-btn');
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'From File' }).click();
   await (await chooser).setFiles(file);
+  if (expectOversizedImage) {
+    await expect(page.locator('#confirm-modal-message')).toContainText('1 embedded image over the 50,000-character limit');
+    await page.getByRole('button', { name: 'Skip oversized image', exact: true }).click();
+  }
   await page.getByRole('button', { name: 'Replace', exact: true }).click();
   await expect(page.locator('#confirm-modal-message')).toContainText('Imported');
   await page.click('#confirm-modal-ok');
@@ -77,7 +81,7 @@ test('a Netscape HTML icon survives import and reload', async ({ page }) => {
     <DT><A HREF="${site}" ICON="${pngUri.padEnd(50_001, ' ')}">Oversize</A>
     <DT><A HREF="${site.padEnd(2049, 'x')}" ICON="${pngUri}">Long URL</A>
   </DL>`;
-  await importFile(page, { name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(html) });
+  await importFile(page, { name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(html) }, true);
   await page.reload();
   await expectEmbeddedIcon(page, 'Imported PNG', pngUri, 16);
   expect(await storedBookmark(page, 'Long URL')).toBeUndefined();

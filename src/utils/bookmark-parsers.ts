@@ -37,9 +37,10 @@ export function detectFormat(content: string): Format {
  * Parse Netscape HTML bookmark export format.
  * Used by Chrome, Firefox, Safari, Edge ("Export bookmarks" feature).
  */
-export function parseNetscapeHTML(html: string): Category[] {
+export function parseNetscapeHTML(html: string): { categories: Category[]; oversizedImages: number } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
+  let oversizedImages = 0;
 
   const categories: Category[] = [];
   const orphanBookmarks: Bookmark[] = [];
@@ -79,7 +80,9 @@ export function parseNetscapeHTML(html: string): Category[] {
         if (!href || href.length > MAX_URL_LENGTH || isSkippableUrl(href)) continue;
 
         const title = anchor.textContent?.trim() || '';
-        const iconPath = embeddedIcon(anchor.getAttribute('ICON'));
+        const rawIcon = anchor.getAttribute('ICON');
+        if (rawIcon && rawIcon.length > MAX_ICON_LENGTH && EMBEDDED_ICON_HEADER.test(rawIcon)) oversizedImages++;
+        const iconPath = embeddedIcon(rawIcon);
         const bookmark: Bookmark = {
           id: 'b' + Date.now() + Math.random().toString(36).slice(2, 6),
           title: title || href,
@@ -139,7 +142,7 @@ export function parseNetscapeHTML(html: string): Category[] {
     addCategory('Imported', orphanBookmarks);
   }
 
-  return categories;
+  return { categories, oversizedImages };
 }
 
 /**

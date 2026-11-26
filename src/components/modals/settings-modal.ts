@@ -236,19 +236,17 @@ function importFromFile(): void {
           const content = event.target!.result as string;
           const format = detectFormat(content);
 
-          if (format === 'json') {
-            const { categories, oversizedImages } = parseJSON(content);
+          if (format === 'json' || format === 'netscape-html') {
+            const { categories, oversizedImages } = format === 'json' ? parseJSON(content) : parseNetscapeHTML(content);
             if (oversizedImages > 0) {
               const images = oversizedImages === 1 ? 'image' : 'images';
               const skip = await styledConfirm(
-                `This backup contains ${oversizedImages} embedded ${images} over the 50,000-character limit. Skip the oversized ${images} and keep all bookmarks and other icons?`,
+                `This file contains ${oversizedImages} embedded ${images} over the 50,000-character limit. Skip the oversized ${images} and keep all bookmarks and other icons?`,
                 'Oversized images', `Skip oversized ${images}`, 'Cancel',
               );
               if (!skip) return;
             }
             importedData = categories;
-          } else if (format === 'netscape-html') {
-            importedData = parseNetscapeHTML(content);
           } else {
             await styledAlert('Unrecognized file format. Please use a JSON backup or browser HTML export.', 'Import');
             return;
