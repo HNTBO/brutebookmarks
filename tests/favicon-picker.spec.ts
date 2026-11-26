@@ -26,7 +26,10 @@ async function deferSyncAction(page: Page) {
     const client = '/src/data/convex-client.ts';
     const store = '/src/data/store.ts';
     window.__BB_MOCK_CONVEX_CLIENT__ = {
-      action: () => new Promise(resolve => { (window as any).finishLookup = resolve; }),
+      action: (_ref: unknown, args: { forceRefresh?: boolean }) => {
+        if (!args.forceRefresh) throw new Error('An explicit lookup must bypass cached icon URLs');
+        return new Promise(resolve => { (window as any).finishLookup = resolve; });
+      },
       onUpdate: () => () => {},
     } as any;
     (await import(client)).initConvexClient();
@@ -121,6 +124,34 @@ for (const operation of ['post-create', 'bulk'] as const) {
     if (operation === 'bulk') await expect(page.locator('#confirm-modal-message')).toHaveText('Updated favicons for 0 bookmarks.');
   });
 }
+
+test('local bulk refresh checks several domains together and probes each candidate once', async ({ page }) => {
+  await page.evaluate(async () => {
+    const store = '/src/data/store.ts';
+    const category = (await import(store)).getCategories()[0];
+    category.bookmarks = Array.from({ length: 12 }, (_, i) => ({
+      id: String(i), title: 'Example', url: 'https://site' + (i % 9) + '.example/', iconPath: null,
+    }));
+  });
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  const requests: string[] = [];
+  await page.route('https://icon.horse/icon/site*', async route => {
+    requests.push(route.request().url());
+    await pending;
+    await route.fulfill({ status: 404, body: '' });
+  });
+  await page.click('#settings-btn');
+  await page.click('#fetch-favicons-btn');
+  try {
+    await expect.poll(() => requests.length, { timeout: 3000 }).toBe(6);
+  } finally {
+    release();
+  }
+  await expect(page.locator('#confirm-modal-message')).toHaveText('Updated favicons for 0 bookmarks.');
+  expect(requests).toHaveLength(9);
+  expect(new Set(requests).size).toBe(9);
+});
 
 test('local bulk refresh skips an icon edited while the provider request was pending', async ({ page }) => {
   let release!: () => void;

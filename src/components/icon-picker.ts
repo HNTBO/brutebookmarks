@@ -138,7 +138,7 @@ export async function useFavicon(): Promise<void> {
   const status = document.getElementById('favicon-status')!;
   status.textContent = 'Finding favicon…';
   const candidate = isConvexMode()
-    ? getConvexClient()!.action(api.favicons.resolveFavicon, { url }).then(discoveredIcon)
+    ? getConvexClient()!.action(api.favicons.resolveFavicon, { url, forceRefresh: true }).then(discoveredIcon)
     : localFavicon(domain);
   const result = await loadFavicon(candidate, signal);
   if (signal.aborted) return;

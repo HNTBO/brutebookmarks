@@ -404,13 +404,27 @@ async function fetchAllFavicons(): Promise<void> {
       }
     }
 
-    const loaded = new Map<string, boolean>();
-    for (const [index, bk] of allBookmarks.entries()) {
+    const urls = new Set<string>();
+    for (const bk of allBookmarks) {
       const icon = candidates.get(bk.id);
-      if (icon && icon !== bk.iconPath) {
-        if (!loaded.has(icon)) loaded.set(icon, (await loadFavicon(icon)).status === 'found');
+      if (icon && icon !== bk.iconPath) urls.add(icon);
+    }
+    const remaining = urls.values();
+    const loaded = new Set<string>();
+    let checked = 0;
+    async function validateImages() {
+      for (const icon of remaining) {
         if (isConvexMode() !== synced) break;
-        if (loaded.get(icon) && await replaceBookmarkIcon(bk, icon)) updated++;
+        if ((await loadFavicon(icon)).status === 'found') loaded.add(icon);
+        btn.textContent = `Checking favicon images... (${++checked}/${urls.size})`;
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, urls.size) }, validateImages));
+    for (const [index, bk] of allBookmarks.entries()) {
+      if (isConvexMode() !== synced) break;
+      const icon = candidates.get(bk.id);
+      if (icon && icon !== bk.iconPath && loaded.has(icon)) {
+        if (await replaceBookmarkIcon(bk, icon)) updated++;
       }
       btn.textContent = `Updating favicons... (${index + 1}/${allBookmarks.length})`;
     }
