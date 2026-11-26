@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from 'node:util';
 import { test as plainTest } from '@playwright/test';
 import { expect, test as guardedTest } from './fixtures/browser';
 
@@ -18,14 +19,17 @@ const test = guardedTest.extend<{ expectGuardFailure: (entry: string) => void }>
     expect(testInfo.errors).toHaveLength(1);
     const [error] = testInfo.errors;
     expect(error.message).toContain('Unexpected external browser requests');
-    expect(error.message).toContain(JSON.stringify(expectedEntry));
+    const entries = [...stripVTControlCharacters(error.message ?? '').matchAll(/^\+\s+(".*"),?\s*$/gm)];
+    expect(entries.map(entry => JSON.parse(entry[1]))).toEqual([expectedEntry]);
     testInfo.fail(true, 'The guard reported the expected request during teardown');
   }, { auto: true }],
 });
 
 test('guard reports an unexpected fetch', async ({ page, expectGuardFailure }) => {
   expectGuardFailure(`GET ${fetchURL}`);
+  const failedFetch = page.waitForEvent('requestfailed', request => request.url() === fetchURL);
   await page.evaluate(url => fetch(url).catch(() => undefined), fetchURL);
+  expect((await failedFetch).failure()?.errorText).toContain('ERR_BLOCKED_BY_CLIENT');
 });
 
 test('guard reports an unexpected popup navigation', async ({ context, page, expectGuardFailure }) => {
@@ -33,7 +37,7 @@ test('guard reports an unexpected popup navigation', async ({ context, page, exp
   const failedNavigation = context.waitForEvent('requestfailed', request =>
     request.url() === popupURL && request.isNavigationRequest());
   await page.evaluate(url => { window.open(url); }, popupURL);
-  await failedNavigation;
+  expect((await failedNavigation).failure()?.errorText).toContain('ERR_BLOCKED_BY_CLIENT');
 });
 
 test('guard reports an unexpected WebSocket', async ({ page, expectGuardFailure }) => {
