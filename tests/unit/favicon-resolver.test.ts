@@ -41,3 +41,23 @@ describe('favicon provider selection', () => {
     expect(ctx.runMutation).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ domain, ...result }));
   });
 });
+it.each([200, 404])('checks the Google response status (%i) even with a decodable image body and a legacy cache hit', async status => {
+  const google = 'https://s2.googleusercontent.com/s2/favicons?domain_url=https%3A%2F%2Ffixture.example&alt=404&sz=64';
+  vi.mocked(safeFetch).mockImplementation(async (url, options) => {
+    if (url !== google) return new Response(null, { status: 404 });
+    const headers = { 'content-type': 'image/svg+xml', 'content-length': String(icon.length) };
+    return new Response(options?.method === 'HEAD' ? null : icon, { status, headers });
+  });
+  const ctx = {
+    auth: { getUserIdentity: async () => ({ subject: 'fixture' }) },
+    runQuery: vi.fn().mockResolvedValue({ source: 'google-s2', iconUrl: 'old suggestion', fetchedAt: Date.now() }),
+    runMutation: vi.fn(),
+  };
+  const action = resolveFavicon as typeof resolveFavicon & {
+    _handler(context: typeof ctx, args: { url: string }): Promise<{ source: string; iconUrl: string | null }>;
+  };
+  expect(await action._handler(ctx, { url: `https://${domain}` })).toEqual(status === 200
+    ? { source: 'google-s2-verified', iconUrl: google }
+    : { source: 'not-found', iconUrl: null });
+  expect(ctx.runMutation).toHaveBeenCalledTimes(status === 200 ? 1 : 0);
+});

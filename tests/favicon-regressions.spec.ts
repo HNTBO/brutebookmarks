@@ -7,6 +7,7 @@ const png = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAJUlEQVR42mP4n8YARAx
 const pngUri = 'data:image/png;base64,' + png;
 const site = 'https://fixture.example/';
 const automatic = 'https://www.google.com/s2/favicons?domain=fixture.example&sz=64';
+const found = 'https://icon.horse/icon/fixture.example?fallback=404';
 const seed = [{ id: 'category', name: 'Fixtures', bookmarks: [
   { id: 'automatic', title: 'Automatic', url: site, iconPath: null },
 ] }];
@@ -19,6 +20,7 @@ test.beforeEach(async ({ page }) => {
     sessionStorage.setItem('seeded', '1');
   }, seed);
   await page.route(automatic, route => route.fulfill({ contentType: 'image/png', body: Buffer.from(png, 'base64') }));
+  await page.route(found, route => route.fulfill({ contentType: 'image/png', body: Buffer.from(png, 'base64') }));
   await page.goto('/');
 });
 
@@ -118,7 +120,7 @@ test('a browser icon stays refreshable after editing and restoring a backup alon
   await page.click('#settings-btn');
   await page.click('#fetch-favicons-btn');
   await expect(page.locator('#confirm-modal-message')).toHaveText('Updated favicons for 1 bookmark.');
-  expect((await storedBookmark(page, 'Renamed'))?.iconPath).toBe(automatic);
+  expect((await storedBookmark(page, 'Renamed'))?.iconPath).toBe(found);
   await expectEmbeddedIcon(page, 'Uploaded', uploaded, 128);
 });
 
@@ -142,7 +144,7 @@ test('Fetch Favicons preserves uploaded, emoji and Wikimedia icons while refresh
   await expect(page.locator('#confirm-modal-message')).toContainText('Updated favicons');
   await page.click('#confirm-modal-ok');
   await page.reload();
-  expect((await storedBookmark(page, 'Automatic'))?.iconPath).toBe(automatic);
+  expect((await storedBookmark(page, 'Automatic'))?.iconPath).toBe(found);
   await expectEmbeddedIcon(page, 'Uploaded', uri, 128);
   for (const bookmark of manual) {
     expect((await storedBookmark(page, bookmark.title))?.iconPath).toBe(bookmark.iconPath);

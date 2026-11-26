@@ -3,8 +3,15 @@ import { escapeHtml } from '../utils/escape-html';
 import { isConvexMode } from '../data/store';
 import { getConvexClient } from '../data/convex-client';
 import { api } from '../../convex/_generated/api';
+import { discoveredIcon, loadFavicon, localFavicon } from '../data/favicon-lookup';
 
-let selectedIconUrl: string | null = null;
+let iconChoice = new AbortController();
+
+export function cancelPendingIconChoice(): void {
+  iconChoice.abort();
+  iconChoice = new AbortController();
+  document.getElementById('favicon-status')!.textContent = '';
+}
 let selectedIconPath: string | null = null;
 let selectedImportedFavicon: true | undefined;
 let emojiSearchTimeout: ReturnType<typeof setTimeout>;
@@ -67,6 +74,7 @@ export function setActiveIconButton(type: IconSourceType): void {
 }
 
 export function activateCustomUploadMode(): void {
+  cancelPendingIconChoice();
   document.getElementById('icon-search-container')?.classList.add('hidden');
   document.getElementById('emoji-search-container')?.classList.add('hidden');
   setActiveIconButton('custom');
@@ -87,16 +95,17 @@ export function getSelectedImportedFavicon(): true | undefined {
 }
 
 export function setSelectedIconPath(path: string | null, importedFavicon?: true): void {
+  cancelPendingIconChoice();
   selectedIconPath = path;
   selectedImportedFavicon = importedFavicon;
 }
 
 export function resetIconPicker(): void {
-  selectedIconUrl = null;
   setSelectedIconPath(null);
 }
 
 export function handleUrlChange(): void {
+  cancelPendingIconChoice();
   const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
   if (url && !selectedIconPath) {
     try {
@@ -109,43 +118,47 @@ export function handleUrlChange(): void {
 }
 
 export async function useFavicon(): Promise<void> {
+  cancelPendingIconChoice();
+  const { signal } = iconChoice;
   const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
   if (!url) {
     styledAlert('Please enter a URL first');
     return;
   }
-
+  let domain: string;
   try {
-    const domain = new URL(url).hostname;
-    let faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-    const sourceEl = document.getElementById('icon-source')!;
-    sourceEl.textContent = 'Finding favicon...';
-
-    if (isConvexMode()) {
-      const client = getConvexClient();
-      if (client) {
-        try {
-          const result = await client.action(api.favicons.resolveFavicon, { url, forceRefresh: true });
-          if (result.iconUrl) faviconUrl = result.iconUrl;
-        } catch {
-          // Keep Google S2 as a resilient client-side fallback.
-        }
-      }
-    }
-
-    if ((document.getElementById('bookmark-url') as HTMLInputElement).value !== url) return;
-
-    setSelectedIconPath(faviconUrl);
-    (document.getElementById('preview-icon') as HTMLImageElement).src = faviconUrl;
-    sourceEl.textContent = 'Favicon';
-    (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = faviconUrl;
-    setActiveIconButton('favicon');
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+    domain = parsed.hostname;
   } catch {
     styledAlert('Invalid URL');
+    return;
+  }
+
+  const status = document.getElementById('favicon-status')!;
+  status.textContent = 'Finding favicon…';
+  const candidate = isConvexMode()
+    ? getConvexClient()!.action(api.favicons.resolveFavicon, { url }).then(discoveredIcon)
+    : localFavicon(domain);
+  const result = await loadFavicon(candidate, signal);
+  if (signal.aborted) return;
+  switch (result.status) {
+    case 'found':
+      setSelectedIconPath(result.url);
+      (document.getElementById('preview-icon') as HTMLImageElement).src = result.url;
+      (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = result.url;
+      document.getElementById('icon-source')!.textContent = 'Favicon';
+      setActiveIconButton('favicon');
+      status.textContent = 'Favicon selected.';
+      break;
+    case 'missing': status.textContent = 'No favicon found.'; break;
+    case 'timeout': status.textContent = 'Favicon lookup timed out.'; break;
+    case 'error': status.textContent = 'Favicon lookup failed.'; break;
   }
 }
 
 export function toggleIconSearch(): void {
+  cancelPendingIconChoice();
   const container = document.getElementById('icon-search-container')!;
   const emojiContainer = document.getElementById('emoji-search-container')!;
 
@@ -266,6 +279,7 @@ function selectWikimediaIcon(thumbUrl: string, title: string, index: number): vo
 }
 
 export function toggleEmojiSearch(): void {
+  cancelPendingIconChoice();
   const container = document.getElementById('emoji-search-container')!;
   const iconContainer = document.getElementById('icon-search-container')!;
 
@@ -348,19 +362,23 @@ function selectEmoji(codepoint: string, keyword: string, index: number): void {
 }
 
 export async function uploadCustomIcon(file: File): Promise<void> {
-  document.getElementById('icon-source')!.textContent = 'Processing...';
+  cancelPendingIconChoice();
+  const { signal } = iconChoice;
+  document.getElementById('favicon-status')!.textContent = 'Processing image…';
 
   try {
     const dataUri = await resizeImageToDataUri(file, 128);
+    if (signal.aborted) return;
     setSelectedIconPath(dataUri);
     (document.getElementById('preview-icon') as HTMLImageElement).src = dataUri;
     document.getElementById('icon-source')!.textContent = `Custom: ${file.name}`;
     (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = dataUri;
     setActiveIconButton('custom');
   } catch (error) {
+    if (signal.aborted) return;
+    cancelPendingIconChoice();
     console.error('Error processing icon:', error);
     styledAlert('Failed to process image');
-    document.getElementById('icon-source')!.textContent = 'No icon selected';
   }
 }
 

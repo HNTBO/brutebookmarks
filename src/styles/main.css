@@ -995,6 +995,10 @@ body:has(.modal.active) {
     font-size: 13px;
 }
 
+#favicon-status {
+    color: var(--text-primary);
+}
+
 .icon-options {
     display: flex;
     gap: var(--space-sm);
