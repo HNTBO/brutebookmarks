@@ -87,7 +87,7 @@ export function setRenderCallback(cb: () => void): void {
   _renderCallback = cb;
 }
 
-function rerender(): void {
+export function rerender(): void {
   if (_renderCallback) _renderCallback();
 }
 

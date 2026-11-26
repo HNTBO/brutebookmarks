@@ -142,3 +142,29 @@ test('a native backup restores the uploaded PNG after reload', async ({ page }) 
   await expectEmbeddedIcon(page, 'Uploaded', uri, 128);
   expect((await storedBookmark(page, 'Uploaded'))?.id).toBe(original?.id);
 });
+
+test('Replace sends the restored library to the extension before reload', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.addEventListener('message', ({ source, origin, data }) => {
+      if (source !== window || origin !== location.origin) return;
+      if (data?.type === 'BB_EXT_LOCAL_SNAPSHOT') {
+        sessionStorage.setItem('extension-copy', JSON.stringify(data.categories));
+      } else if (data?.type === 'BB_EXT_LOCAL_DATA_REQUEST') {
+        const categories = JSON.parse(sessionStorage.getItem('extension-copy') ?? '[]');
+        window.postMessage({ type: 'BB_EXT_LOCAL_DATA_RESULT', requestId: data.requestId,
+          success: true, snapshot: { categories }, pending: [] }, location.origin);
+        sessionStorage.setItem('extension-replied', '1');
+      }
+    });
+  });
+  await page.reload();
+  await page.evaluate(data => sessionStorage.setItem('extension-copy', JSON.stringify(data)), seed);
+  const restored = [{ ...seed[0], bookmarks: [] }];
+  await importFile(page, { name: 'older.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(restored)) });
+  await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('extension-copy')!))).toEqual(restored);
+  await page.reload();
+  await expect(page.locator('.category-title', { hasText: 'Fixtures' })).toBeVisible();
+  await page.evaluate(() => window.postMessage({ type: 'BB_EXT_INSTALLED' }, location.origin));
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('extension-replied'))).toBe('1');
+  expect(await storedBookmark(page, 'Automatic')).toBeUndefined();
+});

@@ -1,4 +1,4 @@
-import { getCategories, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
+import { getCategories, importBulk, eraseAllData, isConvexMode, rerender, updateBookmark } from '../../data/store';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
@@ -309,7 +309,7 @@ async function executeImport(importedData: Category[]): Promise<void> {
     await styledAlert(`Import failed. ${reason}`, 'Import');
     return;
   }
-  if (!isConvexMode()) renderCategories();
+  if (!isConvexMode()) rerender();
 
   const totalBookmarks = importedData.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
   await styledAlert(
