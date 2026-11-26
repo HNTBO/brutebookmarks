@@ -45,15 +45,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      - name: Create synthetic failure for the draft trial
-        run: |
-          cat > tests/ci-trial.spec.ts <<'EOF'
-          import { test, expect } from './fixtures/browser';
-          test('synthetic CI failure produces a trace', async ({ page }) => {
-            await page.setContent('<title>synthetic fixture</title>');
-            expect(await page.title()).toBe('intentional mismatch');
-          });
-          EOF
       - id: tests
         run: npm run ci:browser
       # Playwright includes the retained failure traces inside its HTML report.
