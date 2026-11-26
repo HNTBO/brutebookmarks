@@ -149,7 +149,7 @@ describe('parseJSON', () => {
     expect(result[0].bookmarks[0].iconPath).toBeNull();
   });
 
-  it('nullifies iconPath when it exceeds 2048 characters', () => {
+  it('nullifies a remote icon URL when it exceeds 2048 characters', () => {
     const longIcon = 'https://example.com/' + 'i'.repeat(2048);
     const input = JSON.stringify([
       {
@@ -162,4 +162,28 @@ describe('parseJSON', () => {
     const result = parseJSON(input);
     expect(result[0].bookmarks[0].iconPath).toBeNull();
   });
+
+  function importIcon(iconPath: string) {
+    const bookmark = { title: 'Fixture', url: 'https://fixture.example', iconPath };
+    return parseJSON(JSON.stringify([{ name: 'Icons', bookmarks: [bookmark] }]))[0].bookmarks[0].iconPath;
+  }
+
+  it('retains remote icon URLs and falls back for unsupported schemes', () => {
+    const remote = 'https://fixture.example/favicon.ico';
+    expect(importIcon(remote)).toBe(remote);
+    expect(importIcon('file:///missing.png')).toBeNull();
+  });
+
+  it('preserves an embedded image up to the 50,000-character storage limit', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16"/></svg>';
+    const icon = ('data:image/svg+xml,' + encodeURIComponent(svg)).padEnd(50_000, ' ');
+    expect(importIcon(icon) === icon).toBe(true);
+    expect(importIcon(icon + ' ')).toBeNull();
+  });
+
+  it.each(['data:text/plain;base64,YQ==', 'data:image/png;base64,', 'data:image/png;base64,%%%'])(
+    'drops unsupported or malformed embedded data: %s', icon => {
+      expect(importIcon(icon)).toBeNull();
+    },
+  );
 });

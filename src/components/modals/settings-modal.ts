@@ -4,6 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 import { registerModal } from '../../utils/modal-manager';
 import { renderCategories } from '../categories';
+import { detectIconType } from '../icon-picker';
 import { toggleCardNames, getShowCardNames, toggleAutofillUrl, getAutofillUrl, toggleOpenBookmarksInNewTab, getOpenBookmarksInNewTab, toggleUseBruteProfilePicture, getUseBruteProfilePicture, toggleEasterEggs, getEasterEggs, toggleShowNameOnHover, getShowNameOnHover, getMobileColumns, setMobileColumns } from '../../features/preferences';
 import { updateAccentColor, resetAccentColor } from '../../features/theme';
 import { styledConfirm, styledAlert } from './confirm-modal';
@@ -330,10 +331,12 @@ async function fetchAllFavicons(): Promise<void> {
   try {
     const categories = getCategories();
 
-    // Collect all bookmarks with valid URLs
+    // Refresh automatic icons in both local and sync mode. Keep the user's selections.
     const allBookmarks: { bookmarkId: string; url: string; title: string; iconPath: string | null }[] = [];
     for (const cat of categories) {
       for (const bk of cat.bookmarks) {
+        const iconType = detectIconType(bk.iconPath);
+        if (iconType === 'custom' || iconType === 'emoji' || iconType === 'wikimedia') continue;
         try {
           new URL(bk.url); // validate
           allBookmarks.push({ bookmarkId: bk.id, url: bk.url, title: bk.title, iconPath: bk.iconPath });
