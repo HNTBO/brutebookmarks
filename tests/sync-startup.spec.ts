@@ -167,6 +167,36 @@ async function getStartupMeasureNames(page: Page): Promise<string[]> {
   );
 }
 
+test('sync saves the manual Lucide choice after an earlier favicon lookup completes', async ({ page }) => {
+  await setupSyncStartupScenario(page, {
+    localData: null, localGroups: [], localMeta: null, watermarkResponse: null, watermarkDelayMs: 0,
+    emitLiveData: true, liveDelayMs: 0, live: {
+      categories: [{ _id: 'lab', name: 'Home lab', order: 1 }], tabGroups: [],
+      bookmarks: [{ _id: 'router', categoryId: 'lab', title: 'Router console', url: 'https://router.example/', order: 1 }],
+    },
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Edit bookmark' }).click({ force: true });
+  await page.evaluate(() => {
+    Object.assign(window.__BB_MOCK_CONVEX_CLIENT__!, {
+      action: () => new Promise(resolve => {
+        window.addEventListener('finish-lookup', () => resolve({ iconUrl: 'https://router.example/favicon.ico' }), { once: true });
+      }),
+      mutation: async (_ref: unknown, args: unknown) => sessionStorage.setItem('saved-mutation', JSON.stringify(args)),
+    });
+  });
+  await page.getByRole('button', { name: 'Use Favicon' }).click();
+  await expect(page.locator('#icon-source')).toHaveText('Finding favicon...');
+  await page.getByRole('button', { name: 'Lucide Icons' }).click();
+  await page.getByRole('radio', { name: 'router', exact: true }).check();
+  await page.evaluate(() => window.dispatchEvent(new Event('finish-lookup')));
+  const uri = await page.inputValue('#bookmark-icon-path');
+  expect(uri).toMatch(/^data:image\/svg\+xml,/);
+  await page.getByRole('button', { name: 'Save Bookmark' }).click();
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('saved-mutation')!)))
+    .toMatchObject({ id: 'router', iconPath: uri, importedFavicon: false });
+});
+
 test.describe('Sync startup behavior', () => {
   test('renders cache immediately when watermark matches', async ({ page }) => {
     await setupSyncStartupScenario(page, {
