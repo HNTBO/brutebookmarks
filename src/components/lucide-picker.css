@@ -1,0 +1,116 @@
+#bookmark-modal .icon-options {
+    column-gap: var(--space-xs);
+}
+
+#bookmark-modal .icon-options .btn {
+    padding-inline: 6px;
+}
+
+#lucide-picker {
+    margin-top: var(--space-md);
+}
+
+.lucide-tools, .lucide-color, .lucide-pages {
+    display: flex;
+    align-items: center;
+}
+
+.lucide-tools {
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.lucide-tools input, .lucide-pages button, #lucide-results label {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    font: inherit;
+}
+
+#lucide-query {
+    flex: 1 1 9rem;
+    min-width: 0;
+    height: 36px;
+    padding: 0 var(--space-sm);
+    font-size: 14px;
+}
+
+#lucide-color {
+    width: 36px;
+    height: 36px;
+    padding: 2px;
+    cursor: pointer;
+}
+
+#lucide-hex {
+    width: 5.5rem;
+    height: 36px;
+    padding: 0 var(--space-sm);
+    border-left: 0;
+    font: 13px monospace;
+}
+
+#lucide-results {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--space-xs);
+    margin: var(--space-sm) 0;
+}
+
+#lucide-results label {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 38px;
+    cursor: pointer;
+}
+
+#lucide-results svg {
+    width: 21px;
+    height: 21px;
+}
+
+#lucide-results input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: inherit;
+}
+
+#lucide-results label:hover, #lucide-results label:has(:checked) {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+}
+
+#lucide-results label:has(:checked) {
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+#lucide-results label:has(:focus-visible) {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 1px;
+}
+
+.lucide-pages {
+    gap: var(--space-xs);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+#lucide-status { flex: 1; }
+
+.lucide-pages button {
+    width: 32px;
+    height: 28px;
+    cursor: pointer;
+    font: 20px/1 var(--font-body);
+}
+
+.lucide-pages button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}

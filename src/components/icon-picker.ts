@@ -3,6 +3,7 @@ import { escapeHtml } from '../utils/escape-html';
 import { isConvexMode } from '../data/store';
 import { getConvexClient } from '../data/convex-client';
 import { api } from '../../convex/_generated/api';
+import { hideLucidePicker, initLucidePicker, readLucideIcon, showLucidePicker } from './lucide-picker';
 import { discoveredIcon, loadFavicon, localFavicon } from '../data/favicon-lookup';
 
 let iconChoice = new AbortController();
@@ -28,17 +29,19 @@ interface EmojiEntry {
   keywords: string[];
 }
 
-export type IconSourceType = 'favicon' | 'wikimedia' | 'emoji' | 'custom' | null;
+export type IconSourceType = 'favicon' | 'wikimedia' | 'emoji' | 'lucide' | 'custom' | null;
 
 const BUTTON_ID_BY_TYPE: Record<string, string> = {
   favicon: 'use-favicon-btn',
   wikimedia: 'search-wikimedia-btn',
   emoji: 'use-emoji-btn',
+  lucide: 'use-lucide-btn',
   custom: 'upload-custom-btn',
 };
 
 export function detectIconType(iconPath: string | null | undefined, importedFavicon?: true): IconSourceType {
   if (!iconPath) return null;
+  if (!importedFavicon && readLucideIcon(iconPath)) return 'lucide';
   if (/^data:/i.test(iconPath)) return importedFavicon === true ? 'favicon' : 'custom';
   if (iconPath.includes('google.com/s2/favicons')) return 'favicon';
   if (iconPath.includes('upload.wikimedia.org') || iconPath.includes('commons.wikimedia.org')) return 'wikimedia';
@@ -48,6 +51,13 @@ export function detectIconType(iconPath: string | null | undefined, importedFavi
 }
 
 export function setActiveIconButton(type: IconSourceType): void {
+  if (type === 'lucide') {
+    document.getElementById('icon-search-container')!.classList.add('hidden');
+    document.getElementById('emoji-search-container')!.classList.add('hidden');
+    void showLucidePicker(selectedIconPath);
+  } else {
+    hideLucidePicker();
+  }
   // Clear all active states
   Object.values(BUTTON_ID_BY_TYPE).forEach((id) => {
     document.getElementById(id)?.classList.remove('active');
@@ -82,11 +92,12 @@ export function activateCustomUploadMode(): void {
   setActiveIconButton('custom');
 }
 
-export function iconTypeLabel(type: IconSourceType): string {
+export function iconTypeLabel(type: IconSourceType, path?: string): string {
   switch (type) {
     case 'favicon': return 'Favicon';
     case 'wikimedia': return 'Wikimedia';
     case 'emoji': return 'Emoji';
+    case 'lucide': return path ? `Lucide · ${readLucideIcon(path)!.name}` : 'Lucide';
     case 'custom': return 'Custom upload';
     default: return 'Suggested favicon';
   }
@@ -103,7 +114,28 @@ export function setSelectedIconPath(path: string | null, importedFavicon?: true)
 }
 
 export function resetIconPicker(): void {
+  hideLucidePicker();
   setSelectedIconPath(null);
+}
+
+export function initLucideOption(): void {
+  const trigger = document.getElementById('use-lucide-btn')!;
+  trigger.addEventListener('click', () => {
+    if (trigger.getAttribute('aria-expanded') === 'true') hideLucidePicker();
+    else {
+      document.getElementById('icon-source')!.textContent = selectedIconPath
+        ? iconTypeLabel(detectIconType(selectedIconPath, selectedImportedFavicon), selectedIconPath)
+        : 'No icon selected';
+      handleUrlChange();
+      setActiveIconButton('lucide');
+    }
+  });
+  initLucidePicker((path, name) => {
+    setSelectedIconPath(path);
+    (document.getElementById('preview-icon') as HTMLImageElement).src = path;
+    document.getElementById('icon-source')!.textContent = `Lucide · ${name}`;
+    (document.getElementById('bookmark-icon-path') as HTMLInputElement).value = path;
+  });
 }
 
 export function handleUrlChange(): void {
@@ -120,6 +152,7 @@ export function handleUrlChange(): void {
 }
 
 export async function useFavicon(): Promise<void> {
+  hideLucidePicker();
   const previous = timedOutDiscovery;
   cancelPendingIconChoice();
   const { signal } = iconChoice;

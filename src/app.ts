@@ -1,5 +1,6 @@
 import kofiLogo from './assets/kofi_logo.webp';
 import stackedLogo from './assets/brutebookmarks-stacked-logo.svg';
+import { lucidePickerMarkup } from './components/lucide-picker';
 
 export function renderApp(): void {
   const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -101,10 +102,12 @@ export function renderApp(): void {
                 <button type="button" class="btn btn-small" id="use-favicon-btn">Use Favicon</button>
                 <button type="button" class="btn btn-small" id="search-wikimedia-btn">Search Wikimedia</button>
                 <button type="button" class="btn btn-small" id="use-emoji-btn">Use Emoji</button>
+                <button type="button" class="btn btn-small" id="use-lucide-btn" aria-controls="lucide-picker" aria-expanded="false">Lucide Icons</button>
                 <button type="button" class="btn btn-small" id="upload-custom-btn">Upload Custom</button>
               </div>
 
               <!-- Icon Search -->
+              ${lucidePickerMarkup}
               <div id="icon-search-container" class="hidden">
                 <div class="icon-search-box">
                   <input type="text" id="icon-search-query" placeholder="Search for logo...">

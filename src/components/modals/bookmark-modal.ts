@@ -5,7 +5,7 @@ import { cachedFavicons, discoveredIcon, loadFavicon } from '../../data/favicon-
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { getIconUrl } from '../../utils/icons';
-import { cancelPendingIconChoice, resetIconPicker, setSelectedIconPath, getSelectedImportedFavicon, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
+import { cancelPendingIconChoice, initLucideOption, resetIconPicker, setSelectedIconPath, getSelectedImportedFavicon, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
 import { styledConfirm } from './confirm-modal';
 import { getAutofillUrl } from '../../features/preferences';
 import { escapeHtml } from '../../utils/escape-html';
@@ -116,7 +116,7 @@ export function openEditBookmarkModal(categoryId: string, bookmarkId: string): v
   if (bookmark.iconPath) {
     const type = detectIconType(bookmark.iconPath, bookmark.importedFavicon);
     (document.getElementById('preview-icon') as HTMLImageElement).src = bookmark.iconPath;
-    document.getElementById('icon-source')!.textContent = iconTypeLabel(type);
+    document.getElementById('icon-source')!.textContent = iconTypeLabel(type, bookmark.iconPath);
     setSelectedIconPath(bookmark.iconPath, bookmark.importedFavicon);
     setActiveIconButton(type);
   } else {
@@ -134,8 +134,8 @@ export function openEditBookmarkModal(categoryId: string, bookmarkId: string): v
 }
 
 export function closeBookmarkModal(): void {
-  cancelPendingIconChoice();
   document.getElementById('bookmark-modal')!.classList.remove('active');
+  resetIconPicker();
 }
 
 async function saveBookmark(event: Event): Promise<void> {
@@ -186,6 +186,7 @@ async function deleteBookmarkFromModal(): Promise<void> {
 }
 
 export function initBookmarkModal(): void {
+  initLucideOption();
   registerModal('bookmark-modal', closeBookmarkModal);
 
   // Close button

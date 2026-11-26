@@ -366,7 +366,7 @@ async function fetchAllFavicons(): Promise<void> {
     for (const cat of categories) {
       for (const bk of cat.bookmarks) {
         const iconType = detectIconType(bk.iconPath, bk.importedFavicon);
-        if (iconType === 'custom' || iconType === 'emoji' || iconType === 'wikimedia') continue;
+        if (iconType && iconType !== 'favicon') continue;
         try {
           new URL(bk.url); // validate
           allBookmarks.push({ ...bk });
