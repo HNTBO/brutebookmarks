@@ -92,7 +92,7 @@ function rerender(): void {
 }
 
 // --- Rebuild layout from local data (mirrors Convex rebuild logic) ---
-function rebuildLocalLayout(): void {
+function buildLocalLayout(categories: Category[]) {
   const groupMap = new Map<string, TabGroup>();
   for (const g of _localTabGroups) {
     groupMap.set(g.id, {
@@ -104,7 +104,7 @@ function rebuildLocalLayout(): void {
   }
 
   // Assign categories to their groups
-  for (const cat of _categories) {
+  for (const cat of categories) {
     if (cat.groupId && groupMap.has(cat.groupId)) {
       groupMap.get(cat.groupId)!.categories.push(cat);
     }
@@ -118,7 +118,7 @@ function rebuildLocalLayout(): void {
   // at the position of its first member (preserves visual position).
   const groupsEmitted = new Set<string>();
   const items: LayoutItem[] = [];
-  for (const cat of _categories) {
+  for (const cat of categories) {
     if (cat.groupId && groupMap.has(cat.groupId)) {
       if (!groupsEmitted.has(cat.groupId)) {
         groupsEmitted.add(cat.groupId);
@@ -132,13 +132,20 @@ function rebuildLocalLayout(): void {
     }
   }
 
-  _layoutItems = items.sort((a, b) => {
+  const layoutItems = items.sort((a, b) => {
     const orderA = a.type === 'category' ? (a.category.order ?? 0) : a.group.order;
     const orderB = b.type === 'category' ? (b.category.order ?? 0) : b.group.order;
     return orderA - orderB;
   });
 
-  _tabGroups = Array.from(groupMap.values()).sort((a, b) => a.order - b.order);
+  const tabGroups = Array.from(groupMap.values()).sort((a, b) => a.order - b.order);
+  return { layoutItems, tabGroups };
+}
+
+function rebuildLocalLayout(): void {
+  const layout = buildLocalLayout(_categories);
+  _layoutItems = layout.layoutItems;
+  _tabGroups = layout.tabGroups;
 }
 
 // --- Legacy compat (used by category-modal delete) ---
@@ -1270,7 +1277,14 @@ export async function eraseAllData(): Promise<void> {
   }
 }
 
-export async function importBulk(data: Category[]): Promise<void> {
+function localImportId(id: string, used: Set<string>): string {
+  const next = typeof id === 'string' && id && !used.has(id) ? id : crypto.randomUUID();
+  used.add(next);
+  return next;
+}
+
+export async function importBulk(data: Category[], replace: boolean): Promise<void> {
+  if (data.length === 0) throw new Error('No categories to import.');
   if (_convexActive) {
     const client = requireConvexClient();
     const bulkData = data.map((cat) => ({
@@ -1281,15 +1295,29 @@ export async function importBulk(data: Category[]): Promise<void> {
         iconPath: b.iconPath ?? undefined,
       })),
     }));
-    try {
-      await client.mutation(api.bookmarks.importBulk, { data: bulkData });
-    } catch (err) {
-      console.error('[Store] importBulk failed:', err);
-      throw err;
-    }
+    await client.mutation(api.bookmarks.importBulk, { data: bulkData, replace });
   } else {
-    _categories = data;
-    saveData();
-    rerender();
+    const retained = replace ? [] : _categories;
+    const categoryIds = new Set(retained.map(cat => cat.id));
+    const bookmarkIds = new Set(retained.flatMap(cat => cat.bookmarks.map(bk => bk.id)));
+    const imported = data.map(cat => ({
+      ...cat,
+      id: localImportId(cat.id, categoryIds),
+      bookmarks: cat.bookmarks.map(bk => ({ ...bk, id: localImportId(bk.id, bookmarkIds) })),
+    }));
+    const nextCategories = [...retained, ...imported];
+    const layout = buildLocalLayout(nextCategories);
+    // The library is one localStorage value. A quota error leaves both the
+    // previous value and the currently rendered library intact.
+    localStorage.setItem(SPEED_DIAL_DATA_KEY, JSON.stringify(nextCategories));
+    _categories = nextCategories;
+    _layoutItems = layout.layoutItems;
+    _tabGroups = layout.tabGroups;
+    _snapshotMeta = null;
+    try {
+      localStorage.removeItem(SPEED_DIAL_SNAPSHOT_META_KEY);
+    } catch (err) {
+      console.warn('[Store] Could not clear cached sync metadata after local import:', err);
+    }
   }
 }

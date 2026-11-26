@@ -1,4 +1,4 @@
-import { getCategories, setCategories, saveData, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
+import { getCategories, importBulk, eraseAllData, isConvexMode, updateBookmark } from '../../data/store';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
@@ -228,12 +228,12 @@ function importFromFile(): void {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
       const reader = new FileReader();
+      reader.onerror = () => { void styledAlert('Could not read the selected file.', 'Import'); };
       reader.onload = async (event) => {
+        let importedData: Category[];
         try {
           const content = event.target!.result as string;
           const format = detectFormat(content);
-
-          let importedData: Category[];
 
           if (format === 'json') {
             importedData = parseJSON(content);
@@ -243,11 +243,11 @@ function importFromFile(): void {
             await styledAlert('Unrecognized file format. Please use a JSON backup or browser HTML export.', 'Import');
             return;
           }
-
-          await executeImport(importedData);
-        } catch {
-          await styledAlert('Invalid file format', 'Import');
+        } catch (error) {
+          await styledAlert(error instanceof Error ? error.message : 'Invalid file format.', 'Import');
+          return;
         }
+        await executeImport(importedData);
       };
       reader.readAsText(file);
     }
@@ -288,9 +288,8 @@ async function executeImport(importedData: Category[]): Promise<void> {
     return;
   }
 
-  const hasData = getCategories().length > 0;
-
-  if (hasData) {
+  let replace = false;
+  if (getCategories().length > 0) {
     const choice = await styledConfirm(
       'You have existing bookmarks. Replace them or append?',
       'Import',
@@ -298,20 +297,19 @@ async function executeImport(importedData: Category[]): Promise<void> {
       'Append',
     );
     if (choice === null) return;
-    if (choice) await eraseAllData();
+    replace = choice;
   }
 
-  if (isConvexMode()) {
-    await importBulk(importedData);
-  } else {
-    if (!hasData) {
-      setCategories(importedData);
-    } else {
-      setCategories([...getCategories(), ...importedData]);
-    }
-    saveData();
-    renderCategories();
+  try {
+    await importBulk(importedData, replace);
+  } catch (error) {
+    const reason = error instanceof Error && error.name === 'QuotaExceededError'
+      ? 'This browser has insufficient storage for the import.'
+      : error instanceof Error ? error.message : 'Could not save the import.';
+    await styledAlert(`Import failed. ${reason}`, 'Import');
+    return;
   }
+  if (!isConvexMode()) renderCategories();
 
   const totalBookmarks = importedData.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
   await styledAlert(

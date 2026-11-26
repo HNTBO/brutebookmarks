@@ -35,6 +35,33 @@ async function setupLocalMode(page: Page): Promise<void> {
 }
 
 test.describe('Import/Export round-trip', () => {
+  test('Replace keeps the visible and saved library when browser storage rejects the new data', async ({ page }) => {
+    await setupLocalMode(page);
+    await page.evaluate(() => {
+      const write = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key === 'speedDialData' && value.includes('Too large')) {
+          throw new DOMException('Synthetic import quota', 'QuotaExceededError');
+        }
+        return write.call(this, key, value);
+      };
+    });
+    await page.click('#settings-btn');
+    await page.click('#import-data-btn');
+    const chooser = page.waitForEvent('filechooser');
+    await page.click('#confirm-modal-ok');
+    await (await chooser).setFiles({
+      name: 'valid-backup.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify([{ id: 'new', name: 'Too large', bookmarks: [] }])),
+    });
+    await expect(page.locator('#confirm-modal-message')).toContainText('Replace them or append');
+    await page.click('#confirm-modal-ok');
+    await expect(page.locator('#confirm-modal-message')).toContainText('insufficient storage');
+    expect(await page.evaluate(() => localStorage.getItem('speedDialData'))).toBe(SEED_DATA);
+    await expect(page.getByAltText('GitHub')).toBeVisible();
+    await expect(page.getByAltText('Twitter')).toBeVisible();
+  });
+
   test('export produces valid JSON with correct structure', async ({ page }) => {
     await setupLocalMode(page);
 

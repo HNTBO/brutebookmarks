@@ -96,7 +96,20 @@ test('a genuine 16 × 16 automatic favicon stays on its card', async ({ page }, 
   expect(await img.evaluate((image: HTMLImageElement) => [image.naturalWidth, image.naturalHeight])).toEqual([16, 16]);
 });
 
-test('Fetch Favicons preserves the upload while refreshing an automatic bookmark', async ({ page }) => {
+test('Fetch Favicons preserves uploaded, emoji and Wikimedia icons while refreshing an automatic bookmark', async ({ page }) => {
+  const manual = [
+    { id: 'emoji', title: 'Emoji', url: site, iconPath: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f600.svg' },
+    { id: 'wiki', title: 'Wikimedia', url: site, iconPath: 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Test.png' },
+  ];
+  for (const bookmark of manual) {
+    await page.route(bookmark.iconPath, route => route.fulfill({ contentType: 'image/png', body: Buffer.from(png, 'base64') }));
+  }
+  await page.evaluate(bookmarks => {
+    const data: Category[] = JSON.parse(localStorage.getItem('speedDialData')!);
+    data[0].bookmarks.push(...bookmarks);
+    localStorage.setItem('speedDialData', JSON.stringify(data));
+  }, manual);
+  await page.reload();
   const uri = await upload(page);
   await page.click('#settings-btn');
   await page.click('#fetch-favicons-btn');
@@ -105,6 +118,10 @@ test('Fetch Favicons preserves the upload while refreshing an automatic bookmark
   await page.reload();
   expect((await storedBookmark(page, 'Automatic'))?.iconPath).toBe(automatic);
   await expectEmbeddedIcon(page, 'Uploaded', uri, 128);
+  for (const bookmark of manual) {
+    expect((await storedBookmark(page, bookmark.title))?.iconPath).toBe(bookmark.iconPath);
+    await expect(page.getByAltText(bookmark.title, { exact: true })).toHaveAttribute('src', bookmark.iconPath);
+  }
 });
 
 test('a native backup restores the uploaded PNG after reload', async ({ page }) => {
