@@ -94,6 +94,7 @@ export function renderApp(): void {
                 <img class="icon-preview-img" id="preview-icon" src="" alt="Icon preview">
                 <div class="icon-preview-info">
                   <p id="icon-source">No icon selected</p>
+                  <p id="favicon-status" role="status"></p>
                 </div>
               </div>
 

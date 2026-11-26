@@ -51,12 +51,13 @@ async function fetchWithTimeout(
 }
 
 function isFreshCacheEntry(cached: { fetchedAt: number; source: string }): boolean {
+  if (cached.source === "google-s2") return false; // Historical unverified suggestion
   const isProviderFallback = [
     "apple-touch-icon",
     "html-link",
     "icon-horse",
     "duckduckgo",
-    "google-s2",
+    "google-s2-verified",
   ].includes(cached.source);
   const ttl = isProviderFallback ? FALLBACK_CACHE_TTL_MS : CACHE_TTL_MS;
   return Date.now() - cached.fetchedAt < ttl;
@@ -265,7 +266,7 @@ async function searchSvglIcon(domain: string): Promise<FaviconResult | null> {
   }
 }
 
-async function resolveForDomain(domain: string): Promise<FaviconResult> {
+async function resolveForDomain(domain: string): Promise<FaviconResult | null> {
   const baseUrl = `https://${domain}`;
   let pageUrl = baseUrl;
   let html = "";
@@ -380,27 +381,22 @@ async function resolveForDomain(domain: string): Promise<FaviconResult> {
     return { iconUrl: ddg, source: "duckduckgo" };
   }
 
-  // Tier 10: Google S2 (always available, even for garbage domains)
-  return {
-    iconUrl: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-    source: "google-s2",
-  };
+  // Ask for a 404 on a miss and check the HTTP response before accepting Google.
+  const google = `https://s2.googleusercontent.com/s2/favicons?domain_url=${encodeURIComponent(baseUrl)}&alt=404&sz=64`;
+  return await isValidIcon(google) ? { iconUrl: google, source: "google-s2-verified" } : null;
 }
 
 // --- Public actions ---
 
 export const resolveFavicon = action({
   args: { url: v.string(), forceRefresh: v.optional(v.boolean()) },
-  handler: async (ctx, { url, forceRefresh }): Promise<FaviconResult> => {
+  handler: async (ctx, { url, forceRefresh }): Promise<FaviconResult | { iconUrl: null; source: "not-found" }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
     const domain = extractDomain(url);
     if (!domain || isPrivateHost(domain)) {
-      return {
-        iconUrl: `https://www.google.com/s2/favicons?domain=unknown&sz=64`,
-        source: "google-s2",
-      };
+      return { iconUrl: null, source: "not-found" };
     }
 
     // Check cache
@@ -411,6 +407,8 @@ export const resolveFavicon = action({
 
     // Resolve
     const result = await resolveForDomain(domain);
+
+    if (!result) return { iconUrl: null, source: "not-found" };
 
     // Cache result
     await ctx.runMutation(internal.faviconCache.upsertFaviconCache, {
@@ -470,6 +468,7 @@ export const resolveFaviconBulk = action({
       }
 
       const result = await resolveForDomain(domain);
+      if (!result) continue;
       domainResults.set(domain, result);
 
       // Cache

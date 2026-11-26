@@ -1,11 +1,11 @@
-import { getCategories, createBookmark, updateBookmark, deleteBookmarkById, isConvexMode } from '../../data/store';
+import { getCategories, createBookmark, updateBookmark, replaceBookmarkIcon, deleteBookmarkById, isConvexMode } from '../../data/store';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
 import { registerModal } from '../../utils/modal-manager';
-import { ConvexHttpClient } from 'convex/browser';
+import { cachedFavicons, discoveredIcon, loadFavicon } from '../../data/favicon-lookup';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { getIconUrl } from '../../utils/icons';
-import { initLucideOption, resetIconPicker, setSelectedIconPath, getSelectedImportedFavicon, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
+import { cancelPendingIconChoice, initLucideOption, resetIconPicker, setSelectedIconPath, getSelectedImportedFavicon, handleUrlChange, detectIconType, iconTypeLabel, setActiveIconButton } from '../icon-picker';
 import { styledConfirm } from './confirm-modal';
 import { getAutofillUrl } from '../../features/preferences';
 import { escapeHtml } from '../../utils/escape-html';
@@ -140,6 +140,7 @@ export function closeBookmarkModal(): void {
 
 async function saveBookmark(event: Event): Promise<void> {
   event.preventDefault();
+  cancelPendingIconChoice();
   const title = (document.getElementById('bookmark-title') as HTMLInputElement).value;
   const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
   const originalCategoryId = (document.getElementById('bookmark-category-id') as HTMLInputElement).value;
@@ -153,29 +154,18 @@ async function saveBookmark(event: Event): Promise<void> {
     const newId = await createBookmark(selectedCategoryId, title, url, iconPath);
     // Auto-fetch favicon if user didn't manually pick an icon
     if (!iconPath && url && /^https?:\/\//i.test(url)) {
-      if (isConvexMode()) {
-        const client = getConvexClient();
-        if (client) {
-          // Fire-and-forget: don't block modal close
-          client.action(api.favicons.resolveFavicon, { url }).then((result) => {
-            if (result.iconUrl) {
-              updateBookmark(newId, title, url, result.iconUrl).catch(() => {});
-            }
-          }).catch(() => {});
+      const synced = isConvexMode();
+      const domain = new URL(url).hostname;
+      const candidate = synced
+        ? getConvexClient()!.action(api.favicons.resolveFavicon, { url }).then(discoveredIcon)
+        : cachedFavicons([domain]).then(icons => icons.get(domain) ?? null);
+      void candidate.then(async icon => {
+        if (!icon) return;
+        const result = await loadFavicon(icon);
+        if (result.status === 'found' && isConvexMode() === synced) {
+          await replaceBookmarkIcon({ id: newId, url, iconPath: null }, result.url);
         }
-      } else {
-        // Local mode: try cache lookup via unauthenticated ConvexHttpClient
-        const convexUrl = import.meta.env.VITE_CONVEX_URL;
-        if (convexUrl) {
-          const httpClient = new ConvexHttpClient(convexUrl);
-          const domain = new URL(url).hostname;
-          httpClient.query(api.faviconCache.lookupCachedFavicons, { domains: [domain] }).then((results) => {
-            if (results.length > 0) {
-              updateBookmark(newId, title, url, results[0].iconUrl).catch(() => {});
-            }
-          }).catch(() => {});
-        }
-      }
+      }).catch(() => {});
     }
   }
   closeBookmarkModal();
@@ -209,6 +199,7 @@ export function initBookmarkModal(): void {
 
   // URL change — favicon + title fetch
   const urlInput = document.getElementById('bookmark-url')!;
+  urlInput.addEventListener('input', cancelPendingIconChoice);
   urlInput.addEventListener('change', handleUrlChange);
   urlInput.addEventListener('change', () => {
     const url = (urlInput as HTMLInputElement).value.trim();

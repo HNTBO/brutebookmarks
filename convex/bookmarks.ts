@@ -3,6 +3,7 @@ import type { MutationCtx } from './_generated/server';
 import { ConvexError, v } from 'convex/values';
 import { IMPORT_CAPACITY, isTransactionByteLimit, validateSyncImportCount } from '../src/shared/import-capacity';
 import { bumpUserWatermark } from './syncMeta';
+import { sameBookmarkIcon } from '../src/shared/bookmark-icon';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_URL_LENGTH = 2048;
@@ -139,6 +140,33 @@ export const update = mutation({
 
     await ctx.db.patch(id, patch);
     await bumpUserWatermark(ctx, userId);
+  },
+});
+
+// Compare and patch inside one Convex transaction, including edits from other clients.
+export const replaceIcon = mutation({
+  args: {
+    id: v.id('bookmarks'),
+    expected: v.object({
+      url: v.string(),
+      iconPath: v.union(v.string(), v.null()),
+      importedFavicon: v.optional(v.literal(true)),
+    }),
+    iconPath: v.union(v.string(), v.null()),
+    importedFavicon: v.optional(v.literal(true)),
+  },
+  handler: async (ctx, { id, expected, iconPath, importedFavicon }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error('Not authenticated');
+    const bookmark = await ctx.db.get(id);
+    if (!bookmark || bookmark.userId !== identity.subject || !sameBookmarkIcon(bookmark, expected)) return false;
+    if (iconPath) validateIconPath(iconPath);
+    await ctx.db.patch(id, {
+      iconPath: iconPath ?? undefined,
+      importedFavicon: iconPath?.startsWith('data:') ? importedFavicon : undefined,
+    });
+    await bumpUserWatermark(ctx, identity.subject);
+    return true;
   },
 });
 

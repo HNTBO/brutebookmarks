@@ -1,4 +1,4 @@
-import { getCategories, importBulk, eraseAllData, isConvexMode, rerender, updateBookmark } from '../../data/store';
+import { getCategories, importBulk, eraseAllData, isConvexMode, rerender, updateBookmark, replaceBookmarkIcon } from '../../data/store';
 import { getConvexClient } from '../../data/convex-client';
 import { api } from '../../../convex/_generated/api';
 import { wireModalSwipeDismiss } from '../../utils/modal-swipe-dismiss';
@@ -11,7 +11,8 @@ import { styledConfirm, styledAlert } from './confirm-modal';
 import { detectFormat, parseNetscapeHTML, parseJSON } from '../../utils/bookmark-parsers';
 import { isExtensionInstalled, requestBrowserBookmarks } from '../../utils/extension-bridge';
 import { convertBrowserBookmarks } from '../../utils/browser-bookmark-converter';
-import type { Category } from '../../types';
+import { cachedFavicons, discoveredIcon, loadFavicon, localFavicon } from '../../data/favicon-lookup';
+import type { Bookmark, Category } from '../../types';
 import { getAppMode } from '../../data/local-storage';
 import { getFoundingMemberStats } from '../../data/founding-stats';
 import { pushUndo } from '../../features/undo';
@@ -361,14 +362,14 @@ async function fetchAllFavicons(): Promise<void> {
     const categories = getCategories();
 
     // Refresh automatic icons in both local and sync mode. Keep the user's selections.
-    const allBookmarks: { bookmarkId: string; url: string; title: string; iconPath: string | null }[] = [];
+    const allBookmarks: Bookmark[] = [];
     for (const cat of categories) {
       for (const bk of cat.bookmarks) {
         const iconType = detectIconType(bk.iconPath, bk.importedFavicon);
         if (iconType && iconType !== 'favicon') continue;
         try {
           new URL(bk.url); // validate
-          allBookmarks.push({ bookmarkId: bk.id, url: bk.url, title: bk.title, iconPath: bk.iconPath });
+          allBookmarks.push({ ...bk });
         } catch {
           // Invalid URL — skip
         }
@@ -380,57 +381,52 @@ async function fetchAllFavicons(): Promise<void> {
 
     let updated = 0;
 
-    if (isConvexMode()) {
-      // Sync mode: use server-side bulk resolver
-      btn.textContent = `Finding best favicons... (${uniqueDomains.size} domains)`;
-      const client = getConvexClient();
-      if (client) {
-        const results = await client.action(api.favicons.resolveFaviconBulk, {
-          bookmarks: allBookmarks.map((bk) => ({ bookmarkId: bk.bookmarkId, url: bk.url })),
-          forceRefresh: true,
-        });
-
-        let applied = 0;
-        for (const result of results) {
-          const bk = allBookmarks.find((b) => b.bookmarkId === result.bookmarkId);
-          if (bk && bk.iconPath !== result.iconUrl) {
-            await updateBookmark(bk.bookmarkId, bk.title, bk.url, result.iconUrl);
-            updated++;
-          }
-          applied++;
-          btn.textContent = `Updating favicons... (${applied}/${results.length})`;
-        }
+    const synced = isConvexMode();
+    const domains = [...uniqueDomains];
+    const candidates = new Map<string, string>();
+    if (synced) {
+      btn.textContent = `Finding best favicons... (${domains.length} domains)`;
+      const results = await getConvexClient()!.action(api.favicons.resolveFaviconBulk, {
+        bookmarks: allBookmarks.map(b => ({ bookmarkId: b.id, url: b.url })),
+        forceRefresh: true,
+      });
+      for (const result of results) {
+        const icon = discoveredIcon(result);
+        if (icon) candidates.set(result.bookmarkId, icon);
       }
     } else {
-      // Local mode: try cache lookup, fall back to Google S2
-      const domains = [...uniqueDomains];
-      const cachedMap = new Map<string, string>();
-      const convexUrl = import.meta.env.VITE_CONVEX_URL;
-      if (convexUrl) {
-        btn.textContent = `Checking favicon cache...`;
-        try {
-          const { ConvexHttpClient } = await import('convex/browser');
-          const httpClient = new ConvexHttpClient(convexUrl);
-          const cached = await httpClient.query(api.faviconCache.lookupCachedFavicons, { domains });
-          for (const entry of cached) {
-            cachedMap.set(entry.domain, entry.iconUrl);
-          }
-        } catch {
-          // Cache lookup failed — fall through to Google S2 for all
-        }
-      }
-
-      let resolved = 0;
+      btn.textContent = 'Checking favicon cache...';
+      const cached = await cachedFavicons(domains).catch(() => new Map<string, string>());
       for (const bk of allBookmarks) {
         const domain = new URL(bk.url).hostname;
-        const faviconUrl = cachedMap.get(domain) || `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-        if (bk.iconPath !== faviconUrl) {
-          await updateBookmark(bk.bookmarkId, bk.title, bk.url, faviconUrl);
-          updated++;
-        }
-        resolved++;
-        btn.textContent = `Finding best favicons... (${resolved}/${allBookmarks.length})`;
+        const icon = cached.get(domain) ?? localFavicon(domain);
+        if (icon) candidates.set(bk.id, icon);
       }
+    }
+
+    const urls = new Set<string>();
+    for (const bk of allBookmarks) {
+      const icon = candidates.get(bk.id);
+      if (icon && icon !== bk.iconPath) urls.add(icon);
+    }
+    const remaining = urls.values();
+    const loaded = new Set<string>();
+    let checked = 0;
+    async function validateImages() {
+      for (const icon of remaining) {
+        if (isConvexMode() !== synced) break;
+        if ((await loadFavicon(icon)).status === 'found') loaded.add(icon);
+        btn.textContent = `Checking favicon images... (${++checked}/${urls.size})`;
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, urls.size) }, validateImages));
+    for (const [index, bk] of allBookmarks.entries()) {
+      if (isConvexMode() !== synced) break;
+      const icon = candidates.get(bk.id);
+      if (icon && icon !== bk.iconPath && loaded.has(icon)) {
+        if (await replaceBookmarkIcon(bk, icon)) updated++;
+      }
+      btn.textContent = `Updating favicons... (${index + 1}/${allBookmarks.length})`;
     }
 
     modalContent.style.pointerEvents = '';

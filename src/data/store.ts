@@ -1,4 +1,5 @@
 import type { Bookmark, Category, TabGroup, LayoutItem, UserPreferences } from '../types';
+import { sameBookmarkIcon } from '../shared/bookmark-icon';
 import { getConvexClient } from './convex-client';
 import { api } from '../../convex/_generated/api';
 import { ConvexError, getConvexSize } from 'convex/values';
@@ -18,6 +19,7 @@ const SPEED_DIAL_SNAPSHOT_META_KEY = 'speedDialSnapshotMeta';
 
 // --- State ---
 let _categories: Category[] = [];
+let lastLibrarySnapshot: string | null = null;
 let _layoutItems: LayoutItem[] = [];
 let _tabGroups: TabGroup[] = [];
 let _localTabGroups: { id: string; name: string; order: number }[] = [];
@@ -185,8 +187,14 @@ function parseSnapshotMeta(raw: string | null): SnapshotCacheMeta | null {
   }
 }
 
+function persistLibrary(categories: Category[]): void {
+  const serialized = JSON.stringify(categories);
+  localStorage.setItem(SPEED_DIAL_DATA_KEY, serialized);
+  lastLibrarySnapshot = serialized;
+}
+
 function writeSnapshotCache(): void {
-  localStorage.setItem(SPEED_DIAL_DATA_KEY, JSON.stringify(_categories));
+  persistLibrary(_categories);
   localStorage.setItem(SPEED_DIAL_GROUPS_KEY, JSON.stringify(_localTabGroups));
 
   const meta: SnapshotCacheMeta = {
@@ -324,6 +332,7 @@ export function moveLocalCategoryToLayout(categoryId: string, targetIndex: numbe
 // --- Initialize from localStorage cache (instant render before Convex arrives) ---
 export async function initializeData(): Promise<void> {
   const savedData = localStorage.getItem(SPEED_DIAL_DATA_KEY);
+  lastLibrarySnapshot = savedData;
   if (savedData) {
     try {
       const parsed = JSON.parse(savedData);
@@ -1029,6 +1038,40 @@ export async function updateBookmark(
   }
 }
 
+export async function replaceBookmarkIcon(
+  bookmark: Pick<Bookmark, 'id' | 'url' | 'iconPath' | 'importedFavicon'>,
+  iconPath: string | null,
+  importedFavicon?: true,
+): Promise<boolean> {
+  const { id, url } = bookmark;
+  const expected = { url, iconPath: bookmark.iconPath ?? null, importedFavicon: bookmark.importedFavicon };
+  if (_convexActive) {
+    const applied = await requireConvexClient().mutation(api.bookmarks.replaceIcon, {
+      id: id as Id<'bookmarks'>, expected, iconPath, importedFavicon,
+    });
+    if (!applied) return false;
+  } else {
+    const current = _categories.flatMap(cat => cat.bookmarks).find(b => b.id === id);
+    if (!current || !sameBookmarkIcon(current, expected)) return false;
+    // Local saves serialize the whole library. Skip a stale tab's refresh if
+    // another tab has since saved a newer copy.
+    if (localStorage.getItem(SPEED_DIAL_DATA_KEY) !== lastLibrarySnapshot) return false;
+    current.iconPath = iconPath;
+    current.importedFavicon = importedFavicon;
+    await saveData();
+    rerender();
+  }
+  if (!isUndoing()) {
+    const previous = { id, ...expected };
+    const next = { id, url, iconPath, importedFavicon };
+    pushUndo({
+      undo: async () => { await replaceBookmarkIcon(next, previous.iconPath, previous.importedFavicon); },
+      redo: async () => { await replaceBookmarkIcon(previous, iconPath, importedFavicon); },
+    });
+  }
+  return true;
+}
+
 export async function deleteBookmarkById(id: string): Promise<void> {
   let capturedCatId: string | undefined;
   let capturedBk: Bookmark | undefined;
@@ -1320,7 +1363,7 @@ export async function importBulk(data: Category[], replace: boolean): Promise<vo
     const layout = buildLocalLayout(nextCategories);
     // The library is one localStorage value. A quota error leaves both the
     // previous value and the currently rendered library intact.
-    localStorage.setItem(SPEED_DIAL_DATA_KEY, JSON.stringify(nextCategories));
+    persistLibrary(nextCategories);
     _categories = nextCategories;
     _layoutItems = layout.layoutItems;
     _tabGroups = layout.tabGroups;

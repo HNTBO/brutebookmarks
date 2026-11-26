@@ -96,6 +96,9 @@ test('keyboard selection, recoloring and cancel preserve a portable icon through
   await page.click('#confirm-modal-ok');
   await page.reload();
   await page.click('#settings-btn');
+  await page.route('https://icon.horse/icon/status.example?fallback=404', route => route.fulfill({
+    contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>',
+  }));
   await page.click('#fetch-favicons-btn');
   await expect(page.locator('#confirm-modal-message')).toHaveText('Updated favicons for 1 bookmark.');
   await page.click('#confirm-modal-ok');
@@ -127,7 +130,7 @@ test('mobile picker resets after cancel and ignores a pending upload', async ({ 
   await page.locator('#custom-icon-input').setInputFiles({
     name: 'server.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"/>'),
   });
-  await expect(page.locator('#icon-source')).toHaveText('Processing...');
+  await expect(page.locator('#favicon-status')).toHaveText('Processing image…');
   await page.getByRole('button', { name: 'Lucide Icons' }).click();
   await page.getByRole('radio', { name: 'server', exact: true }).check();
   await page.getByLabel('Hex icon color').fill('#a54b37');

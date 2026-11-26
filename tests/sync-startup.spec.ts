@@ -180,13 +180,13 @@ test('sync saves the manual Lucide choice after an earlier favicon lookup comple
   await page.evaluate(() => {
     Object.assign(window.__BB_MOCK_CONVEX_CLIENT__!, {
       action: () => new Promise(resolve => {
-        window.addEventListener('finish-lookup', () => resolve({ iconUrl: 'https://router.example/favicon.ico' }), { once: true });
+        window.addEventListener('finish-lookup', () => resolve({ iconUrl: 'https://router.example/favicon.ico', source: 'favicon-ico' }), { once: true });
       }),
       mutation: async (_ref: unknown, args: unknown) => sessionStorage.setItem('saved-mutation', JSON.stringify(args)),
     });
   });
   await page.getByRole('button', { name: 'Use Favicon' }).click();
-  await expect(page.locator('#icon-source')).toHaveText('Finding favicon...');
+  await expect(page.locator('#favicon-status')).toHaveText('Finding favicon…');
   await page.getByRole('button', { name: 'Lucide Icons' }).click();
   await page.getByRole('radio', { name: 'router', exact: true }).check();
   await page.evaluate(() => window.dispatchEvent(new Event('finish-lookup')));
