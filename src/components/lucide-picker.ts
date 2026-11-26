@@ -27,6 +27,11 @@ export const lucidePickerMarkup = `
       <button type="button" id="lucide-prev" aria-label="Previous icons" title="Previous icons">‹</button>
       <button type="button" id="lucide-next" aria-label="Next icons" title="Next icons">›</button>
     </div>
+    <div id="lucide-previews" class="hidden" role="group" aria-label="Bookmark color previews">
+      <div data-preview-theme="light"><span class="lucide-sample"></span>Light</div>
+      <div data-preview-theme="dark"><span class="lucide-sample"></span>Dark</div>
+    </div>
+    <p id="lucide-contrast-warning" role="status"></p>
   </div>`;
 
 const input = (id: string) => document.getElementById(id) as HTMLInputElement;
@@ -38,7 +43,46 @@ let matches: string[] = [];
 let selectedName: string | null = null;
 let onPick: (path: string, name: string) => void;
 
+// CSS grayscale mixes sRGB channels before they are linearized for contrast.
+function luminance(hex: string, grayscale = 0): number {
+  const channels = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const weights = [0.2126, 0.7152, 0.0722];
+  const gray = channels.reduce((sum, channel, i) => sum + channel * weights[i], 0);
+  return channels.reduce((sum, channel, i) => {
+    const value = channel + grayscale * (gray - channel);
+    const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    return sum + weights[i] * linear;
+  }, 0);
+}
+
+function updatePreviews() {
+  const previews = document.getElementById('lucide-previews')!;
+  const warning = document.getElementById('lucide-contrast-warning')!;
+  if (!catalog || !selectedName || !catalog.hasIcon(selectedName)) {
+    previews.classList.add('hidden');
+    warning.textContent = '';
+    return;
+  }
+
+  previews.classList.remove('hidden');
+  const color = input('lucide-color').value;
+  const svg = catalog.iconSvg(selectedName, color);
+  const styles = getComputedStyle(previews);
+  const foreground = luminance(color, Number(styles.getPropertyValue('--bookmark-icon-grayscale')));
+  const lowContrast: string[] = [];
+  for (const sample of previews.querySelectorAll<HTMLElement>('[data-preview-theme]')) {
+    const theme = sample.dataset.previewTheme!;
+    sample.querySelector('.lucide-sample')!.innerHTML = svg;
+    const background = luminance(styles.getPropertyValue('--bg-card-' + theme).trim());
+    const ratio = (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+    if (ratio < 3) lowContrast.push(theme);
+  }
+  const message = lowContrast.length ? `Low contrast on the ${lowContrast.join(' and ')} background. You can still use this color.` : '';
+  if (warning.textContent !== message) warning.textContent = message;
+}
+
 function applySelection() {
+  updatePreviews();
   if (!catalog || !selectedName || !catalog.hasIcon(selectedName)) return;
   const svg = catalog.iconSvg(selectedName, input('lucide-color').value, true);
   onPick(uriPrefix + encodeURIComponent(svg), selectedName);
@@ -103,6 +147,7 @@ export async function showLucidePicker(path: string | null) {
     if (current !== generation) return;
   }
   input('lucide-hex').disabled = input('lucide-color').disabled = false;
+  updatePreviews();
   search();
   if (selectedName && !input('lucide-query').value && matches.includes(selectedName)) {
     page = Math.floor(matches.indexOf(selectedName) / pageSize);

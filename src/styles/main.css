@@ -18,7 +18,10 @@ html, body {
     /* Core palette - stark and editorial */
     --bg-primary: #000c17;
     --bg-secondary: #0a1621;
-    --bg-card: #101c27;
+    --bg-card-dark: #101c27;
+    --bg-card-light: #fdf6e3;
+    --bg-card: var(--bg-card-dark);
+    --bookmark-icon-grayscale: 0.2;
     --bg-hover: #1a2631;
 
     --text-primary: #fafafa;
@@ -107,7 +110,7 @@ html, body {
 [data-theme="light"] {
     --bg-primary: #fdf6e3;    /* Base3 */
     --bg-secondary: #eee8d5;  /* Base2 */
-    --bg-card: #fdf6e3;       /* Base3 */
+    --bg-card: var(--bg-card-light);
     --bg-hover: #eee8d5;      /* Base2 */
 
     --text-primary: #586e75;  /* Base01 */
@@ -647,7 +650,7 @@ body.control-add-mode .bookmark-action-btn .bookmark-action-delete {
     max-width: 56px;
     margin-bottom: 10%;
     object-fit: contain;
-    filter: grayscale(20%);
+    filter: grayscale(var(--bookmark-icon-grayscale));
     transition: filter 0.3s ease, transform 0.3s ease;
 }
 
