@@ -27,8 +27,60 @@ async function openLibrary(page: Page, theme = 'dark') {
 
 async function editRouter(page: Page) {
   await page.locator('.bookmark-card').filter({ has: page.getByAltText('Router console') })
-    .getByRole('button', { name: 'Edit bookmark' }).click({ force: true });
+    .getByRole('button', { name: 'Edit bookmark' }).press('Enter');
 }
+
+test('previews both card themes, warns on low contrast and preserves the chosen color', async ({ page }) => {
+  await openLibrary(page, 'light');
+  const preview = page.getByRole('group', { name: 'Bookmark color previews' });
+  const light = preview.locator('[data-preview-theme="light"]');
+  const dark = preview.locator('[data-preview-theme="dark"]');
+  const warning = page.locator('#lucide-contrast-warning');
+  const hex = page.getByLabel('Hex icon color');
+  const card = page.locator('.bookmark-card').filter({ has: page.getByAltText('Status monitor') });
+  const cardBackground = () => card.evaluate(el => getComputedStyle(el).backgroundColor);
+
+  await page.getByRole('button', { name: 'Lucide Icons' }).click();
+  await expect(preview).toBeHidden();
+  await page.getByRole('radio', { name: 'router', exact: true }).check();
+  await expect(light).toHaveText('Light');
+  await expect(dark).toHaveText('Dark');
+  await expect(light).toHaveCSS('background-color', await cardBackground());
+  await expect(warning).toHaveRole('status');
+
+  // These adjacent grays straddle 3:1 on the light card (3.037 and 2.998).
+  await hex.fill('#8e8e8e');
+  await expect(warning).toBeEmpty();
+  await hex.fill('#8f8f8f');
+  await expect(warning).toContainText(/light/i);
+  // Desaturation on a resting card pushes this red below 3:1 on dark.
+  await page.evaluate(() => document.documentElement.style.setProperty('--bookmark-icon-grayscale', '20%'));
+  await page.getByLabel('Icon color', { exact: true }).fill('#f00000');
+  await expect(warning).toContainText(/dark/i);
+  await expect(warning).not.toContainText(/light/i);
+  for (const tile of [light, dark]) {
+    const glyph = tile.locator('svg');
+    await expect(glyph).toBeVisible();
+    await expect(glyph).toHaveAttribute('data-bb-lucide', 'router');
+    await expect(glyph).toHaveAttribute('stroke', '#f00000');
+  }
+
+  await page.getByRole('button', { name: 'Save Bookmark' }).click();
+  const saved = await page.getByAltText('Router console', { exact: true }).getAttribute('src');
+  expect(decodeURIComponent(saved!)).toContain('stroke="#f00000"');
+  await page.evaluate(() => localStorage.setItem('theme', 'dark'));
+  await page.reload();
+  await editRouter(page);
+  await expect(dark).toHaveCSS('background-color', await cardBackground());
+  await expect(light.locator('svg')).toHaveAttribute('stroke', '#f00000');
+  await expect(warning).toContainText(/dark/i);
+  await hex.fill('#777777');
+  await expect(warning).toBeEmpty();
+  await page.getByRole('radio', { name: 'star', exact: true }).check();
+  await expect(dark.locator('svg')).toHaveAttribute('data-bb-lucide', 'star');
+  await page.click('#bookmark-cancel-btn');
+  await expect(page.getByAltText('Router console', { exact: true })).toHaveAttribute('src', saved!);
+});
 
 test('keyboard selection, recoloring and cancel preserve a portable icon through refresh and backup', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 900 });

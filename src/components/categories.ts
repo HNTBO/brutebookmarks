@@ -378,6 +378,7 @@ function wireBookmarkCards(el: HTMLElement, options: { draggable?: boolean } = {
     });
 
     card.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.target !== card) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         const url = card.dataset.url;
