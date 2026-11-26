@@ -68,7 +68,9 @@ function updatePreviews() {
   const color = input('lucide-color').value;
   const svg = catalog.iconSvg(selectedName, color);
   const styles = getComputedStyle(previews);
-  const foreground = luminance(color, Number(styles.getPropertyValue('--bookmark-icon-grayscale')));
+  const filterAmount = styles.getPropertyValue('--bookmark-icon-grayscale').trim();
+  const grayscale = filterAmount.endsWith('%') ? parseFloat(filterAmount) / 100 : Number(filterAmount);
+  const foreground = luminance(color, grayscale);
   const lowContrast: string[] = [];
   for (const sample of previews.querySelectorAll<HTMLElement>('[data-preview-theme]')) {
     const theme = sample.dataset.previewTheme!;

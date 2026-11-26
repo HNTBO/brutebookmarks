@@ -27,7 +27,7 @@ async function openLibrary(page: Page, theme = 'dark') {
 
 async function editRouter(page: Page) {
   await page.locator('.bookmark-card').filter({ has: page.getByAltText('Router console') })
-    .getByRole('button', { name: 'Edit bookmark' }).click({ force: true });
+    .getByRole('button', { name: 'Edit bookmark' }).press('Enter');
 }
 
 test('previews both card themes, warns on low contrast and preserves the chosen color', async ({ page }) => {
@@ -54,6 +54,7 @@ test('previews both card themes, warns on low contrast and preserves the chosen 
   await hex.fill('#8f8f8f');
   await expect(warning).toContainText(/light/i);
   // Desaturation on a resting card pushes this red below 3:1 on dark.
+  await page.evaluate(() => document.documentElement.style.setProperty('--bookmark-icon-grayscale', '20%'));
   await page.getByLabel('Icon color', { exact: true }).fill('#f00000');
   await expect(warning).toContainText(/dark/i);
   await expect(warning).not.toContainText(/light/i);

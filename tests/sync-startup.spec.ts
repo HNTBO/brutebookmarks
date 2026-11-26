@@ -176,7 +176,10 @@ test('sync saves the manual Lucide choice after an earlier favicon lookup comple
     },
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Edit bookmark' }).click({ force: true });
+  const router = page.locator('.bookmark-card').filter({ has: page.getByAltText('Router console') });
+  await router.getByRole('button', { name: 'Edit bookmark' }).press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Edit Bookmark' }).getByLabel('URL', { exact: true }))
+    .toHaveValue('https://router.example/');
   await page.evaluate(() => {
     Object.assign(window.__BB_MOCK_CONVEX_CLIENT__!, {
       action: () => new Promise(resolve => {
