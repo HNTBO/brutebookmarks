@@ -346,6 +346,9 @@ test.describe('Modal open/close', () => {
     await page.locator('.add-bookmark').first().click();
     await expect(page.locator('#bookmark-modal')).toHaveClass(/active/);
 
+    await page.route('https://icon.horse/icon/example.com?fallback=404', route => route.fulfill({
+      contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>',
+    }));
     await page.fill('#bookmark-url', 'https://example.com');
     await page.click('#use-favicon-btn');
     await expect(page.locator('#use-favicon-btn')).toHaveClass(/active/);
