@@ -72,7 +72,7 @@ test('local lookup loads a real 16px icon before selecting it', async ({ page })
   expect(await page.locator('#preview-icon').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(16);
 });
 
-test('sync timeout includes resolver wait and ignores the eventual result', async ({ page }) => {
+test('a late sync discovery is applied only on explicit retry', async ({ page }) => {
   await deferSyncAction(page);
   await edit(page);
   await page.clock.install();
@@ -81,6 +81,8 @@ test('sync timeout includes resolver wait and ignores the eventual result', asyn
   await expect(page.getByRole('status').filter({ hasText: 'timed out' })).toBeVisible();
   await finish(page, candidate, 'html-favicon');
   await expect(page.locator('#bookmark-icon-path')).toHaveValue(custom);
+  await page.click('#use-favicon-btn');
+  await expect(page.locator('#bookmark-icon-path')).toHaveValue(candidate);
 });
 
 test('a late sync result cannot replace an upload or enter a reopened same-URL dialog', async ({ page }) => {

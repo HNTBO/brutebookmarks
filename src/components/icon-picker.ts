@@ -6,8 +6,10 @@ import { api } from '../../convex/_generated/api';
 import { discoveredIcon, loadFavicon, localFavicon } from '../data/favicon-lookup';
 
 let iconChoice = new AbortController();
+let timedOutDiscovery: { url: string; result: Promise<string | null>; expires: number } | undefined;
 
 export function cancelPendingIconChoice(): void {
+  timedOutDiscovery = undefined;
   iconChoice.abort();
   iconChoice = new AbortController();
   document.getElementById('favicon-status')!.textContent = '';
@@ -118,6 +120,7 @@ export function handleUrlChange(): void {
 }
 
 export async function useFavicon(): Promise<void> {
+  const previous = timedOutDiscovery;
   cancelPendingIconChoice();
   const { signal } = iconChoice;
   const url = (document.getElementById('bookmark-url') as HTMLInputElement).value;
@@ -142,11 +145,19 @@ export async function useFavicon(): Promise<void> {
     return;
   }
   status.textContent = 'Finding favicon…';
-  const candidate = isConvexMode()
-    ? getConvexClient()!.action(api.favicons.resolveFavicon, { url, forceRefresh: true }).then(discoveredIcon)
-    : localFavicon(domain);
+  let discovery: typeof previous;
+  let discovering = false;
+  if (isConvexMode()) {
+    discovery = previous?.url === url && previous.expires > Date.now() ? previous : {
+      url, expires: Date.now() + 60_000,
+      result: getConvexClient()!.action(api.favicons.resolveFavicon, { url, forceRefresh: true }).then(discoveredIcon),
+    };
+    discovering = true;
+  }
+  const candidate = discovery ? discovery.result.finally(() => { discovering = false; }) : localFavicon(domain);
   const result = await loadFavicon(candidate, signal);
   if (signal.aborted) return;
+  if (result.status === 'timeout' && discovering) timedOutDiscovery = discovery;
   if (result.status !== 'found' && !navigator.onLine) {
     status.textContent = offlineMessage;
     return;
