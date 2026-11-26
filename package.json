@@ -9,7 +9,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "ci:app": "npm run typecheck && tsc --noEmit -p convex/tsconfig.json && npm test && npm run build",
+    "ci:browser": "npm run test:e2e",
+    "ci:extensions": "node scripts/ci/extensions.mjs"
   },
   "keywords": [
     "bookmarks",

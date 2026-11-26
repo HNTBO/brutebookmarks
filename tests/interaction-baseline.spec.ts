@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './fixtures/browser';
 import { LETTER_DOUBLE_PRESS_WINDOW } from '../src/utils/interaction-constants';
 
 /**
@@ -191,7 +191,7 @@ test.describe('Bookmark card click', () => {
       firstCard.click(),
     ]);
     // The new page should target the bookmark URL
-    expect(newPage.url()).toContain(new URL(url!).hostname);
+    await expect(newPage).toHaveURL(new URL(url!).href);
     await newPage.close();
   });
 
@@ -207,8 +207,8 @@ test.describe('Bookmark card click', () => {
       firstCard.click({ modifiers: ['Control'] }),
     ]);
 
-    expect(newPage.url()).toContain(new URL(url!).hostname);
-    expect(page.url()).toContain('localhost');
+    await expect(newPage).toHaveURL(new URL(url!).href);
+    await expect(page).toHaveURL('/');
     await newPage.close();
   });
 
@@ -224,8 +224,8 @@ test.describe('Bookmark card click', () => {
       firstCard.click({ button: 'middle' }),
     ]);
 
-    expect(newPage.url()).toContain(new URL(url!).hostname);
-    expect(page.url()).toContain('localhost');
+    await expect(newPage).toHaveURL(new URL(url!).href);
+    await expect(page).toHaveURL('/');
     await newPage.close();
   });
 });
