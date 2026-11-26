@@ -420,7 +420,7 @@ test.describe('Bookmark drag reorder (mouse)', () => {
     const secondCard = cards.nth(1);
     const firstBox = await firstCard.boundingBox();
     const secondBox = await secondCard.boundingBox();
-    if (!firstBox || !secondBox) return;
+    if (!firstBox || !secondBox) throw new Error('Both bookmark cards must be visible to exercise dragging');
 
     // Start drag from center of first card
     const startX = firstBox.x + firstBox.width / 2;
@@ -464,7 +464,7 @@ test.describe('Category drag reorder', () => {
 
     const firstHandle = handles.first();
     const box = await firstHandle.boundingBox();
-    if (!box) return;
+    if (!box) throw new Error('The category drag handle must be visible to exercise dragging');
 
     const startX = box.x + box.width / 2;
     const startY = box.y + box.height / 2;
@@ -503,7 +503,7 @@ test.describe('Size controller', () => {
 
     const handle = page.locator('#size-handle');
     const box = await handle.boundingBox();
-    if (!box) return;
+    if (!box) throw new Error('The size handle must be visible to exercise resizing');
 
     const startX = box.x + box.width / 2;
     const startY = box.y + box.height / 2;
@@ -729,7 +729,7 @@ test.describe('Drag cancel', () => {
     const firstCard = cards.first();
     const firstTitle = await firstCard.locator('.bookmark-title').textContent();
     const firstBox = await firstCard.boundingBox();
-    if (!firstBox) return;
+    if (!firstBox) throw new Error('The bookmark card must be visible to exercise dragging');
 
     const startX = firstBox.x + firstBox.width / 2;
     const startY = firstBox.y + firstBox.height / 2;

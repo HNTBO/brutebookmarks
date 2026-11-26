@@ -7,8 +7,11 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   testIgnore: ['**/unit/**'],
   timeout: 30_000,
+  forbidOnly: !!process.env.CI,
   retries: 0,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'test-results/summary.json' }]]
+    : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL,
     trace: 'retain-on-failure',
