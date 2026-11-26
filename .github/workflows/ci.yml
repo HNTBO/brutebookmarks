@@ -1,28 +1,80 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Supersede older runs for a PR, but check every landed revision independently.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '22.23.5'
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  app:
+    name: App and backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 20
-          cache: npm
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - run: npm ci
-      # typecheck and build require convex/_generated/ (gitignored).
-      # Vercel runs `npx convex deploy && vite build` with secrets at deploy time.
-      # To enable full CI, add CONVEX_DEPLOY_KEY to GitHub repo secrets and
-      # uncomment the lines below:
-      # - run: npx convex codegen
-      #   env:
-      #     CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-      # - run: npm run typecheck
-      # - run: npm run build
-      # - run: npm test
+      - run: npm run ci:app
+
+  browser:
+    name: Browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps chromium
+      - id: tests
+        run: npm run ci:browser
+      - name: Verify Chromium suite coverage
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const { stats } = require('./test-results/summary.json');
+          if (!Number.isInteger(stats.expected) || stats.expected < 49 || stats.skipped !== 0) {
+            throw new Error(`Expected at least 49 Chromium tests and zero skips. Got ${stats.expected} expected outcomes and ${stats.skipped} skips.`);
+          }
+          NODE
+      # Playwright includes the retained failure traces inside its HTML report.
+      - name: Keep the browser report
+        if: ${{ !cancelled() && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: error
+          retention-days: 7
+
+  extensions:
+    name: Extensions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # The driver runs npm ci from each extension's lockfile before its builds.
+      - run: npm run ci:extensions
