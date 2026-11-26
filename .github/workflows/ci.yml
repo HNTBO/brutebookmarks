@@ -47,6 +47,14 @@ jobs:
       - run: npx --no-install playwright install --with-deps chromium
       - id: tests
         run: npm run ci:browser
+      - name: Verify Chromium suite coverage
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const { stats } = require('./test-results/summary.json');
+          if (!Number.isInteger(stats.expected) || stats.expected < 49 || stats.skipped !== 0) {
+            throw new Error(`Expected at least 49 Chromium tests and zero skips. Got ${stats.expected} expected outcomes and ${stats.skipped} skips.`);
+          }
+          NODE
       # Playwright includes the retained failure traces inside its HTML report.
       - name: Keep the browser report
         if: ${{ !cancelled() && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
