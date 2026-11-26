@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './fixtures/browser';
 
 /**
  * E2E tests for drag-and-drop reorder results.

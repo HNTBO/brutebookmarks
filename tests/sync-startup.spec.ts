@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/browser';
 
 type LocalCategorySeed = Array<{
   id: string;

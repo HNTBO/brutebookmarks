@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/browser';
 
 async function installAuthenticatedMocks(page: Page, avatarSrc: string): Promise<void> {
   await page.addInitScript((src) => {

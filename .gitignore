@@ -32,9 +32,6 @@ logs/
 # Build output
 dist/
 
-# Convex generated files
-convex/_generated/
-
 # Scratch / WIP graphics
 _drafts/
 _graphics/
@@ -45,6 +42,7 @@ _graphics/
 
 # Local test and tool artifacts
 test-results/
+playwright-report/
 .claude/worktrees/
 tmpclaude-*
 
