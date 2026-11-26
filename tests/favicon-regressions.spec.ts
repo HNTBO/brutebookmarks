@@ -96,6 +96,28 @@ test('a genuine 16 × 16 automatic favicon stays on its card', async ({ page }, 
   expect(await img.evaluate((image: HTMLImageElement) => [image.naturalWidth, image.naturalHeight])).toEqual([16, 16]);
 });
 
+test('a browser icon stays refreshable after editing and restoring a backup alongside an upload', async ({ page }) => {
+  const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><DT><A HREF="${site}" ICON="${pngUri}">Browser</A></DL>`;
+  await importFile(page, { name: 'browser.html', mimeType: 'text/html', buffer: Buffer.from(html) });
+  const uploaded = await upload(page);
+  await page.locator('.bookmark-card').filter({ has: page.getByAltText('Browser', { exact: true }) })
+    .getByRole('button', { name: 'Edit bookmark' }).click({ force: true });
+  await page.fill('#bookmark-title', 'Renamed');
+  await page.getByRole('button', { name: 'Save Bookmark' }).click();
+  await page.click('#settings-btn');
+  const download = page.waitForEvent('download');
+  await page.click('#export-data-btn');
+  const buffer = await readFile((await (await download).path())!);
+  await page.keyboard.press('Escape');
+  await importFile(page, { name: 'backup.json', mimeType: 'application/json', buffer });
+  await page.reload();
+  await page.click('#settings-btn');
+  await page.click('#fetch-favicons-btn');
+  await expect(page.locator('#confirm-modal-message')).toHaveText('Updated favicons for 1 bookmark.');
+  expect((await storedBookmark(page, 'Renamed'))?.iconPath).toBe(automatic);
+  await expectEmbeddedIcon(page, 'Uploaded', uploaded, 128);
+});
+
 test('Fetch Favicons preserves uploaded, emoji and Wikimedia icons while refreshing an automatic bookmark', async ({ page }) => {
   const manual = [
     { id: 'emoji', title: 'Emoji', url: site, iconPath: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f600.svg' },

@@ -1,4 +1,53 @@
 import { test, expect, type Page } from './fixtures/browser';
+import { selectBackup } from './fixtures/import';
+import { IMPORT_CAPACITY } from '../src/shared/import-capacity';
+
+test('sync Replace only retries a confirmed byte-limit failure and preserves the library on failure', async ({ page }) => {
+  await setupSyncStartupScenario(page, {
+    localData: null, localGroups: [], localMeta: null, watermarkResponse: null, watermarkDelayMs: 0,
+    emitLiveData: true, liveDelayMs: 0, live: {
+      categories: [{ _id: 'old', name: 'Existing library', order: 1 }], tabGroups: [],
+      bookmarks: [{ _id: 'old-link', categoryId: 'old', title: 'Existing link', url: 'https://fixture.example/', order: 1 }],
+    },
+  });
+  const requests: { replace: boolean; data: { bookmarks: { title: string; url: string; iconPath?: string }[] }[] }[] = [];
+  await page.routeWebSocket(/\/sync$/, socket => {
+    socket.onMessage(message => {
+      const packet = JSON.parse(message.toString());
+      if (packet.type !== 'Mutation') return;
+      expect(packet.udfPath).toBe('bookmarks:importBulk');
+      requests.push(packet.args[0]);
+      socket.send(JSON.stringify({
+        type: 'MutationResponse', requestId: packet.requestId, success: false, logLines: [],
+        result: '[Request ID: fixture] Server Error',
+        ...(requests.length === 1 && { errorData: IMPORT_CAPACITY }),
+      }));
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByAltText('Existing link')).toBeVisible();
+  await page.evaluate(async () => {
+    const fixture = '/tests/fixtures/import.ts';
+    (await import(fixture)).connectImportTransport();
+  });
+  const link = { title: 'New link', url: 'https://fixture.example/new' };
+  await selectBackup(page, [{ name: 'New', bookmarks: [{ ...link, iconPath: 'data:image/png;base64,YQ==' }] }]);
+  await page.getByRole('button', { name: 'Replace', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Retry without images' })).toBeVisible();
+  expect(requests).toHaveLength(1);
+  await page.getByRole('button', { name: 'Retry without images' }).click();
+  await expect(page.locator('#confirm-modal-message')).toContainText('Server Error');
+  expect(requests[1]).toEqual({ replace: true, data: [{ name: 'New', bookmarks: [link] }] });
+  await expect(page.getByAltText('Existing link')).toBeVisible();
+  await page.click('#confirm-modal-ok');
+
+  // Same file with images, but a redacted unrelated failure has no retry.
+  await selectBackup(page, [{ name: 'New', bookmarks: [{ ...link, iconPath: 'data:image/png;base64,YQ==' }] }]);
+  await page.getByRole('button', { name: 'Append', exact: true }).click();
+  await expect(page.locator('#confirm-modal-message')).toContainText('Server Error');
+  await expect(page.getByRole('button', { name: 'Retry without images' })).toHaveCount(0);
+  expect(requests).toHaveLength(3);
+});
 
 type LocalCategorySeed = Array<{
   id: string;

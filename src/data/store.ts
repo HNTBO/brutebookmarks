@@ -1,6 +1,9 @@
 import type { Bookmark, Category, TabGroup, LayoutItem, UserPreferences } from '../types';
 import { getConvexClient } from './convex-client';
 import { api } from '../../convex/_generated/api';
+import { ConvexError, getConvexSize } from 'convex/values';
+import type { ConvexClient } from 'convex/browser';
+import { IMPORT_CAPACITY, validateSyncImportCount } from '../shared/import-capacity';
 import type { Doc, Id } from '../../convex/_generated/dataModel';
 import { DEFAULT_LAYOUT } from './defaults';
 import { styledConfirm, styledAlert } from '../components/modals/confirm-modal';
@@ -581,7 +584,7 @@ function debouncedCacheToLocalStorage(): void {
 // --- Pure denormalization (extracted for testability) ---
 
 interface RawCategory { _id: string; name: string; order: number; groupId?: string | null; }
-interface RawBookmark { _id: string; title: string; url: string; iconPath?: string | null; order: number; categoryId: string; }
+interface RawBookmark { _id: string; title: string; url: string; iconPath?: string | null; importedFavicon?: true; order: number; categoryId: string; }
 interface RawTabGroup { _id: string; name: string; order: number; }
 
 export interface RebuildResult {
@@ -624,6 +627,7 @@ export function denormalize(
           title: b.title,
           url: b.url,
           iconPath: b.iconPath ?? null,
+          importedFavicon: b.importedFavicon,
           order: b.order,
         })),
       };
@@ -722,16 +726,7 @@ async function promptMigration(legacy: Category[]): Promise<void> {
   if (!client) return;
 
   try {
-    const bulkData = legacy.map((cat) => ({
-      name: cat.name,
-      bookmarks: cat.bookmarks.map((b) => ({
-        title: b.title,
-        url: b.url,
-        iconPath: b.iconPath ?? undefined,
-      })),
-    }));
-
-    await client.mutation(api.bookmarks.importBulk, { data: bulkData });
+    await importToSync(client, legacy, false);
     console.log('[Store] Migration complete');
     // Subscriptions will fire and rebuild automatically
   } catch (error) {
@@ -908,7 +903,7 @@ export async function deleteCategory(id: string): Promise<void> {
       undo: async () => {
         ref.currentId = await createCategory(data.name);
         for (const bk of data.bookmarks) {
-          await createBookmark(ref.currentId, bk.title, bk.url, bk.iconPath);
+          await createBookmark(ref.currentId, bk.title, bk.url, bk.iconPath, bk.importedFavicon);
         }
       },
       redo: () => deleteCategory(ref.currentId),
@@ -921,6 +916,7 @@ export async function createBookmark(
   title: string,
   url: string,
   iconPath: string | null,
+  importedFavicon?: true,
 ): Promise<string> {
   let newId: string;
   if (_convexActive) {
@@ -931,6 +927,7 @@ export async function createBookmark(
         title,
         url,
         iconPath: iconPath ?? undefined,
+        importedFavicon,
       });
     } catch (err) {
       console.error('[Store] createBookmark failed:', err);
@@ -940,7 +937,7 @@ export async function createBookmark(
     newId = 'b' + Date.now();
     const cat = _categories.find((c) => c.id === categoryId);
     if (cat) {
-      cat.bookmarks.push({ id: newId, title, url, iconPath });
+      cat.bookmarks.push({ id: newId, title, url, iconPath, importedFavicon });
     }
     saveData();
     rerender();
@@ -949,7 +946,7 @@ export async function createBookmark(
     const ref = { currentId: newId };
     pushUndo({
       undo: () => deleteBookmarkById(ref.currentId),
-      redo: async () => { ref.currentId = await createBookmark(categoryId, title, url, iconPath); },
+      redo: async () => { ref.currentId = await createBookmark(categoryId, title, url, iconPath, importedFavicon); },
     });
   }
   return newId;
@@ -961,7 +958,9 @@ export async function updateBookmark(
   url: string,
   iconPath: string | null,
   categoryId?: string,
+  importedFavicon?: boolean,
 ): Promise<void> {
+  let oldImportedFavicon: true | undefined;
   let oldTitle: string | undefined;
   let oldUrl: string | undefined;
   let oldIconPath: string | null = null;
@@ -973,6 +972,7 @@ export async function updateBookmark(
         oldTitle = bk.title;
         oldUrl = bk.url;
         oldIconPath = bk.iconPath;
+        oldImportedFavicon = bk.importedFavicon;
         oldCategoryId = cat.id;
         break;
       }
@@ -986,6 +986,7 @@ export async function updateBookmark(
         title,
         url,
         iconPath: iconPath ?? undefined,
+        importedFavicon,
         categoryId: categoryId ? (categoryId as Id<'categories'>) : undefined,
       });
     } catch (err) {
@@ -1006,6 +1007,8 @@ export async function updateBookmark(
     if (bookmark) {
       bookmark.title = title;
       bookmark.url = url;
+      const keepBrowserIcon = importedFavicon ?? (iconPath === bookmark.iconPath && bookmark.importedFavicon);
+      bookmark.importedFavicon = keepBrowserIcon && iconPath?.startsWith('data:') ? true : undefined;
       bookmark.iconPath = iconPath;
       // Move to different category if requested
       if (categoryId && sourceCat && categoryId !== sourceCat.id) {
@@ -1020,8 +1023,8 @@ export async function updateBookmark(
   if (!isUndoing() && oldTitle !== undefined) {
     const ot = oldTitle, ou = oldUrl!, oi = oldIconPath, oc = oldCategoryId;
     pushUndo({
-      undo: () => updateBookmark(id, ot, ou, oi, oc),
-      redo: () => updateBookmark(id, title, url, iconPath, categoryId),
+      undo: () => updateBookmark(id, ot, ou, oi, oc, oldImportedFavicon ?? false),
+      redo: () => updateBookmark(id, title, url, iconPath, categoryId, importedFavicon),
     });
   }
 }
@@ -1065,7 +1068,7 @@ export async function deleteBookmarkById(id: string): Promise<void> {
     const catId = capturedCatId;
     const ref = { currentId: id };
     pushUndo({
-      undo: async () => { ref.currentId = await createBookmark(catId, bk.title, bk.url, bk.iconPath); },
+      undo: async () => { ref.currentId = await createBookmark(catId, bk.title, bk.url, bk.iconPath, bk.importedFavicon); },
       redo: () => deleteBookmarkById(ref.currentId),
     });
   }
@@ -1283,19 +1286,27 @@ function localImportId(id: string, used: Set<string>): string {
   return next;
 }
 
+async function importToSync(client: ConvexClient, data: Category[], replace: boolean): Promise<void> {
+  validateSyncImportCount(data);
+  const bulkData = data.map(cat => ({
+    name: cat.name,
+    bookmarks: cat.bookmarks.map(b => ({
+      title: b.title,
+      url: b.url,
+      iconPath: b.iconPath ?? undefined,
+      importedFavicon: b.importedFavicon,
+    })),
+  }));
+  const args = { data: bulkData, replace };
+  // Oversized arguments can be rejected before the mutation even runs.
+  if (getConvexSize([args]) > 16 * 1024 * 1024) throw new ConvexError(IMPORT_CAPACITY);
+  await client.mutation(api.bookmarks.importBulk, args);
+}
+
 export async function importBulk(data: Category[], replace: boolean): Promise<void> {
   if (data.length === 0) throw new Error('No categories to import.');
   if (_convexActive) {
-    const client = requireConvexClient();
-    const bulkData = data.map((cat) => ({
-      name: cat.name,
-      bookmarks: cat.bookmarks.map((b) => ({
-        title: b.title,
-        url: b.url,
-        iconPath: b.iconPath ?? undefined,
-      })),
-    }));
-    await client.mutation(api.bookmarks.importBulk, { data: bulkData, replace });
+    await importToSync(requireConvexClient(), data, replace);
   } else {
     const retained = replace ? [] : _categories;
     const categoryIds = new Set(retained.map(cat => cat.id));

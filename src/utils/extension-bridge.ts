@@ -85,6 +85,7 @@ export function syncExtensionLocalSnapshot(categories: Category[]): void {
       title: bookmark.title,
       url: bookmark.url,
       iconPath: bookmark.iconPath,
+      importedFavicon: bookmark.importedFavicon,
       order: bookmark.order,
     })),
   }));

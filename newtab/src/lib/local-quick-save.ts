@@ -3,6 +3,7 @@ export interface LocalBookmark {
   title: string;
   url: string;
   iconPath?: string | null;
+  importedFavicon?: true;
   order?: number;
 }
 
@@ -59,6 +60,7 @@ function normalizeCategories(value: unknown): LocalCategory[] {
           id: bookmark.id,
           title: bookmark.title,
           url: bookmark.url,
+          importedFavicon: bookmark.importedFavicon === true ? true : undefined,
           iconPath: typeof bookmark.iconPath === 'string' ? bookmark.iconPath : null,
           order: typeof bookmark.order === 'number' ? bookmark.order : undefined,
         })),

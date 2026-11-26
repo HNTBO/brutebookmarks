@@ -50,7 +50,7 @@ describe('parseJSON', () => {
         ],
       },
     ]);
-    const result = parseJSON(input);
+    const result = parseJSON(input).categories;
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('Dev Tools');
     expect(result[0].bookmarks).toHaveLength(1);
@@ -107,7 +107,7 @@ describe('parseJSON', () => {
         ],
       },
     ]);
-    const result = parseJSON(input);
+    const result = parseJSON(input).categories;
     expect(result[0].name).toHaveLength(200);
   });
 
@@ -121,7 +121,7 @@ describe('parseJSON', () => {
         ],
       },
     ]);
-    const result = parseJSON(input);
+    const result = parseJSON(input).categories;
     expect(result[0].bookmarks[0].title).toHaveLength(500);
   });
 
@@ -145,7 +145,7 @@ describe('parseJSON', () => {
         ],
       },
     ]);
-    const result = parseJSON(input);
+    const result = parseJSON(input).categories;
     expect(result[0].bookmarks[0].iconPath).toBeNull();
   });
 
@@ -159,13 +159,13 @@ describe('parseJSON', () => {
         ],
       },
     ]);
-    const result = parseJSON(input);
+    const result = parseJSON(input).categories;
     expect(result[0].bookmarks[0].iconPath).toBeNull();
   });
 
   function importIcon(iconPath: string) {
     const bookmark = { title: 'Fixture', url: 'https://fixture.example', iconPath };
-    return parseJSON(JSON.stringify([{ name: 'Icons', bookmarks: [bookmark] }]))[0].bookmarks[0].iconPath;
+    return parseJSON(JSON.stringify([{ name: 'Icons', bookmarks: [bookmark] }])).categories[0].bookmarks[0].iconPath;
   }
 
   it('retains remote icon URLs and falls back for unsupported schemes', () => {
@@ -179,6 +179,17 @@ describe('parseJSON', () => {
     const icon = ('data:image/svg+xml,' + encodeURIComponent(svg)).padEnd(50_000, ' ');
     expect(importIcon(icon) === icon).toBe(true);
     expect(importIcon(icon + ' ')).toBeNull();
+  });
+
+  it('reports oversized backup images and trusts provenance only on a supported embedded icon', () => {
+    const link = { title: 'Fixture', url: 'https://fixture.example/', iconPath: 'data:image/png;base64,YQ==' };
+    const { categories, oversizedImages } = parseJSON(JSON.stringify([{ name: 'Icons', bookmarks: [
+      link, { ...link, importedFavicon: true }, { ...link, importedFavicon: 'true' },
+      { ...link, iconPath: link.iconPath.padEnd(50_001, ' '), importedFavicon: true },
+      { ...link, iconPath: 'https://fixture.example/icon', importedFavicon: true },
+    ] }]));
+    expect(oversizedImages).toBe(1);
+    expect(categories[0].bookmarks.map(b => b.importedFavicon)).toEqual([undefined, true, undefined, undefined, undefined]);
   });
 
   it.each(['data:text/plain;base64,YQ==', 'data:image/png;base64,', 'data:image/png;base64,%%%'])(

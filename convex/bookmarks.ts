@@ -1,6 +1,7 @@
 import { query, mutation } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
+import { IMPORT_CAPACITY, isTransactionByteLimit, validateSyncImportCount } from '../src/shared/import-capacity';
 import { bumpUserWatermark } from './syncMeta';
 
 const MAX_TITLE_LENGTH = 500;
@@ -15,7 +16,7 @@ function validateUrl(url: string): void {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error(`Invalid URL scheme: ${parsed.protocol} — only http and https are allowed`);
+      throw new Error(`Invalid URL scheme: ${parsed.protocol} â€” only http and https are allowed`);
     }
   } catch (e) {
     if (e instanceof Error && e.message.startsWith('Invalid URL scheme')) throw e;
@@ -54,8 +55,9 @@ export const create = mutation({
     title: v.string(),
     url: v.string(),
     iconPath: v.optional(v.string()),
+    importedFavicon: v.optional(v.literal(true)),
   },
-  handler: async (ctx, { categoryId, title, url, iconPath }) => {
+  handler: async (ctx, { categoryId, title, url, iconPath, importedFavicon }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
@@ -81,6 +83,7 @@ export const create = mutation({
       title,
       url,
       iconPath: iconPath ?? undefined,
+      importedFavicon,
       categoryId,
       order: maxOrder + 1,
       userId,
@@ -96,9 +99,10 @@ export const update = mutation({
     title: v.string(),
     url: v.string(),
     iconPath: v.optional(v.string()),
+    importedFavicon: v.optional(v.boolean()),
     categoryId: v.optional(v.id('categories')),
   },
-  handler: async (ctx, { id, title, url, iconPath, categoryId }) => {
+  handler: async (ctx, { id, title, url, iconPath, importedFavicon, categoryId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
@@ -112,7 +116,11 @@ export const update = mutation({
       throw new Error('Bookmark not found');
     }
 
-    const patch: Record<string, unknown> = { title, url, iconPath: iconPath ?? undefined };
+    // An older editor can save a title without knowing about the marker.
+    const keepBrowserIcon = importedFavicon ?? (iconPath === bookmark.iconPath && bookmark.importedFavicon);
+    const patch: Record<string, unknown> = {
+      title, url, iconPath, importedFavicon: keepBrowserIcon && iconPath?.startsWith('data:') ? true : undefined,
+    };
 
     if (categoryId !== undefined && categoryId !== bookmark.categoryId) {
       const targetCategory = await ctx.db.get(categoryId);
@@ -190,6 +198,7 @@ export const importBulk = mutation({
             title: v.string(),
             url: v.string(),
             iconPath: v.optional(v.string()),
+            importedFavicon: v.optional(v.literal(true)),
           }),
         ),
       }),
@@ -200,14 +209,7 @@ export const importBulk = mutation({
     if (!identity) throw new Error('Not authenticated');
     const userId = identity.subject;
 
-    // Enforce import limits
-    if (data.length > 500) {
-      throw new Error(`Import exceeds maximum of 500 categories (got ${data.length})`);
-    }
-    const totalBookmarks = data.reduce((sum, cat) => sum + cat.bookmarks.length, 0);
-    if (totalBookmarks > 5000) {
-      throw new Error(`Import exceeds maximum of 5000 bookmarks (got ${totalBookmarks})`);
-    }
+    validateSyncImportCount(data);
 
     // Validate all fields before inserting anything
     for (const cat of data) {
@@ -219,31 +221,37 @@ export const importBulk = mutation({
       }
     }
 
-    if (replace) {
-      if (data.length === 0) throw new Error('No categories to import');
-      await deleteUserLibrary(ctx, userId);
-    }
+    try {
+      if (replace) {
+        if (data.length === 0) throw new Error('No categories to import');
+        await deleteUserLibrary(ctx, userId);
+      }
 
-    for (let ci = 0; ci < data.length; ci++) {
-      const cat = data[ci];
-      const categoryId = await ctx.db.insert('categories', {
-        name: cat.name,
-        order: ci + 1,
-        userId,
-      });
-      for (let bi = 0; bi < cat.bookmarks.length; bi++) {
-        const bk = cat.bookmarks[bi];
-        await ctx.db.insert('bookmarks', {
-          title: bk.title,
-          url: bk.url,
-          iconPath: bk.iconPath ?? undefined,
-          categoryId,
-          order: bi + 1,
+      for (let ci = 0; ci < data.length; ci++) {
+        const cat = data[ci];
+        const categoryId = await ctx.db.insert('categories', {
+          name: cat.name,
+          order: ci + 1,
           userId,
         });
+        for (let bi = 0; bi < cat.bookmarks.length; bi++) {
+          const bk = cat.bookmarks[bi];
+          await ctx.db.insert('bookmarks', {
+            title: bk.title,
+            url: bk.url,
+            iconPath: bk.iconPath ?? undefined,
+            importedFavicon: bk.importedFavicon,
+            categoryId,
+            order: bi + 1,
+            userId,
+          });
+        }
       }
+      await bumpUserWatermark(ctx, userId);
+    } catch (error) {
+      if (isTransactionByteLimit(error)) throw new ConvexError(IMPORT_CAPACITY);
+      throw error;
     }
-    await bumpUserWatermark(ctx, userId);
   },
 });
 
