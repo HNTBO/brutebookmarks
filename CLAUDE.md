@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Deploy
 - Always run `npm run build` after multi-file changes before committing.
 - For Convex deploys: `npx convex deploy && npm run build` (not `--cmd` wrapper).
-- Production is on Vercel. Build command: `npx convex deploy && vite build`.
+- Production is on Vercel (`vercel.json` runs `npx convex deploy --yes` only when `VERCEL_ENV=production`, then `vite build` on all environments so preview builds never attempt to deploy to production Convex).
 - **Mobile fixes**: For changes related to mobile behavior/touch interactions, always commit and push immediately so the user can test on their device via the deployed version.
 
 ## Project Overview
@@ -106,7 +106,7 @@ The icon picker (`src/components/icon-picker.ts`) currently calls legacy `/api/*
 ```env
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...  # Clerk publishable key (baked into frontend at build)
 VITE_CONVEX_URL=https://...convex.cloud  # Convex deployment URL (baked into frontend at build)
-CONVEX_DEPLOY_KEY=prod:...               # Convex deploy key (Vercel build only, not in frontend)
+CONVEX_DEPLOY_KEY=prod:...               # Convex deploy key (Vercel Production build only, not in frontend)
 CLERK_JWT_ISSUER_DOMAIN=https://...      # Clerk JWT issuer (Convex dashboard env var)
 ```
 
