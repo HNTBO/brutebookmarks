@@ -106,10 +106,7 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 VITE_CONVEX_URL=https://...convex.cloud
 ```
 
-For Vercel deployment, also set `CONVEX_DEPLOY_KEY` and use build command:
-```
-npx convex deploy && vite build
-```
+For Vercel deployment, also set `CONVEX_DEPLOY_KEY` (Production environment only); `vercel.json` runs `npx convex deploy --yes` on production builds and `vite build` on all builds.
 
 ## License
 

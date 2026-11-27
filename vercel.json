@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx convex deploy --yes && vite build",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then npx convex deploy --yes; fi && vite build",
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" }
   ]
